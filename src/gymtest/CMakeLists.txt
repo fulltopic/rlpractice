@@ -1,0 +1,5 @@
+add_subdirectory(env)
+add_subdirectory(lunarnets)
+add_subdirectory(airnets)
+add_subdirectory(train)
+add_subdirectory(utils)
