@@ -2146,7 +2146,107 @@ void test35(const int batchSize, const int epochNum) {
     a2c.train(epochNum, true);
 }
 
-//TODO: valueCoef = 0.25
+//valueCoef = 0.25, batchSize = 50
+void test36(const int batchSize, const int epochNum) {
+	const std::string envName = "PongNoFrameskip-v4";
+	const int outputNum = 6;
+	const int clientNum = batchSize;
+	std::string serverAddr = "tcp://127.0.0.1:10201";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	AirACHONet model(outputNum);
+	model.to(deviceType);
+
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-2)); //rmsprop: 0.00025
+//    torch::optim::RMSprop optimizer(model.parameters(),
+//    		torch::optim::RMSpropOptions(7e-4).eps(1e-5).alpha(0.99));
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(0.001).eps(1e-3));
+//	torch::optim::RMSprop optimizer(model.parameters());
+//    RawPolicy policy(1, outputNum);
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    option.isAtari = true;
+    option.statCap = 128;
+    option.entropyCoef = 0.01;
+    option.valueCoef = 0.25;
+    option.maxGradNormClip = 0.1;
+    option.statPathPrefix = "./ponga2cnbatch_test36";
+    option.saveModel = true;
+    option.savePathPrefix = "./ponga2cnbatch_test36";
+    option.toTest = false;
+    option.inputScale = 255;
+    option.batchSize = batchSize;
+    option.rewardScale = 1;
+    option.rewardMin = -1;
+    option.rewardMax = 1;
+    option.loadModel = false;
+    option.loadOptimizer = false;
+//    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/ponga2cnbatch_test9";
+
+
+    SoftmaxPolicy policy(outputNum);
+    const int maxStep = 5;
+    //TODO: testenv
+    A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam> a2c(model, env, env, policy, optimizer, maxStep, option);
+    a2c.train(epochNum, true);
+}
+
+//batchSize = 50
+//valueCoef = 1
+void test37(const int batchSize, const int epochNum) {
+	const std::string envName = "PongNoFrameskip-v4";
+	const int outputNum = 6;
+	const int clientNum = batchSize;
+	std::string serverAddr = "tcp://127.0.0.1:10203";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	AirACHONet model(outputNum);
+	model.to(deviceType);
+
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-2)); //rmsprop: 0.00025
+//    torch::optim::RMSprop optimizer(model.parameters(),
+//    		torch::optim::RMSpropOptions(7e-4).eps(1e-5).alpha(0.99));
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(0.001).eps(1e-3));
+//	torch::optim::RMSprop optimizer(model.parameters());
+//    RawPolicy policy(1, outputNum);
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    option.isAtari = true;
+    option.statCap = 128;
+    option.entropyCoef = 0.01;
+    option.valueCoef = 1;
+    option.maxGradNormClip = 0.1;
+    option.statPathPrefix = "./ponga2cnbatch_test37";
+    option.saveModel = true;
+    option.savePathPrefix = "./ponga2cnbatch_test37";
+    option.toTest = false;
+    option.inputScale = 255;
+    option.batchSize = batchSize;
+    option.rewardScale = 1;
+    option.rewardMin = -1;
+    option.rewardMax = 1;
+    option.loadModel = true;
+    option.loadOptimizer = true;
+    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/ponga2cnbatch_test35";
+
+
+    SoftmaxPolicy policy(outputNum);
+    const int maxStep = 5;
+    //TODO: testenv
+    A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam> a2c(model, env, env, policy, optimizer, maxStep, option);
+    a2c.train(epochNum, true);
+}
+
 }
 
 namespace {
@@ -2247,7 +2347,8 @@ int main(int argc, char** argv) {
 //	test21(atoi(argv[1]), atoi(argv[2]));
 //	test29(atoi(argv[1]), atoi(argv[2]));
 //	testtest32(atoi(argv[1]), atoi(argv[2]));
-	test35(atoi(argv[1]), atoi(argv[2]));
+	test37(atoi(argv[1]), atoi(argv[2]));
+//	test36(atoi(argv[1]), atoi(argv[2]));
 //	testCal(atoi(argv[1]), atoi(argv[2]));
 //	testSave(atoi(argv[1]), atoi(argv[2]));
 
