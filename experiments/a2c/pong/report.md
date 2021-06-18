@@ -707,7 +707,7 @@ Brute force:
 |eps|1e-5|
 |alpha|0.99|
 
-Seemed better than test31 while still failed to get the optimal policy that average-reward = 21.
+Seemed better than test31 while still failed to get the optimal policy that average-reward = 20.
 
 ![test32_test31_reward](./images/test32_test31_reward.jpg)
 
@@ -742,7 +742,7 @@ but seldom diminish still prevented the agent to learn more reward; with [test17
 |16|[test29](###test29), [test31](###test31), [test32](###test32)|
 
 * 5: Although only [test17](###test17) worked, it proved that 5 is a possible candidate.
-* 8: No good cases. Maybe there was not enough case to prove its feasibility.
+* 8: No good cases. There was not enough case to prove its feasibility.
 * 10: All cases generated not bad performance. While _env_num_ >= 50 in all these cases. Don't know which factor contributed more.
 * 16: Compared to [test24](###test24), it is hard to decide if 16-step is better than 10-step as the improvement is hard to detect and _entropyCoef_ changed.
 
@@ -775,4 +775,24 @@ Seemed that 0.25 is a better choice as
 * Refer to [test25](###test25) vs. [test24](###test24)
 * All best result (case 24, 31, 32) were all in category of 0.25
 
-Maybe it is not a parameter to tuned the very first
+Maybe it is not a parameter to be tuned at the very first
+
+### maxGradNormClip
+|value|case|
+|-----|----|
+|0.5|0, 1, 2, 3, 4, 5, 7, 6, 8, 9, 10, 11, 14, 12, 15, 30, 31|
+|0.1|13, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 32|
+
+* Decrease from 0.5 to 0.1 did introduce improvement on performance when average reward reached 20 ([test31](###test31) vs. [test32](###test32))
+* 0.5 is also a good choice ([test31](###test31))
+* Not sure performance of 0.5 if trained from scratch
+
+### Optimizer
+|value|case|
+|-----|----|
+|Adam|17|
+|RMS|others|
+
+* Adam requires more tests to check its capability after average reward > 0
+* Compared to RMS, Adam is stable with smaller batchSize
+* RMS worked
