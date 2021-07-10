@@ -89,6 +89,14 @@ add_executable(a2cnbatchpong a2cnbatchpong.cpp $<TARGET_OBJECTS:gymenv> $<TARGET
 target_compile_features(a2cnbatchpong PUBLIC cxx_range_for)
 target_link_libraries(a2cnbatchpong ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
 
+add_executable(a2cnbreakout a2cnbreakout.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:dbtools>)
+target_compile_features(a2cnbreakout PUBLIC cxx_range_for)
+target_link_libraries(a2cnbreakout ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
+
+add_executable(a2cngae a2cngae.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:dbtools>)
+target_compile_features(a2cngae PUBLIC cxx_range_for)
+target_link_libraries(a2cngae ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
+
 add_executable(testrtnorm testrtnorm.cpp $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain>)
 target_compile_features(testrtnorm PUBLIC cxx_range_for)
 target_link_libraries(testrtnorm ${shared_libs})
@@ -96,4 +104,9 @@ target_link_libraries(testrtnorm ${shared_libs})
 add_executable(testpriorb testpriorb.cpp $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain>)
 target_compile_features(testpriorb PUBLIC cxx_range_for)
 target_link_libraries(testpriorb ${shared_libs})
+
+add_executable(ppopong ppopong.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:dbtools>)
+target_compile_features(ppopong PUBLIC cxx_range_for)
+target_link_libraries(ppopong ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
+
 

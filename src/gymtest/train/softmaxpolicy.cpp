@@ -30,7 +30,7 @@ std::vector<int64_t> SoftmaxPolicy::getActions(torch::Tensor input) {
 //		}
 //	}
 	{
-//		LOG4CXX_INFO(logger, "input shape: " << input.sizes());
+//		LOG4CXX_INFO(logger, "input " << input);
 		torch::NoGradGuard guard;
 		auto samples = input.multinomial(1).to(torch::kCPU);
 //		LOG4CXX_INFO(logger, "samples: " << samples);

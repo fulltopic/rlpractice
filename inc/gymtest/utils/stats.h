@@ -35,7 +35,7 @@ public:
 	inline const int getIndex() const { return index;}
 	std::vector<float> getCurState();
 
-	static void UpdateReward(std::vector<float>& target, const std::vector<float>& src);
+	static void UpdateReward(std::vector<float>& target, const std::vector<float>& src, bool toClip = false, float minClip = -1, float maxClip = 1);
 	static void UpdateLen(std::vector<float>& lens);
 
 

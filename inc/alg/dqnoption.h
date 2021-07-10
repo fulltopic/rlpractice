@@ -17,6 +17,7 @@ public:
 	float gamma;
 	torch::Device deviceType;
 	int totalStep = 128;
+	int envNum = 16;
 
 	//input
 	bool isAtari = true;
@@ -26,6 +27,8 @@ public:
 	int rewardScale = 1;
 	int rewardMin = -1;
 	int rewardMax = 1;
+	bool normReward = false;
+	bool clipRewardStat = false;
 
 	//Load/save model
 	std::string statPathPrefix;
@@ -36,6 +39,10 @@ public:
 	bool loadModel = false;
 	bool loadOptimizer = true;
 	std::string loadPathPrefix = "";
+	float saveThreshold = 1e+8;
+	float saveStep = 1000;
+	float sumSaveThreshold = 1e+8;
+	float sumSaveStep = 1000;
 
 	//Target update
 	int targetUpdate;
@@ -67,11 +74,29 @@ public:
 	float entropyCoef = 1e-3;
 	float valueCoef = 0.5;
 	int statCap = 1024;
+	//ppo
+	int trajStepNum = 1;
+	int epochNum = 1;
+	float ppoLambda = 0.6;
+	float ppoEpsilon = 0.1;
+	bool klEarlyStop = false;
+	float maxKl = 0.01;
+	bool valueClip = false;
+	float maxValueDelta = 1.0;
+
+	//breakout
+	bool multiLifes = false;
+	int donePerEp = 1;
 
 	//test
 	bool toTest = false;
 	int testGapEp = 100;
 	int testBatch = 1;
+	int testOutput = 1;
+	float hangRewardTh = 1;
+	int hangNumTh = 1;
+	int randomStep = 1;
+	bool randomHang = false;
 
 	DqnOption(at::IntArrayRef iShape, torch::Device dType = torch::kCPU, int cap = 128, float gm = 0.99, std::string path = "./stat.txt", int tUpdate = 128);
 	~DqnOption() = default;

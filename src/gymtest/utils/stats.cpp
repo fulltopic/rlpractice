@@ -97,9 +97,19 @@ std::ostream& operator<< (std::ostream& os, const Stats& st) {
 	return os;
 }
 
-void Stats::UpdateReward(std::vector<float>& target, const std::vector<float>& src) {
+void Stats::UpdateReward(std::vector<float>& target, const std::vector<float>& src, bool toClip, float minClip, float maxClip) {
 	for (int i = 0; i < target.size(); i ++) {
-		target[i] += src[i];
+		if (toClip) {
+			if (src[i] < minClip) {
+				target[i] += minClip;
+			} else if(src[i] > maxClip) {
+				target[i] += maxClip;
+			} else {
+				target[i] += src[i];
+			}
+		} else {
+			target[i] += src[i];
+		}
 	}
 }
 void Stats::UpdateLen(std::vector<float>& lens) {

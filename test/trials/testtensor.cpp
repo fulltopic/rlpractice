@@ -393,13 +393,26 @@ void testmse() {
 	loss2.backward();
 	std::cout << "ws grad " << ws2.grad() << std::endl;
 }
+
+void testfromblob() {
+	std::vector<float> raws{5.64432e-40, 0};
+	torch::Tensor t = torch::from_blob(raws.data(), {2, 1});
+
+	std::cout << "raws = " << raws << std::endl;
+	std::cout << "t = " << t << std::endl;
+}
+
+//void testDevice() {
+//	auto device = torch::device("cuda:0");
+//	std::cout << "device " << device << std::endl;
+//}
 }
 
 int main() {
 //	testExpandAs();
 //	testAssign();
 //	testDataPtr();
-//	testCuda();
+	testCuda();
 //	testLong();
 //	testRandInt();
 //	testReserve();
@@ -412,7 +425,9 @@ int main() {
 //	testMultinomial();
 //	testBinomial();
 //	testLoss();
-	testmse();
+//	testmse();
+//	testfromblob();
+//	testDevice();
 
 	return 0;
 }
