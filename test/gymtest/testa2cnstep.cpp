@@ -71,22 +71,41 @@ void test0(const int batchSize, const int epochNum) {
 
     at::IntArrayRef inputShape{num, 4};
     DqnOption option(inputShape, deviceType);
+//    option.gamma = 0.99;
+//    option.batchSize = batchSize;
+//    option.targetUpdate = 1024;
+//    option.statPathPrefix = "./a2cn_test0";
+//    option.rbCap = 10240;
+//    option.saveModel = false;
+//    option.savePathPrefix = "./a2cn_test0";
+//    option.exploreBegin = 1;
+//    option.exploreEnd = 0.1;
+//    option.exploreStep = epochNum / 2;
+//    option.loadModel = false;
+
+    option.isAtari = false;
+    option.donePerEp = 1;
+    option.multiLifes = false;
+    option.statCap = batchSize * 2;
+    option.entropyCoef = 0.01;
+    option.valueCoef = 0.5;
+    option.maxGradNormClip = 0.5;
+    option.ppoLambda = 0.95;
     option.gamma = 0.99;
+    option.statPathPrefix = "./a2cngae_test0";
+    option.saveModel = true;
+    option.savePathPrefix = "./a2cngae_test0";
+    option.toTest = false;
+    option.inputScale = 1;
     option.batchSize = batchSize;
-    option.targetUpdate = 1024;
-    option.statPathPrefix = "./a2cn_test0";
-//    option.statPath = "./stat_a2cn_test0.txt";
-//    option.teststatPath = "./test_a2cn_test0.txt";
-    option.rbCap = 10240;
-    option.saveModel = false;
-    option.savePathPrefix = "./a2cn_test0";
-    option.exploreBegin = 1;
-    option.exploreEnd = 0.1;
-//    option.exploreDecay = 0.1;
-    option.exploreStep = epochNum / 2;
-//    option.explorePhase =  10;
+    option.rewardScale = 1;
+    option.rewardMin = -1;
+    option.rewardMax = 1;
+    option.valueClip = false;
+    option.normReward = false;
     option.loadModel = false;
-//    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/experiments/0418/test7";
+    option.loadOptimizer = false;
+//    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/boa2cnbatch_test17";
 
     SoftmaxPolicy policy(outputNum);
     const int maxStep = 8;
@@ -534,8 +553,8 @@ void logConfigure(bool err) {
 int main(int argc, char** argv) {
 	logConfigure(false);
 
-//	test0(atoi(argv[1]), atoi(argv[2]));
-	test1(atoi(argv[1]), atoi(argv[2]));
+	test0(atoi(argv[1]), atoi(argv[2]));
+//	test1(atoi(argv[1]), atoi(argv[2]));
 //	test1_1(atoi(argv[1]), atoi(argv[2]));
 //	test2(atoi(argv[1]), atoi(argv[2]));
 //	test3(atoi(argv[1]), atoi(argv[2]));

@@ -402,6 +402,61 @@ void testfromblob() {
 	std::cout << "t = " << t << std::endl;
 }
 
+void testChunk() {
+	const int maxStep = 3;
+	const int roundNum = 4;
+	const int trajStep = maxStep * roundNum;
+	const int envNum = 8;
+
+	std::vector<float> data(trajStep * envNum, 0);
+	for (int i = 0; i < trajStep; i ++) {
+		for (int j = 0; j < envNum; j ++) {
+			data[i * envNum + j] = i * 10 + j;
+		}
+	}
+	std::cout << "data: " << std::endl << data << std::endl;
+
+	torch::Tensor bulkTensor = torch::from_blob(data.data(), {trajStep, envNum, 1});
+	auto rs = torch::split(bulkTensor.view({roundNum * maxStep * envNum, 1}), maxStep * envNum);
+	std::cout << rs.size() << " parts " << std::endl;
+	auto r = rs[0];
+	std::cout << "a chunk " << r << std::endl;
+//	std::cout << "a chunk " << rs[1] << std::endl;
+	std::cout << "a chunk " << rs[2] << std::endl;
+}
+
+void testNorm() {
+	std::vector<float> data {
+		-4.3510,
+		 -4.7648,
+		 -4.5042,
+		 -4.6648,
+		 -4.2306,
+		 -4.0069,
+		 -3.8417,
+		 -4.0403,
+		 -3.5070,
+		 -3.6849,
+		 -2.9249,
+		 -3.1565,
+		 -1.8906,
+		 -1.5126,
+		 -2.0397,
+		 -1.8644
+	};
+
+	torch::Tensor t = torch::from_blob(data.data(), {16, 1});
+	auto m = t.mean();
+	std::cout << "m = " << m << std::endl;
+	auto s = t.std();
+	std::cout << "s = " << s << std::endl;
+
+	auto u = t - m;
+	std::cout << "u = " << u << std::endl;
+
+	auto f = u / s;
+	std::cout << "f = " << f << std::endl;
+}
 //void testDevice() {
 //	auto device = torch::device("cuda:0");
 //	std::cout << "device " << device << std::endl;
@@ -412,7 +467,7 @@ int main() {
 //	testExpandAs();
 //	testAssign();
 //	testDataPtr();
-	testCuda();
+//	testCuda();
 //	testLong();
 //	testRandInt();
 //	testReserve();
@@ -428,6 +483,9 @@ int main() {
 //	testmse();
 //	testfromblob();
 //	testDevice();
+//	testChunk();
+
+	testNorm();
 
 	return 0;
 }

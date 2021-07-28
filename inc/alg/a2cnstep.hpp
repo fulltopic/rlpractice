@@ -194,7 +194,7 @@ void A2CNStep<NetType, EnvType, PolicyType, OptimizerType>::test(const int batch
 				statLens[i] = 0;
 				statRewards[i] = 0;
 //				stater.printCurStat();
-				LOG4CXX_INFO(logger, "test -----------> " << testStater);
+				LOG4CXX_INFO(logger, "test -----------> "<< i << " " << testStater);
 
 				liveCounts[i] ++;
 				if (liveCounts[i] >= dqnOption.donePerEp) {

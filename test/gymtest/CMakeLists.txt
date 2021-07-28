@@ -110,3 +110,7 @@ target_compile_features(ppopong PUBLIC cxx_range_for)
 target_link_libraries(ppopong ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
 
 
+add_executable(ppobr ppobr.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:dbtools>)
+target_compile_features(ppobr PUBLIC cxx_range_for)
+target_link_libraries(ppobr ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
+

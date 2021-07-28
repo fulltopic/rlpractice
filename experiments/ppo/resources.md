@@ -34,9 +34,25 @@
 
 * [A Zhihu reproduce](https://zhuanlan.zhihu.com/p/50322028)
 
+* [hints from stable-baselines3 ppo code reading](https://blog.csdn.net/jinzhuojun/article/details/80417179)
+
+* [About lambda](https://slm-lab.gitbook.io/slm-lab/using-slm-lab/search-spec-ppo-on-breakout)
+
+* [Clip objective function](https://drive.google.com/file/d/1PDzn9RPvaXjJFZkGeapMHbHGiWWW20Ey/view)
+
 ## TODO
 
 * Distributed PPO
+
+* Difference betweeen initializer: orthogonal, xavier, kaiming are all suggested
+
+* How clip works in backward?
+
+* Review GAE: how it balanced bias and variance?
+
+* Retrace
+
+## Advanced (Not to read yet)
 
 * [Deceptive Gradient](https://arxiv.org/pdf/2006.08505.pdf)
 
@@ -44,6 +60,5 @@
 
 * [Exploration Topic](https://stackoverflow.com/questions/63047930/reinforcement-learning-driving-around-objects-with-ppo)
 
-* Difference betweeen initializer: orthogonal, xavier, kaiming are all suggested
-
 * ACKTR
+

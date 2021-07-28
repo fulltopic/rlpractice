@@ -210,15 +210,12 @@ void A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 
 	std::vector<float> stateVec = env.reset();
 	while (updateNum < epNum) {
+
+		//Collect data for maxStep
 		std::vector<std::vector<float>> statesVec;
 		std::vector<std::vector<float>> rewardsVec;
 		std::vector<std::vector<float>> donesVec;
 		std::vector<std::vector<long>> actionsVec;
-
-//		std::vector<torch::Tensor> nextValues;
-
-//		torch::Tensor tmpValue;
-//		bool isTmpValueSet = false;
 
 		bModel.eval();
 		for (step = 0; step < maxStep; step ++) {
@@ -279,13 +276,14 @@ void A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 			stateVec = nextStateVec;
 		}
 
+		//Get last V
 		torch::Tensor lastStateTensor = torch::from_blob(stateVec.data(), inputShape).div(dqnOption.inputScale).to(deviceType);
 //		LOG4CXX_INFO(logger, "stateTensor in last: " << lastStateTensor.max() << lastStateTensor.mean());
-
 		auto rc = bModel.forward(lastStateTensor);
 		auto lastValueTensor = rc[1].squeeze(-1);
 //		LOG4CXX_INFO(logger, "lastValue: " << lastValueTensor);
 
+		//Update
 		bModel.train();
 		optimizer.zero_grad();
 

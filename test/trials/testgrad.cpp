@@ -41,9 +41,62 @@ void testBatchGrad() {
 	std::cout << "y has grad? " << y.grad() << std::endl;
 	std::cout << "z has grad? " << z.grad() << std::endl;
 }
+
+struct FcNet: torch::nn::Module {
+private:
+	torch::nn::Linear fc;
+
+public:
+	FcNet(): fc(torch::nn::LinearOptions(1, 1).bias(false)) {
+//		fc->weight = torch::zeros(fc->weight.sizes()).requires_grad_();
+		register_module("fc", fc);
+	}
+	~FcNet() = default;
+
+	torch::Tensor forward(torch::Tensor input) {
+		return fc->forward(input);
+	}
+//	torch::Tensor getLoss(torch::Tensor input, torch::Tensor returns);
+};
+
+void testClip() {
+	FcNet fc;
+	torch::optim::SGD optimizer(fc.parameters(), torch::optim::SGDOptions(1e-1));
+	std::cout << "parameters: " << fc.parameters() << std::endl;
+
+	torch::Tensor x = torch::ones({1, 1});
+	torch::Tensor target = torch::ones({1, 1}) * 4;
+	torch::Tensor y = fc.forward(x);
+	torch::Tensor loss = torch::nn::functional::mse_loss(y, target);
+	optimizer.zero_grad();
+	loss.backward();
+	optimizer.step();
+	std::cout << "parameters: " << fc.parameters() << std::endl;
+
+	x = torch::ones({1, 1});
+	target = torch::ones({1, 1}) * 4;
+	y = fc.forward(x);
+	target = target.clip(0, 1);
+	loss = torch::nn::functional::mse_loss(y, target);
+	optimizer.zero_grad();
+	loss.backward();
+	optimizer.step();
+	std::cout << "parameters: " << fc.parameters() << std::endl;
+
+	x = torch::ones({1, 1});
+	target = torch::ones({1, 1}) * 4;
+	y = fc.forward(x);
+//	target = target.clip(0, 1);
+	loss = torch::nn::functional::mse_loss(y, target);
+	optimizer.zero_grad();
+	loss.backward();
+	optimizer.step();
+	std::cout << "parameters: " << fc.parameters() << std::endl;
+}
 }
 
 int main() {
 //	testXGrad();
-	testBatchGrad();
+//	testBatchGrad();
+	testClip();
 }
