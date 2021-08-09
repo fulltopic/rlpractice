@@ -26,6 +26,7 @@ include_directories(${MATPLOTCPP_INC_PATH})
 add_subdirectory(src/dbtools)
 add_subdirectory(src/gymtest)
 add_subdirectory(src/alg)
+add_subdirectory(src/probeenvs)
 add_subdirectory(test/)
 
 

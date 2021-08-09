@@ -23,6 +23,8 @@ public:
 	float aveLen;
 	float aveReward;
 	int epCount;
+	float maxLen = 0;
+	float maxReward = 0;
 	const std::string fileName;
 	std::ofstream statFile;
 

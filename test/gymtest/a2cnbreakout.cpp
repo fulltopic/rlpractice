@@ -1935,7 +1935,7 @@ void testtest204_95(const int epochNum) {
     option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/boa2cnbatch_test204_95.400078";
 
     option.hangRewardTh = 0.5;
-    option.randomHang = true;
+    option.randomHang = false;
     option.testOutput = outputNum;
     option.hangNumTh = 500;
     option.randomStep = 5;
@@ -2057,7 +2057,7 @@ void testtest204_85(const int epochNum) {
     option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/boa2cnbatch_test204_86.000046";
 
     option.hangRewardTh = 0.5;
-    option.randomHang = true;
+    option.randomHang = false;
     option.testOutput = outputNum;
     option.hangNumTh = 500;
     option.randomStep = 5;
@@ -2493,6 +2493,133 @@ void testtest205_420(const int epochNum) {
     a2c.test(batchSize, epochNum);
 //    a2c.train(epochNum, true);
 }
+
+//idle log
+void test206(const int epochNum) {
+	const int batchSize = 50;
+
+	const std::string envName = "BreakoutNoFrameskip-v4";
+	const int outputNum = 4;
+	const int clientNum = batchSize;
+	std::string serverAddr = "tcp://127.0.0.1:10210";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	AirACHONet model(outputNum);
+	model.to(deviceType);
+
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-2)); //rmsprop: 0.00025
+    torch::optim::RMSprop optimizer(model.parameters(),
+    		torch::optim::RMSpropOptions(7e-4).eps(1e-5).alpha(0.99));
+//    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-5));
+//	torch::optim::RMSprop optimizer(model.parameters());
+//    RawPolicy policy(1, outputNum);
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    option.isAtari = true;
+    option.donePerEp = 5;
+    option.statCap = batchSize * 2;
+    option.entropyCoef = 0.01;
+    option.valueCoef = 0.5;
+    option.maxGradNormClip = 0.5;
+    option.statPathPrefix = "./boa2cnbatch_test206";
+    option.saveModel = true;
+    option.savePathPrefix = "./boa2cnbatch_test206";
+    option.saveThreshold = 80;
+    option.saveStep = 5;
+    option.sumSaveThreshold = 2500;
+    option.sumSaveStep = 10;
+    option.toTest = false;
+    option.inputScale = 256;
+    option.batchSize = batchSize;
+    option.rewardScale = 1;
+    option.rewardMin = -1;
+    option.rewardMax = 1;
+
+    option.toPunish = true;
+    option.penalStep = 100;
+    option.penalReward = -0.5;
+    option.multiLifes = true;
+    option.donePerEp = 5;
+
+    option.normReward = false;
+    option.clipRewardStat = true;
+    option.loadModel = true;
+    option.loadOptimizer = true;
+    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/boa2cnbatch_test205_421.400177";
+
+
+    SoftmaxPolicy policy(outputNum);
+    const int maxStep = 20;
+    //TODO: testenv
+    A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
+    a2c.train(epochNum, true);
+}
+
+void testtest206(const int epochNum) {
+	const int batchSize = 16;
+
+	const std::string envName = "BreakoutNoFrameskip-v4";
+	const int outputNum = 4;
+	const int clientNum = batchSize;
+	std::string serverAddr = "tcp://127.0.0.1:10210";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	AirACHONet model(outputNum);
+	model.to(deviceType);
+
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-2)); //rmsprop: 0.00025
+    torch::optim::RMSprop optimizer(model.parameters(),
+    		torch::optim::RMSpropOptions(7e-4).eps(1e-5).alpha(0.99));
+//    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-5));
+//	torch::optim::RMSprop optimizer(model.parameters());
+//    RawPolicy policy(1, outputNum);
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    option.isAtari = true;
+    option.donePerEp = 5;
+    option.statCap = batchSize * 2;
+    option.entropyCoef = 0.01;
+    option.valueCoef = 0.5;
+    option.maxGradNormClip = 0.5;
+    option.statPathPrefix = "./boa2cnbatch_testtest206";
+    option.saveModel = false;
+    option.savePathPrefix = "./boa2cnbatch_testtest206";
+    option.toTest = true;
+    option.inputScale = 256;
+    option.batchSize = batchSize;
+    option.rewardScale = 1;
+    option.rewardMin = -100;
+    option.rewardMax = 100;
+    option.normReward = false;
+    option.loadModel = true;
+    option.loadOptimizer = false;
+    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/boa2cnbatch_test206";
+
+    option.hangRewardTh = 0.5;
+    option.randomHang = false;
+    option.testOutput = outputNum;
+    option.hangNumTh = 500;
+    option.randomStep = 5;
+
+    SoftmaxPolicy policy(outputNum);
+    const int maxStep = 20;
+    //TODO: testenv
+    A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
+    a2c.load();
+    a2c.test(batchSize, epochNum);
+//    a2c.train(epochNum, true);
+}
+
 }
 
 namespace {
@@ -2519,13 +2646,13 @@ int main(int argc, char** argv) {
 //	test18(atoi(argv[1]));
 
 //Test
-	testtest1(atoi(argv[1]));
+//	testtest204_85(atoi(argv[1]));
 
 //GAE
 //	test102(atoi(argv[1]));
 
 //Clipped
-//	test205(atoi(argv[1]));
+	testtest206(atoi(argv[1]));
 
 //	testtest0(atoi(argv[1]), atoi(argv[2]));
 

@@ -126,5 +126,3 @@ Try more training on:
 |value|0.25|
 |reward|[-1, 1]|
 |input|/255|
-
-## TODO: some loss images 

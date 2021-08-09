@@ -156,9 +156,13 @@ void PPORandom<NetType, EnvType, PolicyType, OptimizerType>::train(const int upd
 			std::vector<torch::Tensor> rc = bModel.forward(stateTensor);
 			valuesVec.push_back(rc[1]);
 			pisVec.push_back(rc[0]);
+			//probe test
+//			LOG4CXX_INFO(logger, "state: " << stateTensor);
+//			LOG4CXX_INFO(logger, "value: " << rc[1]);
 
 			auto actionProbs =  torch::softmax(rc[0], -1);
 			std::vector<int64_t> actions = policy.getActions(actionProbs);
+//			LOG4CXX_INFO(logger, "action: " << actions);
 
 			auto stepResult = env.step(actions, false);
 			auto nextStateVec = std::get<0>(stepResult);
@@ -184,7 +188,7 @@ void PPORandom<NetType, EnvType, PolicyType, OptimizerType>::train(const int upd
 					}
 					statLens[i] = 0;
 					statRewards[i] = 0;
-					LOG4CXX_INFO(logger, stater << " --- " << stepStater);
+					LOG4CXX_INFO(logger, "c" << i << stater << " --- " << stepStater);
 				}
 			}
 
@@ -210,6 +214,7 @@ void PPORandom<NetType, EnvType, PolicyType, OptimizerType>::train(const int upd
 		auto doneData = EnvUtils::FlattenVector(donesVec);
 		auto rewardData = EnvUtils::FlattenVector(rewardsVec);
 
+		//TODO: Check batchValueShape matches original layout
 		torch::Tensor valueTensor = torch::stack(valuesVec, 0).view(batchValueShape).to(torch::kCPU); //toCPU necessary?
 		torch::Tensor rewardTensor = torch::from_blob(rewardData.data(), batchValueShape).div(dqnOption.rewardScale).clamp(dqnOption.rewardMin, dqnOption.rewardMax);
 		torch::Tensor doneTensor = torch::from_blob(doneData.data(), batchValueShape);
@@ -229,22 +234,18 @@ void PPORandom<NetType, EnvType, PolicyType, OptimizerType>::train(const int upd
 		for (int i = dqnOption.trajStepNum - 1; i >= 0; i --) {
 			torch::Tensor delta = rewardTensor[i] + dqnOption.gamma * nextValueTensor * doneTensor[i] - valueTensor[i];
 			gaeReturn = delta + dqnOption.ppoLambda * dqnOption.gamma * gaeReturn * doneTensor[i];
-			plainReturn = rewardTensor[i] + dqnOption.gamma * plainReturn * doneTensor[i];
+//			plainReturn = rewardTensor[i] + dqnOption.gamma * plainReturn * doneTensor[i];
 
 			gaeReturns[i].copy_(gaeReturn);
-			returns[i].copy_(plainReturn);
+//			returns[i].copy_(plainReturn);
 			nextValueTensor = valueTensor[i];
 		}
+		returns = gaeReturns + valueTensor; //from baseline3. TODO: why?
 
 		//Put all tensors into GPU
-		if (dqnOption.normReward) {
-			gaeReturns = (gaeReturns - gaeReturns.mean()) / (gaeReturns.std() + 1e-7);
-			returns = (returns - returns.mean()) / (returns.std() + 1e-7);
-		} else {
-			gaeReturns = gaeReturns.to(deviceType).detach();
-			LOG4CXX_DEBUG(logger, "Calculated GAE " << gaeReturns.sizes());
-			returns = returns.to(deviceType).detach();
-		}
+		gaeReturns = gaeReturns.to(deviceType).detach();
+		LOG4CXX_DEBUG(logger, "Calculated GAE " << gaeReturns.sizes());
+		returns = returns.to(deviceType).detach();
 
 		//Calculate old log Pi
 		torch::Tensor oldDistTensor = torch::stack(pisVec, 0).view({dqnOption.trajStepNum, dqnOption.envNum, actionNum});
@@ -282,11 +283,15 @@ void PPORandom<NetType, EnvType, PolicyType, OptimizerType>::train(const int upd
 //		LOG4CXX_INFO(logger, "indiceTensor \n" << indiceTensor);
 		auto pieceLen = dqnOption.batchSize * dqnOption.envNum;
 
-		auto indiceTensor = torch::randperm(dqnOption.trajStepNum * dqnOption.envNum, longOpt).view({-1, dqnOption.batchSize * dqnOption.envNum}).to(deviceType);
+//		auto indiceTensor = torch::randperm(dqnOption.trajStepNum * dqnOption.envNum, longOpt).view({-1, dqnOption.batchSize * dqnOption.envNum}).to(deviceType);
 		for (int epochIndex = 0; epochIndex < dqnOption.epochNum; epochIndex ++) {
+//			LOG4CXX_INFO(logger, "epoch " << epochIndex << " state1 = \n" << stateTensor[1]);
+//			LOG4CXX_INFO(logger, "stateVec0 = " << statesVec[0]);
 			//shuffle index
 //			std::random_shuffle(indice.begin(), indice.end());
 //			torch::Tensor indiceTensor = torch::from_blob(indice.data(), {indice.size()}, longOpt).to(deviceType);
+			auto indiceTensor = torch::randperm(dqnOption.trajStepNum * dqnOption.envNum, longOpt).view({-1, dqnOption.batchSize * dqnOption.envNum}).to(deviceType);
+
 			for (int roundIndex = 0; roundIndex < roundNum; roundIndex ++) {
 				//fetch data
 //				torch::Tensor indexPiece = indiceTensor.narrow(0, pieceLen * roundIndex, pieceLen);
@@ -311,6 +316,9 @@ void PPORandom<NetType, EnvType, PolicyType, OptimizerType>::train(const int upd
 				//action loss
 				//actionPi and oldPi are logPi
 				torch::Tensor advTensor = gaePiece;
+				if (dqnOption.normReward) {
+					advTensor = (advTensor - advTensor.mean()) / (advTensor.std() + 1e-7);
+				}
 				torch::Tensor actionPiTensor = torch::softmax(actionOutput, -1);
 				torch::Tensor actionPi = actionPiTensor.gather(-1, oldActionPiece);
 				auto ratio = actionPi / oldPiPiece;

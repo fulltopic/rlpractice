@@ -30,6 +30,11 @@ public:
 	bool normReward = false;
 	bool clipRewardStat = false;
 
+	//reward penalty
+	bool toPunish = false;
+	int penalStep = 400;
+	float penalReward = -0.5;
+
 	//Load/save model
 	std::string statPathPrefix;
 	std::string statPath;

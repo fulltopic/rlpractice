@@ -1,4 +1,6 @@
 # General Knowledge
+## General 
+[RL debugging](https://andyljones.com/posts/rl-debugging.html)
 
 ## Initiation
 1. [Initiation introduction](https://www.deeplearning.ai/ai-notes/initialization/)
@@ -47,4 +49,12 @@ Ref(3) explains math behind these algorithms (Xavier and Kaiming):
 ### TODO
 * Ref(1) declares Xavier is a normal distribution, Ref(2) declares it is a uniform one. To check the paper
 
+* Replay buffer stores experiences (s, s', a, r, d), where d is accompanied with s' (note that we can not save an experience for the first step). (https://github.com/DLR-RM/stable-baselines3/issues/105)
 
+*  However it may help (and is part of many of the optimized parameters in rl-zoo), as it decreases the overall step size. Especially towards end of the training the updates seem to oscilate around good points, and by decreasing learning rate you reach higher returns
+
+## Optimizer
+### Adam
+[eps ref](https://www.reddit.com/r/reinforcementlearning/comments/ctytuq/using_larger_epsilon_with_adam_for_rl/)
+
+[Update pytorch lr of optimizer](https://stackoverflow.com/questions/62415285/updating-learning-rate-with-libtorch-1-5-and-optimiser-options-in-c)

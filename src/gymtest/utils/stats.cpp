@@ -42,25 +42,16 @@ void Stats::update(float len, float reward) {
 		aveLens[index] = aveLen;
 	}
 
-
-
-//
-//	rewards.push_back(reward);
-//	lens.push_back(len);
-//
-//	if (rewards.size() <= statGap) {
-//		aveLen += (len - aveLen) / (epCount + 1);
-//		aveReward += (reward - aveReward) / (epCount + 1);
-//	} else {
-//		aveLen += (len - lens[lens.size() - statGap]) / statGap;
-//		aveReward += (reward - rewards[rewards.size() - statGap]) / statGap;
-//	}
-//	aveLens.push_back(aveLen);
-//	aveRewards.push_back(aveReward);
+	if (len > maxLen) {
+		maxLen = len;
+	}
+	if (reward > maxReward) {
+		maxReward = reward;
+	}
 
 	epCount ++;
 
-	statFile << epCount << ", " << reward << ", " << len << ", " << aveReward << ", " << aveLen << std::endl;
+	statFile << epCount << ", " << reward << ", " << len << ", " << aveReward << ", " << aveLen << ", " << maxReward << ", " << maxLen << std::endl;
 }
 
 

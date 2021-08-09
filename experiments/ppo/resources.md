@@ -40,6 +40,8 @@
 
 * [Clip objective function](https://drive.google.com/file/d/1PDzn9RPvaXjJFZkGeapMHbHGiWWW20Ey/view)
 
+* [A simple implementation codes reading](https://towardsdatascience.com/a-graphic-guide-to-implementing-ppo-for-atari-games-5740ccbe3fbc)
+
 ## TODO
 
 * Distributed PPO

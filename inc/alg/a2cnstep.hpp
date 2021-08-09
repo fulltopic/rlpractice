@@ -43,6 +43,7 @@ private:
 	Stats testStater;
 	Stats sumStater;
 	Stats stepStater;
+	Stats idleStepStater;
 	Stats sumStepStater;
 	LossStats lossStater;
 
@@ -105,6 +106,7 @@ A2CNStep<NetType, EnvType, PolicyType, OptimizerType>::A2CNStep(NetType& behavio
 	testStater(iOption.statPathPrefix + "_test.txt", iOption.statCap),
 	sumStater(iOption.statPathPrefix + "_sum.txt", iOption.statCap),
 	stepStater(iOption.statPathPrefix + "_step.txt", iOption.statCap),
+	idleStepStater(iOption.statPathPrefix + "_idle.txt", iOption.statCap),
 	sumStepStater(iOption.statPathPrefix + "_stepSum.txt", iOption.statCap),
 	lossStater(iOption.statPathPrefix + "_loss.txt"),
 	batchSize(iOption.batchSize),
@@ -351,6 +353,7 @@ void A2CNStep<NetType, EnvType, PolicyType, OptimizerType>::trainBatch(const int
 	std::vector<float> sumLens(batchSize, 0);
 	std::vector<float> clipRewards(batchSize, 0);
 	std::vector<float> clipSumRewards(batchSize, 0);
+	std::vector<float> idleStep(batchSize, 0);
 
 
 	std::vector<float> stateVec = env.reset();
@@ -370,6 +373,8 @@ void A2CNStep<NetType, EnvType, PolicyType, OptimizerType>::trainBatch(const int
 			std::vector<torch::Tensor> rc = bModel.forward(stateTensor);
 			auto actionProbs =  torch::softmax(rc[0], -1);
 			std::vector<int64_t> actions = policy.getActions(actionProbs);
+//			LOG4CXX_INFO(logger, "actions: " << actions);
+//			LOG4CXX_INFO(logger, "state: " << stateTensor);
 
 
 			auto stepResult = env.step(actions, false);
@@ -410,6 +415,12 @@ void A2CNStep<NetType, EnvType, PolicyType, OptimizerType>::trainBatch(const int
 						saveByReward(curAveReward);
 					}
 
+					//End of living
+					if (dqnOption.toPunish) {
+						idleStepStater.update(idleStep[i], sumRewards[i]);
+						idleStep[i] = 0;
+					}
+
 					if (dqnOption.multiLifes) {
 						liveCounts[i] ++;
 						if (liveCounts[i] >= dqnOption.donePerEp) {
@@ -428,6 +439,24 @@ void A2CNStep<NetType, EnvType, PolicyType, OptimizerType>::trainBatch(const int
 								saveByReward(curSumReward);
 							}
 						}
+					}
+				}
+			}
+
+			if (dqnOption.toPunish) {
+				for (int i = 0; i < rewardVec.size(); i ++) {
+					if (rewardVec[i] <= 0.1) {
+						idleStep[i] ++;
+						if (idleStep[i] >= dqnOption.penalStep) {
+							rewardVec[i] = dqnOption.penalReward;
+							idleStepStater.update(idleStep[i], sumRewards[i]);
+
+							idleStep[i] = 0;
+							LOG4CXX_INFO(logger, "=============================================>c" << i << " punished: " << dqnOption.penalReward << " after " << dqnOption.penalStep);
+						}
+					} else { //get reward
+						idleStepStater.update(idleStep[i], sumRewards[i]);
+						idleStep[i] = 0;
 					}
 				}
 			}
