@@ -1595,7 +1595,7 @@ void test200(const int epochNum) {
     option.maxGradNormClip = 0.1;
     option.statPathPrefix = "./boa2cnbatch_test200";
     option.saveModel = true;
-    option.savePathPrefix = "./boa2cnbatch_test3";
+    option.savePathPrefix = "./boa2cnbatch_test200";
     option.toTest = false;
     option.inputScale = 255;
     option.batchSize = batchSize;

@@ -803,6 +803,58 @@ void test10(const int updateNum) {
     ppo.train(updateNum);
 }
 
+void test11(const int updateNum) {
+	const std::string envName = "PongNoFrameskip-v4";
+	const int outputNum = 6;
+	const int clientNum = 50;
+	std::string serverAddr = "tcp://127.0.0.1:10201";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	AirACHONet model(outputNum);
+	model.to(deviceType);
+
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-2)); //rmsprop: 0.00025
+//    torch::optim::RMSprop optimizer(model.parameters(),
+//    		torch::optim::RMSpropOptions(7e-4).eps(1e-5).alpha(0.99));
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-3));
+//	torch::optim::RMSprop optimizer(model.parameters());
+//    RawPolicy policy(1, outputNum);
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    option.isAtari = true;
+    option.statCap = 128;
+    option.entropyCoef = 0.01;
+    option.valueCoef = 0.5;
+    option.maxGradNormClip = 0.5;
+    option.statPathPrefix = "./pposharedpong_test11";
+    option.saveModel = true;
+    option.savePathPrefix = "./pposharedpong_test11";
+    option.toTest = false;
+    option.inputScale = 256;
+    option.batchSize = 10;
+    option.envNum = clientNum;
+    option.epochNum = 10;
+    option.trajStepNum = option.batchSize * 10;
+    option.ppoLambda = 0.95;
+    option.ppoEpsilon = 0.1;
+    option.gamma = 0.99;
+    option.rewardScale = 1;
+    option.rewardMin = -1; //TODO: reward may not require clip
+    option.rewardMax = 1;
+    option.loadModel = false;
+    option.loadOptimizer = false;
+
+    SoftmaxPolicy policy(outputNum);
+    //TODO: testenv
+    PPORandom<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam> ppo(model, env, env, policy, optimizer, option, outputNum);
+    ppo.train(updateNum);
+}
+
 void testLog(const int updateNum) {
 	const std::string envName = "PongNoFrameskip-v4";
 	const int outputNum = 6;
@@ -878,7 +930,7 @@ void logConfigure(bool err) {
 int main(int argc, char** argv) {
 	logConfigure(false);
 
-	test10(atoi(argv[1]));
+	test11(atoi(argv[1]));
 //	test1(atoi(argv[1]));
 //	test4(atoi(argv[1]));
 //	test3(atoi(argv[1]), atoi(argv[2]));
