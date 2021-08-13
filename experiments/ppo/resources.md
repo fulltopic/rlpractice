@@ -69,7 +69,11 @@
 ## Notes
 λ γ δ ∑ ∞ ∀
 ### TD(λ) Value Estimation
-[Ref](https://towardsdatascience.com/reinforcement-learning-td-%CE%BB-introduction-686a5e4f4e60)
+[Reinforcement Learning — TD(λ) Introduction(1)](https://towardsdatascience.com/reinforcement-learning-td-%CE%BB-introduction-686a5e4f4e60)
+
+[Actor-Critic Methods, Advantage Actor-Critic (A2C) and Generalized Advantage Estimation (GAE)](https://avandekleut.github.io/a2c/)
+
+[Generalized Advantage Estimate: Maths and Code](https://towardsdatascience.com/generalized-advantage-estimate-maths-and-code-b5d5bd3ce737)
 
 #### GAE Advantage side
 * g<sub>t</sub>: GAE Advantage of time step t.
