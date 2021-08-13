@@ -215,6 +215,42 @@ void test5() {
 
 	std::cout << "mean = " << inputNorm.getMean() << ", var = " << inputNorm.getVar() << std::endl;
 }
+
+void testV() {
+	const long trajLen = 4;
+
+	const float lambda = 0.95;
+	const float gamma = 1;
+
+	torch::Tensor rewards = torch::randn({trajLen, 1});
+	torch::Tensor values = torch::randn({trajLen, 1});
+	torch::Tensor lastValue = torch::randn({1});
+	torch::Tensor nextValue = torch::zeros({1});
+	torch::Tensor gaeAdvs = torch::zeros({trajLen, 1});
+	torch::Tensor vTargets = torch::zeros({trajLen, 1});
+	torch::Tensor gaeAdv = torch::zeros({1});
+	torch::Tensor vTarget = torch::zeros({1});
+
+	vTarget.copy_(lastValue);
+	nextValue.copy_(lastValue);
+
+	for (int i = trajLen - 1; i >= 0; i --) {
+		auto delta = rewards[i] + gamma * nextValue - values[i];
+		gaeAdv = delta + gamma * lambda * gaeAdv;
+
+		vTarget = rewards[i] + gamma * vTarget;
+
+		gaeAdvs[i].copy_(gaeAdv);
+		vTargets[i].copy_(vTarget);
+
+		nextValue = values[i];
+	}
+
+	auto vTargetsGae = gaeAdvs + values;
+
+	std::cout << "Plain V target: \n" << vTargets << std::endl;
+	std::cout << "Gae V target: \n" << vTargetsGae << std::endl;
+}
 }
 
 
@@ -223,6 +259,8 @@ int main() {
 //	test1();
 //	test3();
 
-	test4();
-	test5();
+//	test4();
+//	test5();
+
+	testV();
 }

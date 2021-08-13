@@ -32,13 +32,13 @@ AirACHONet::AirACHONet(int aNum):
 	register_module("aOut", aOut);
 	register_module("vOut", vOut);
 
-	NetInitUtils::Init_weights(conv0->named_parameters(), sqrt(2.0), 0);
-	NetInitUtils::Init_weights(conv1->named_parameters(), sqrt(2.0), 0);
-	NetInitUtils::Init_weights(conv2->named_parameters(), sqrt(2.0), 0);
-	NetInitUtils::Init_weights(afc->named_parameters(), sqrt(2.0), 0);
-	NetInitUtils::Init_weights(vfc->named_parameters(), sqrt(2.0), 0);
-	NetInitUtils::Init_weights(aOut->named_parameters(), sqrt(2.0), 0);
-	NetInitUtils::Init_weights(vOut->named_parameters(), sqrt(2.0), 0);
+	NetInitUtils::Init_weights(conv0->named_parameters(), sqrt(2.0), 0, NetInitUtils::Kaiming);
+	NetInitUtils::Init_weights(conv1->named_parameters(), sqrt(2.0), 0, NetInitUtils::Kaiming);
+	NetInitUtils::Init_weights(conv2->named_parameters(), sqrt(2.0), 0, NetInitUtils::Kaiming);
+	NetInitUtils::Init_weights(afc->named_parameters(), sqrt(2.0), 0, NetInitUtils::Xavier);
+	NetInitUtils::Init_weights(vfc->named_parameters(), sqrt(2.0), 0, NetInitUtils::Xavier);
+	NetInitUtils::Init_weights(aOut->named_parameters(), sqrt(2.0), 1, NetInitUtils::Xavier);
+	NetInitUtils::Init_weights(vOut->named_parameters(), sqrt(2.0), 0, NetInitUtils::Xavier);
 }
 
 std::vector<torch::Tensor> AirACHONet::forward(torch::Tensor input) {

@@ -12,9 +12,15 @@
 
 class NetInitUtils {
 public:
+	enum InitType {
+		Xavier,
+		Kaiming,
+	};
+
 	static void Init_weights(torch::OrderedDict<std::string, torch::Tensor> parameters,
 	                  double weight_gain,
-	                  double bias_gain);
+	                  double bias_gain,
+					  InitType initType = Kaiming);
 
 	static torch::Tensor Orthogonal_(torch::Tensor tensor, double gain);
 

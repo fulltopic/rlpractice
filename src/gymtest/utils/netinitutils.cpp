@@ -12,7 +12,8 @@
 
 void NetInitUtils::Init_weights(torch::OrderedDict<std::string, torch::Tensor> parameters,
 	                  double weight_gain,
-	                  double bias_gain) {
+	                  double bias_gain,
+					  NetInitUtils::InitType initType) {
     for (const auto &parameter : parameters)
     {
         if (parameter.value().size(0) != 0)
@@ -23,7 +24,11 @@ void NetInitUtils::Init_weights(torch::OrderedDict<std::string, torch::Tensor> p
             }
             else if (parameter.key().find("weight") != std::string::npos)
             {
-                torch::nn::init::kaiming_uniform_(parameter.value());
+            	if (initType == NetInitUtils::Kaiming) {
+            		torch::nn::init::kaiming_uniform_(parameter.value());
+            	} else if (initType == NetInitUtils::Xavier) {
+            		torch::nn::init::xavier_normal_(parameter.value());
+            	}
             }
         }
     }

@@ -199,3 +199,16 @@ It worked, and the training was quicker than test1.
 
 
 
+
+
+
+
+
+
+
+Update:
+entropy_breakout_0.01: update = (2048 iteration) * (128 trajectory step) / (16 batch step) * (4 epoch) = 65536
+entropy_pong_0.01: update = (442 iteration) * (100 trajectory step) / (10 batch step) * (10 epoch) = 44200
+entropy_pong_0.002: update = (512 iteration) * (128 trajectory step) / (4 batch step) * (4 epoch) = 65536 
+
+
