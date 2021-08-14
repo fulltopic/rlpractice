@@ -88,6 +88,7 @@ public:
 	float maxKl = 0.01;
 	bool valueClip = false;
 	float maxValueDelta = 1.0;
+	bool tdValue = true;
 
 	//breakout
 	bool multiLifes = false;

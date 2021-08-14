@@ -234,13 +234,18 @@ void PPORandom<NetType, EnvType, PolicyType, OptimizerType>::train(const int upd
 		for (int i = dqnOption.trajStepNum - 1; i >= 0; i --) {
 			torch::Tensor delta = rewardTensor[i] + dqnOption.gamma * nextValueTensor * doneTensor[i] - valueTensor[i];
 			gaeReturn = delta + dqnOption.ppoLambda * dqnOption.gamma * gaeReturn * doneTensor[i];
-			plainReturn = rewardTensor[i] + dqnOption.gamma * plainReturn * doneTensor[i];
 
 			gaeReturns[i].copy_(gaeReturn);
-			returns[i].copy_(plainReturn);
+
+			if (!dqnOption.tdValue) {
+				plainReturn = rewardTensor[i] + dqnOption.gamma * plainReturn * doneTensor[i];
+				returns[i].copy_(plainReturn);
+			}
 			nextValueTensor = valueTensor[i];
 		}
-//		returns = gaeReturns + valueTensor; //from baseline3. TODO: why?
+		if (dqnOption.tdValue) {
+			returns = gaeReturns + valueTensor; //from baseline3.
+		}
 
 		//Put all tensors into GPU
 		gaeReturns = gaeReturns.to(deviceType).detach();

@@ -1047,6 +1047,7 @@ void test14(const int updateNum) {
     option.envNum = clientNum;
     option.epochNum = 4;
     option.trajStepNum = option.batchSize * 32;
+    option.tdValue = false;
     option.ppoLambda = 0.95;
     option.ppoEpsilon = 0.1;
     option.gamma = 0.99;

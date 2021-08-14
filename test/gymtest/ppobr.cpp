@@ -144,7 +144,6 @@ void test1(const int updateNum) {
     option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/pposharedpong_test7";
 
     SoftmaxPolicy policy(outputNum);
-    //TODO: testenv
     PPOShared<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam> ppo(model, env, env, policy, optimizer, option, outputNum);
     ppo.train(updateNum);
 }
@@ -739,7 +738,6 @@ void test11(const int updateNum) {
 
 
     SoftmaxPolicy policy(outputNum);
-    //TODO: testenv
     PPOSharedTest<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam> ppo(model, env, env, policy, optimizer, option, outputNum);
     ppo.train(updateNum);
 }
