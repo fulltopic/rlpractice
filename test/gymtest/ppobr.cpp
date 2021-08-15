@@ -3586,12 +3586,13 @@ void test57(const int updateNum) {
 }
 //TODO: valueCoef = 0.5
 //TODO: The paper said He/Kaiming initialization is suboptimal for PPO
-//TODO: Try lambda = 0.9, but the recommended default = 0.95
+//TODO: Tried lambda = 0.9, but the recommended default = 0.95
 //TODO: Reduce maxstep (=1000) of breakout to reduce hang case
 //TODO: Adam lr = 0.0003, momentum = 0.9
 //TODO: recompute GAE for each epoch
 //TODO: softplus to transform network output into action standard deviation
 //TODO: big batchsize(envNum) increase training speed
+//TODO: Above tests set normReward = false, which not normalized gae advantage
 }
 
 namespace {

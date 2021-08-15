@@ -1137,7 +1137,7 @@ void logConfigure(bool err) {
 int main(int argc, char** argv) {
 	logConfigure(false);
 
-//	test14(atoi(argv[1]));
+	test13(atoi(argv[1]));
 //	test1(atoi(argv[1]));
 //	test4(atoi(argv[1]));
 //	test3(atoi(argv[1]), atoi(argv[2]));
@@ -1172,7 +1172,7 @@ int main(int argc, char** argv) {
 //	testSave(atoi(argv[1]), atoi(argv[2]));
 
 
-	testtestHO(atoi(argv[1]), atoi(argv[2]));
+//	testtestHO(atoi(argv[1]), atoi(argv[2]));
 
 	LOG4CXX_INFO(logger, "End of test");
 }
