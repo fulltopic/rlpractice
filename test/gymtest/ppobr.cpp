@@ -2170,7 +2170,6 @@ void test35(const int updateNum) {
     option.trajStepNum = maxStep * roundNum;
     option.ppoLambda = 0.95;
     option.ppoEpsilon = 0.1;
-    option.normReward = true;
     option.klEarlyStop = false;
     option.valueClip = false;
     option.normReward = false;
@@ -2232,7 +2231,6 @@ void test36(const int updateNum) {
     option.trajStepNum = maxStep * roundNum;
     option.ppoLambda = 0.9;
     option.ppoEpsilon = 0.1;
-    option.normReward = true;
     option.klEarlyStop = false;
     option.valueClip = false;
     option.normReward = false;
@@ -2292,7 +2290,6 @@ void test37(const int updateNum) {
     option.trajStepNum = maxStep * roundNum;
     option.ppoLambda = 0.95;
     option.ppoEpsilon = 0.1;
-    option.normReward = true;
     option.klEarlyStop = false;
     option.valueClip = false;
     option.normReward = false;
@@ -2353,7 +2350,6 @@ void test38(const int updateNum) {
     option.trajStepNum = maxStep * roundNum;
     option.ppoLambda = 0.95;
     option.ppoEpsilon = 0.1;
-    option.normReward = true;
     option.klEarlyStop = false;
     option.valueClip = false;
     option.normReward = false;
@@ -2415,7 +2411,6 @@ void test39(const int updateNum) {
     option.trajStepNum = maxStep * roundNum;
     option.ppoLambda = 0.95;
     option.ppoEpsilon = 0.1;
-    option.normReward = true;
     option.klEarlyStop = false;
     option.valueClip = false;
     option.normReward = false;
@@ -2476,7 +2471,6 @@ void test40(const int updateNum) {
     option.trajStepNum = maxStep * roundNum;
     option.ppoLambda = 0.9;
     option.ppoEpsilon = 0.1;
-    option.normReward = true;
     option.klEarlyStop = false;
     option.valueClip = false;
     option.normReward = false;
@@ -2536,7 +2530,6 @@ void test41(const int updateNum) {
     option.trajStepNum = maxStep * roundNum;
     option.ppoLambda = 0.95;
     option.ppoEpsilon = 0.1;
-    option.normReward = true;
     option.klEarlyStop = false;
     option.valueClip = false;
     option.normReward = false;
@@ -2597,7 +2590,6 @@ void test42(const int updateNum) {
     option.trajStepNum = maxStep * roundNum;
     option.ppoLambda = 0.9;
     option.ppoEpsilon = 0.1;
-    option.normReward = true;
     option.klEarlyStop = false;
     option.valueClip = false;
     option.normReward = false;
@@ -2780,7 +2772,6 @@ void test45(const int updateNum) {
     option.trajStepNum = maxStep * roundNum;
     option.ppoLambda = 0.9;
     option.ppoEpsilon = 0.1;
-    option.normReward = true;
     option.klEarlyStop = false;
     option.valueClip = false;
     option.normReward = false;

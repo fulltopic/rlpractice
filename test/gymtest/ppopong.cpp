@@ -900,7 +900,6 @@ void test11(const int updateNum) {
     option.loadOptimizer = false;
 
     SoftmaxPolicy policy(outputNum);
-    //TODO: testenv
     PPORandom<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam> ppo(model, env, env, policy, optimizer, option, outputNum);
     ppo.train(updateNum);
 }
@@ -952,7 +951,6 @@ void test12(const int updateNum) {
     option.loadOptimizer = false;
 
     SoftmaxPolicy policy(outputNum);
-    //TODO: testenv
     PPORandom<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam> ppo(model, env, env, policy, optimizer, option, outputNum);
     ppo.train(updateNum);
 }

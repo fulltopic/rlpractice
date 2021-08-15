@@ -199,16 +199,154 @@ It worked, and the training was quicker than test1.
 
 
 
+### test11
+|name|value|
+|----|-----|
+|entropyCoef|0.01|
+|valueCoef|0.5|
+|maxGradNormClip|0.5|
+|gamma|0.99|
+|lambda|0.95|
+|epsilon|0.1|
+|epochNum|10|
+|envNum|50|
+|batchSize|32 * 50|
+|trajStep|10 * 10|
+|klEarlyStop|true|
+|maxKlDelta|0.01|
+|valueClip|true|
+|maxValueDelta|1|
+|model|AirACHONet|
+|optimizer|Adam|
+|Adam.lr|1e-3|
+|algTemplate|PPORandom|
+|update|442|
 
+Used model of AirACHONet. It was better than AirACCnnNet as indicated by test11 V.S. test10.
 
+![reward](./docs/test11/reward.jpg)
 
+The entropy was unexpected high:
 
+![entropy](./docs/test11/entropy.jpg)
 
+### test12
+|name|value|
+|----|-----|
+|entropyCoef|0.005|
+|valueCoef|0.25|
+|maxGradNormClip|0.5|
+|gamma|0.99|
+|lambda|0.95|
+|epsilon|0.1|
+|epochNum|10|
+|envNum|50|
+|batchSize|32 * 50|
+|trajStep|10 * 10|
+|klEarlyStop|true|
+|maxKlDelta|0.01|
+|valueClip|true|
+|maxValueDelta|1|
+|model|AirACHONet|
+|optimizer|Adam|
+|Adam.lr|1e-3|
+|algTemplate|PPORandom|
 
+So to decrease entropyCoef into 0.005. Test data had been destroyed.
 
-Update:
-entropy_breakout_0.01: update = (2048 iteration) * (128 trajectory step) / (16 batch step) * (4 epoch) = 65536
-entropy_pong_0.01: update = (442 iteration) * (100 trajectory step) / (10 batch step) * (10 epoch) = 44200
-entropy_pong_0.002: update = (512 iteration) * (128 trajectory step) / (4 batch step) * (4 epoch) = 65536 
+### test13
+|name|value|
+|----|-----|
+|entropyCoef|0.002|
+|valueCoef|0.5|
+|maxGradNormClip|0.5|
+|gamma|0.99|
+|lambda|0.95|
+|epsilon|0.1|
+|epochNum|10|
+|envNum|50|
+|batchSize|4 * 50|
+|trajStep|4 * 32|
+|klEarlyStop|true|
+|maxKlDelta|0.01|
+|valueClip|true|
+|maxValueDelta|1|
+|model|AirACHONet|
+|optimizer|Adam|
+|Adam.lr|1e-3|
+|algTemplate|PPORandom|
+|update|512|
 
+SB3 default parameters except that entropyCoef = 0.002.
 
+The result is very good:
+
+![reward](./docs/test13/reward.jpg)
+
+Although entropy was still high.
+
+![entropy](./docs/test13/entropy.jpg)
+
+Test result:
+
+![test_reward](./docs/test13/test_reward.jpg)
+
+### test14
+|name|value|
+|----|-----|
+|entropyCoef|0.002|
+|valueCoef|0.5|
+|maxGradNormClip|0.5|
+|gamma|0.99|
+|lambda|0.95|
+|epsilon|0.1|
+|epochNum|10|
+|envNum|50|
+|batchSize|4 * 50|
+|trajStep|4 * 32|
+|klEarlyStop|true|
+|maxKlDelta|0.01|
+|valueClip|true|
+|maxValueDelta|1|
+|model|AirACHONet|
+|optimizer|Adam|
+|Adam.lr|1e-3|
+|algTemplate|PPORandom|
+|update|512|
+|tdValue|false|
+
+To try MC value target estimation instead of TD(λ) estimation. It was worse than that of TD estimation.
+
+![reward](./docs/test14/reward.jpg)
+
+Test result:
+
+![test_reward](./docs/test14/test_reward.jpg)
+
+### test13 VS. test14
+It seemed that difference of figures of all the three parts of the loss function were more obvious at the beginning parts,
+while it affected the ultimate reward of the test.  
+
+Value loss:
+
+![value_test13](./docs/test13/value_loss.jpg)
+
+![value_test14](./docs/test14/value_loss.jpg)
+
+Policy loss:
+
+![action_test13](./docs/test13/action_loss.jpg)
+
+![action_test14](./docs/test14/action_loss.jpg)
+
+Entropy:
+
+![entropy_test13](./docs/test13/entropy.jpg)
+
+![entropy_test14](./docs/test14/entropy.jpg)
+
+## Conclusion
+* The rollout buffer has to be randomized: test1~9 V.S. test10~14
+* SB3 zoo parameters worked very good.
+* Entropy was high even in good solutions (even in SB3 default case).
+* TD(λ) worked better than MC value estimation.
