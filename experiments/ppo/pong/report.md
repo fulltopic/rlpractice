@@ -350,3 +350,22 @@ Entropy:
 * SB3 zoo parameters worked very good.
 * Entropy was high even in good solutions (even in SB3 default case).
 * TD(λ) worked better than MC value estimation.
+
+### PPO VS. A2C
+In according to reward obtained in both training and test, PPO is better. PPO is also more data efficient.
+
+The best average reward of A2C tests was obtained in test31.:
+
+![reward_a2c](../../a2c/pong/images/test31_test24_reward.jpg)
+
+The best average reward of PPO was obtained in test13:
+
+![reward_test13](./docs/test13/reward.jpg)
+
+Also, PPO is more data efficient:
+
+A2C took about 10,000 episodes to make reward increase from -21 to 10, as show in A2C test20:
+
+![reward_a2c_test20](../../a2c/pong/images/test20_reward.jpg)
+
+The reward figure of test13 showed that PPO took < 1,700 episodes to make reward increase from -21 to > 20.
