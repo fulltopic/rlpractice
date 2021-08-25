@@ -52,15 +52,17 @@ torch::Tensor AirCnnDuelNet::forward(torch::Tensor input) {
 	auto aOutput = afc0->forward(output);
 	aOutput = torch::relu(aOutput);
 	aOutput = afc1->forward(aOutput);
-	auto aMean = aOutput.mean(-1).unsqueeze(-1);
+//	auto aMean = aOutput.mean(-1).unsqueeze(-1);
 
 //	std::cout << "aOutput = " << aOutput << std::endl;
 //	std::cout << "vOutput = " << vOutput << std::endl;
 //	std::cout << "aMean = " << aMean << std::endl;
 
-	auto qOutput = aOutput + (vOutput + aMean);
+//	auto qOutput = aOutput + (vOutput + aMean);
 //	std::cout << "vOutput + aMean = " << (vOutput + aMean) << std::endl;
 //	std::cout << "qOutput = " << qOutput << std::endl;
+
+	auto qOutput = vOutput + (aOutput - aOutput.mean(-1, true));
 
 	return qOutput;
 }

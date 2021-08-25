@@ -39,15 +39,17 @@ torch::Tensor CartDuelFcNet::forward(torch::Tensor input) {
 	auto v = vOutput->forward(output);
 	auto a = aOutput->forward(output);
 
-	auto aMean = a.mean(-1).unsqueeze(-1);
+//	auto aMean = a.mean(-1).unsqueeze(-1);
 
 //	std::cout << "aOutput = " << aOutput << std::endl;
 //	std::cout << "vOutput = " << vOutput << std::endl;
 //	std::cout << "aMean = " << aMean << std::endl;
 
-	auto qOutput = a + (v + aMean);
+//	auto qOutput = a + (v + aMean);
 //	std::cout << "vOutput + aMean = " << (vOutput + aMean) << std::endl;
 //	std::cout << "qOutput = " << qOutput << std::endl;
+
+	auto qOutput = v + (a - a.mean(-1, true));
 
 	return qOutput;
 }

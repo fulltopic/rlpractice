@@ -1,12 +1,14 @@
 /*
- * dqn.hpp
+ * dqndouble.hpp
  *
- *  Created on: Aug 16, 2021
+ *  Created on: Aug 21, 2021
  *      Author: zf
  */
 
-#ifndef INC_ALG_DQN_HPP_
-#define INC_ALG_DQN_HPP_
+#ifndef INC_ALG_DQNDOUBLE_HPP_
+#define INC_ALG_DQNDOUBLE_HPP_
+
+
 
 #include <torch/torch.h>
 #include <log4cxx/logger.h>
@@ -23,7 +25,7 @@
 #include "dqnoption.h"
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-class Dqn {
+class DoubleDqn {
 private:
 	NetType& bModel;
 	NetType& tModel;
@@ -37,6 +39,7 @@ private:
 	const DqnOption dqnOption;
 
 	uint32_t updateNum = 0;
+	bool startTraining = false;
 
 //	const int actionNum;
 //	std::vector<int64_t> indice;
@@ -81,9 +84,9 @@ private:
 	void load();
 	void save();
 public:
-	Dqn(NetType& iModel, NetType& iTModel, EnvType& iEnv, EnvType& tEnv, PolicyType& iPolicy, OptimizerType& iOptimizer, DqnOption iOption);
-	~Dqn() = default;
-	Dqn(const Dqn&) = delete;
+	DoubleDqn(NetType& iModel, NetType& iTModel, EnvType& iEnv, EnvType& tEnv, PolicyType& iPolicy, OptimizerType& iOptimizer, DqnOption iOption);
+	~DoubleDqn() = default;
+	DoubleDqn(const DoubleDqn&) = delete;
 
 	void train(const int epochNum);
 	void test(const int epochNum, bool render = false);
@@ -92,7 +95,7 @@ public:
 
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-Dqn<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::ReplayBuffer(const int iCap, const at::IntArrayRef& inputShape): cap(iCap) {
+DoubleDqn<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::ReplayBuffer(const int iCap, const at::IntArrayRef& inputShape): cap(iCap) {
 	std::vector<int64_t> stateInputShape;
 	stateInputShape.push_back(cap);
 	//input state shape = {1, 4, 84, 84};
@@ -110,7 +113,7 @@ Dqn<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::ReplayBuffer(con
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-void Dqn<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::add(
+void DoubleDqn<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::add(
 		torch::Tensor state, torch::Tensor nextState, int action, float reward, float done) {
 	{
 		//For log
@@ -139,7 +142,7 @@ void Dqn<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::add(
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-torch::Tensor Dqn<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::getSampleIndex(int batchSize) {
+torch::Tensor DoubleDqn<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::getSampleIndex(int batchSize) {
 	torch::Tensor indices = torch::randint(0, curSize, {batchSize}, longOpt);
 
 	return indices;
@@ -147,7 +150,7 @@ torch::Tensor Dqn<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::ge
 
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-Dqn<NetType, EnvType, PolicyType, OptimizerType>::Dqn(NetType& iModel, NetType& iTModel,
+DoubleDqn<NetType, EnvType, PolicyType, OptimizerType>::DoubleDqn(NetType& iModel, NetType& iTModel,
 		EnvType& iEnv, EnvType& tEnv, PolicyType& iPolicy, OptimizerType& iOptimizer,
 		DqnOption iOption):
 	bModel(iModel),
@@ -168,7 +171,7 @@ Dqn<NetType, EnvType, PolicyType, OptimizerType>::Dqn(NetType& iModel, NetType& 
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-void Dqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epochNum) {
+void DoubleDqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epochNum) {
 	load();
 	updateModel(true); //model assignment
 	tModel.eval();
@@ -187,12 +190,16 @@ void Dqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epochNum)
 		torch::Tensor inputTensor = cpuinputTensor.to(deviceType);
 
 		torch::Tensor outputTensor = bModel.forward(inputTensor); //TODO: bModel or tModel?
+		LOG4CXX_DEBUG(logger, "inputTensor: " << inputTensor);
+		LOG4CXX_DEBUG(logger, "outputTensor: " << outputTensor);
 		std::vector<int64_t> actions = policy.getActions(outputTensor);
+		LOG4CXX_DEBUG(logger, "actions: " << actions);
 
 		auto stepResult = env.step(actions);
 		auto nextInputVec = std::get<0>(stepResult);
 		auto rewardVec = std::get<1>(stepResult);
 		auto doneVec = std::get<2>(stepResult);
+		LOG4CXX_DEBUG(logger, "reward: " << rewardVec);
 
 		Stats::UpdateReward(statRewards, rewardVec);
 		Stats::UpdateLen(statLens);
@@ -223,6 +230,8 @@ void Dqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epochNum)
 		torch::Tensor actionTensor = buffer.actions.index_select(0, sampleIndice).to(deviceType);
 		torch::Tensor rewardTensor = buffer.rewards.index_select(0, sampleIndice).to(deviceType);
 		torch::Tensor doneMaskTensor = buffer.donesMask.index_select(0, sampleIndice).to(deviceType);
+		LOG4CXX_DEBUG(logger, "rewardTensor: " << rewardTensor);
+		LOG4CXX_DEBUG(logger, "actionTensor: " << actionTensor);
 		LOG4CXX_DEBUG(logger, "sampleIndex before: " << sampleIndice);
 		sampleIndice = (sampleIndice + 1) % dqnOption.rbCap;
 		torch::Tensor nextStateTensor = buffer.states.index_select(0, sampleIndice).to(deviceType);
@@ -232,35 +241,48 @@ void Dqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epochNum)
 		torch::Tensor targetQ;
 		LOG4CXX_DEBUG(logger, "targetQ before " << targetQ);
 		{
-			torch::NoGradGuard guard; //replaced by tModel.eval()?
-			torch::Tensor nextOutput = tModel.forward(nextStateTensor).detach();
-			LOG4CXX_DEBUG(logger, "nextOutput: " << nextOutput);
-			auto maxOutput = nextOutput.max(-1);
-			torch::Tensor nextQ = std::get<0>(maxOutput); //TODO: pay attention to shape
-			nextQ = nextQ.unsqueeze(1);
+			torch::NoGradGuard guard;
+
+			torch::Tensor nextBOutput = bModel.forward(nextStateTensor).detach();
+			torch::Tensor nextTOutput = tModel.forward(nextStateTensor).detach();
+			torch::Tensor maxActions = nextBOutput.argmax(-1).unsqueeze(-1);
+//			torch::Tensor maxActions = std::get<1>(nextBOutput.max(-1));
+//			maxActions = maxActions.unsqueeze(-1);
+			LOG4CXX_DEBUG(logger, "maxActions: " << maxActions);
+			torch::Tensor nextQ = nextTOutput.gather(-1, maxActions);
+//			torch::Tensor
+			targetQ = rewardTensor + dqnOption.gamma * nextQ * doneMaskTensor;
+
+			LOG4CXX_DEBUG(logger, "nextBOutput: " << nextBOutput);
+			LOG4CXX_DEBUG(logger, "nextTOutput: " << nextTOutput);
 			LOG4CXX_DEBUG(logger, "nextQ: " << nextQ);
 			LOG4CXX_DEBUG(logger, "rewardTensor: " << rewardTensor);
 			LOG4CXX_DEBUG(logger, "doneMaskTensor: " << doneMaskTensor);
-			targetQ = rewardTensor + dqnOption.gamma * nextQ * doneMaskTensor;
 			LOG4CXX_DEBUG(logger, "targetQ: " << targetQ);
 		}
+
+//		torch::Tensor targetQ = rewardTensor;
+		LOG4CXX_DEBUG(logger, "targetQ: " << targetQ);
 
 		torch::Tensor curOutput = bModel.forward(curStateTensor);
 		LOG4CXX_DEBUG(logger, "curOutput: " << curOutput);
 		torch::Tensor curQ = curOutput.gather(-1, actionTensor); //TODO: shape of actionTensor and curQ
 		LOG4CXX_DEBUG(logger, "curQ: " << curQ);
 
-//		auto loss = torch::nn::SmoothL1Loss(curQ, targetQ);
+//		auto loss = torch::nn::functional::smooth_l1_loss(curQ, targetQ);
 		//TODO: Try mse.
-		auto loss = torch::nn::functional::smooth_l1_loss(curQ, targetQ);
-
-		if ((updateNum % dqnOption.logInterval) == 0) {
-			float lossValue = loss.item<float>();
-			auto curStat = stater.getCurState();
-			lossStater.update({(float)updateNum, lossValue, curStat[0], curStat[1]});
-		}
-
 		optimizer.zero_grad();
+
+		auto loss = torch::nn::functional::mse_loss(curQ, targetQ);
+//		auto loss = (targetQ - curQ).mean();
+		LOG4CXX_DEBUG(logger, "loss " << loss);
+
+//		if ((updateNum % dqnOption.logInterval) == 0) {
+//			float lossValue = loss.item<float>();
+//			auto curStat = stater.getCurState();
+//			lossStater.update({(float)updateNum, lossValue, curStat[0], curStat[1]});
+//		}
+
 		loss.backward();
 		torch::nn::utils::clip_grad_norm_(bModel.parameters(), dqnOption.maxGradNormClip);
 		optimizer.step();
@@ -270,7 +292,7 @@ void Dqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epochNum)
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-void Dqn<NetType, EnvType, PolicyType, OptimizerType>::updateModel(bool force) {
+void DoubleDqn<NetType, EnvType, PolicyType, OptimizerType>::updateModel(bool force) {
 	if (!force) {
 		if ((updateNum % dqnOption.targetUpdateStep) != 0) {
 			return;
@@ -301,11 +323,19 @@ void Dqn<NetType, EnvType, PolicyType, OptimizerType>::updateModel(bool force) {
 		targetBuff.mul(1 - dqnOption.tau);
 		targetBuff.add_(buff, dqnOption.tau);
 	}
-	LOG4CXX_INFO(logger, "target network synched");
+	LOG4CXX_INFO(logger, "----------------------------------------> target network synched");
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-void Dqn<NetType, EnvType, PolicyType, OptimizerType>::updateStep(const float epochNum) {
+void DoubleDqn<NetType, EnvType, PolicyType, OptimizerType>::updateStep(const float epochNum) {
+	if (!startTraining) {
+		if (updateNum >= dqnOption.startStep) {
+			updateNum = 0;
+			startTraining = true;
+		}
+		return;
+	}
+
 	updateModel(false);
 
 	if (updateNum > (dqnOption.explorePart * epochNum)) {
@@ -317,7 +347,7 @@ void Dqn<NetType, EnvType, PolicyType, OptimizerType>::updateStep(const float ep
 //TODO: update, train, test, syncModel
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-void Dqn<NetType, EnvType, PolicyType, OptimizerType>::test(const int epochNum, bool render) {
+void DoubleDqn<NetType, EnvType, PolicyType, OptimizerType>::test(const int epochNum, bool render) {
 	load();
 
 	std::vector<float> statRewards(dqnOption.envNum, 0);
@@ -353,7 +383,7 @@ void Dqn<NetType, EnvType, PolicyType, OptimizerType>::test(const int epochNum, 
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-void Dqn<NetType, EnvType, PolicyType, OptimizerType>::save() {
+void DoubleDqn<NetType, EnvType, PolicyType, OptimizerType>::save() {
 	if (!dqnOption.saveModel) {
 		return;
 	}
@@ -372,7 +402,7 @@ void Dqn<NetType, EnvType, PolicyType, OptimizerType>::save() {
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-void Dqn<NetType, EnvType, PolicyType, OptimizerType>::load() {
+void DoubleDqn<NetType, EnvType, PolicyType, OptimizerType>::load() {
 	if (!dqnOption.loadModel) {
 		return;
 	}
@@ -395,4 +425,5 @@ void Dqn<NetType, EnvType, PolicyType, OptimizerType>::load() {
 
 }
 
-#endif /* INC_ALG_DQN_HPP_ */
+
+#endif /* INC_ALG_DQNDOUBLE_HPP_ */

@@ -20,9 +20,9 @@ std::vector<float> ProbeEnv4::reset() {
 
 std::tuple<std::vector<float>, float, bool>
 ProbeEnv4::step(const int action, const bool render) {
-	float reward = -1;
+	float reward = -1; //-1
 	if (action == 1) {
-		reward = 1;
+		reward = 1; //1
 	}
 
 	return {std::vector<float>(inputLen, 0), reward, true};

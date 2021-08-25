@@ -11,3 +11,7 @@
 * _55 is the best for test18 test.
 
 * _95 hang on 287/370
+
+
+* [What matters ...](https://zhuanlan.zhihu.com/p/343770585) :
+IMPALA supports asynchronized actor and learner. Maybe useful for self-play

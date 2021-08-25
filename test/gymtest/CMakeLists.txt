@@ -37,38 +37,40 @@ add_executable(testaircnn testaircnn.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJEC
 target_compile_features(testaircnn PUBLIC cxx_range_for)
 target_link_libraries(testaircnn ${shared_libs} ${pytorch_cpp_rl_lib})
 
-add_executable(testmodelcopy testmodelcopy.cpp $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:gymutils>)
-target_compile_features(testmodelcopy PUBLIC cxx_range_for)
-target_link_libraries(testmodelcopy ${shared_libs})
+#add_executable(testmodelcopy testmodelcopy.cpp $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:gymutils>)
+#target_compile_features(testmodelcopy PUBLIC cxx_range_for)
+#target_link_libraries(testmodelcopy ${shared_libs})
 
-add_executable(testrawdqn testrawdqn.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:gymutils>)
-target_compile_features(testrawdqn PUBLIC cxx_range_for)
-target_link_libraries(testrawdqn ${shared_libs} ${pytorch_cpp_rl_lib})
+#add_executable(testrawdqn testrawdqn.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:gymutils>)
+#target_compile_features(testrawdqn PUBLIC cxx_range_for)
+#target_link_libraries(testrawdqn ${shared_libs} ${pytorch_cpp_rl_lib})
 
-add_executable(testdqn dqntest.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg>)
-target_compile_features(testdqn PUBLIC cxx_range_for)
-target_link_libraries(testdqn ${shared_libs} ${pytorch_cpp_rl_lib})
+#add_executable(testdqn dqntest.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg>)
+#target_compile_features(testdqn PUBLIC cxx_range_for)
+#target_link_libraries(testdqn ${shared_libs} ${pytorch_cpp_rl_lib})
 
-add_executable(testprdqn testprdqn.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets>  $<TARGET_OBJECTS:lunarnets>  $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg>)
-target_compile_features(testprdqn PUBLIC cxx_range_for)
-target_link_libraries(testprdqn ${shared_libs} ${pytorch_cpp_rl_lib})
+#add_executable(testprdqn testprdqn.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets>  $<TARGET_OBJECTS:lunarnets>  $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg>)
+#target_compile_features(testprdqn PUBLIC cxx_range_for)
+#target_link_libraries(testprdqn ${shared_libs} ${pytorch_cpp_rl_lib})
 
-add_executable(testddqn ddqntest.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg>)
-target_compile_features(testddqn PUBLIC cxx_range_for)
-target_link_libraries(testddqn ${shared_libs} ${pytorch_cpp_rl_lib})
+#add_executable(testddqn ddqntest.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg>)
+#target_compile_features(testddqn PUBLIC cxx_range_for)
+#target_link_libraries(testddqn ${shared_libs} ${pytorch_cpp_rl_lib})
 
-add_executable(testduel dueltest.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg>)
-target_compile_features(testduel PUBLIC cxx_range_for)
-target_link_libraries(testduel ${shared_libs} ${pytorch_cpp_rl_lib})
+#add_executable(testduel dueltest.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg>)
+#target_compile_features(testduel PUBLIC cxx_range_for)
+#target_link_libraries(testduel ${shared_libs} ${pytorch_cpp_rl_lib})
 
-add_executable(testcart testcart.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg>)
-target_compile_features(testcart PUBLIC cxx_range_for)
-target_link_libraries(testcart ${shared_libs} ${pytorch_cpp_rl_lib})
+#add_executable(testcart testcart.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg>)
+#target_compile_features(testcart PUBLIC cxx_range_for)
+#target_link_libraries(testcart ${shared_libs} ${pytorch_cpp_rl_lib})
 
 #add_executable(testdbdqn testdbdqn.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:dbtools>)
 #target_compile_features(testdbdqn PUBLIC cxx_range_for)
 #target_link_libraries(testdbdqn ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
 
+
+############################################################ A2C
 add_executable(testa2c testa2c.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:dbtools>)
 target_compile_features(testa2c PUBLIC cxx_range_for)
 target_link_libraries(testa2c ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
@@ -101,10 +103,12 @@ add_executable(testrtnorm testrtnorm.cpp $<TARGET_OBJECTS:gymutils> $<TARGET_OBJ
 target_compile_features(testrtnorm PUBLIC cxx_range_for)
 target_link_libraries(testrtnorm ${shared_libs})
 
-add_executable(testpriorb testpriorb.cpp $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain>)
-target_compile_features(testpriorb PUBLIC cxx_range_for)
-target_link_libraries(testpriorb ${shared_libs})
+#add_executable(testpriorb testpriorb.cpp $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain>)
+#target_compile_features(testpriorb PUBLIC cxx_range_for)
+#target_link_libraries(testpriorb ${shared_libs})
 
+
+############################################################ PPO
 add_executable(ppopong ppopong.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:dbtools>)
 target_compile_features(ppopong PUBLIC cxx_range_for)
 target_link_libraries(ppopong ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
@@ -122,3 +126,15 @@ add_executable(testprobeenv testprobeenv.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_O
 target_compile_features(testprobeenv PUBLIC cxx_range_for)
 target_link_libraries(testprobeenv ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
 
+########################################################## DQN
+add_executable(testdqn testdqn.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:probeenvs>)
+target_compile_features(testdqn PUBLIC cxx_range_for)
+target_link_libraries(testdqn ${shared_libs} ${pytorch_cpp_rl_lib})
+
+add_executable(testdoubledqn testdoubledqn.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:probeenvs>)
+target_compile_features(testdoubledqn PUBLIC cxx_range_for)
+target_link_libraries(testdoubledqn ${shared_libs} ${pytorch_cpp_rl_lib})
+
+add_executable(testdueldqn testdueldqn.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:probeenvs>)
+target_compile_features(testdueldqn PUBLIC cxx_range_for)
+target_link_libraries(testdueldqn ${shared_libs} ${pytorch_cpp_rl_lib})

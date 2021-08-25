@@ -24,9 +24,9 @@ public:
 	float inputScale = 1;
 
 	//reward
-	int rewardScale = 1;
-	int rewardMin = -1;
-	int rewardMax = 1;
+	float rewardScale = 1;
+	float rewardMin = -1;
+	float rewardMax = 1;
 	bool normReward = false;
 	bool clipRewardStat = false;
 
@@ -57,9 +57,11 @@ public:
 	float exploreEnd = 0.1;
 	float exploreDecay = 0.1;
 	float exploreEp = 1;
+	float explorePart = 0.5;
 	float exploreStep = 1;
 	float explorePhase = 10;
 	float startStep = 1;
+	float tau = 1;
 	int targetUpdateStep = 1024;
 
 	//Replay buffer
@@ -103,6 +105,9 @@ public:
 	int hangNumTh = 1;
 	int randomStep = 1;
 	bool randomHang = false;
+
+	//log
+	int logInterval = 10;
 
 	DqnOption(at::IntArrayRef iShape, torch::Device dType = torch::kCPU, int cap = 128, float gm = 0.99, std::string path = "./stat.txt", int tUpdate = 128);
 	~DqnOption() = default;

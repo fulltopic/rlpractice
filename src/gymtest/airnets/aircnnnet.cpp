@@ -11,6 +11,7 @@
 #include <iostream>
 
 #include "gymtest/airnets/aircnnnet.h"
+#include "gymtest/utils/netinitutils.h"
 
 AirCnnNet::AirCnnNet(const int outputNum):
 	conv0(torch::nn::Conv2dOptions(4, 32, 8).stride(4)),
@@ -26,6 +27,13 @@ AirCnnNet::AirCnnNet(const int outputNum):
 	register_module("conv2", conv2);
 	register_module("fc2", fc2);
 	register_module("fc3", fc3);
+
+
+	NetInitUtils::Init_weights(conv0->named_parameters(), sqrt(2.0), 0, NetInitUtils::Kaiming);
+	NetInitUtils::Init_weights(conv1->named_parameters(), sqrt(2.0), 0, NetInitUtils::Kaiming);
+	NetInitUtils::Init_weights(conv2->named_parameters(), sqrt(2.0), 0, NetInitUtils::Kaiming);
+	NetInitUtils::Init_weights(fc2->named_parameters(), sqrt(2.0), 0, NetInitUtils::Xavier);
+	NetInitUtils::Init_weights(fc3->named_parameters(), sqrt(2.0), 0, NetInitUtils::Xavier);
 }
 
 torch::Tensor AirCnnNet::forward(torch::Tensor input) {
