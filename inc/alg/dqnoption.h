@@ -74,6 +74,7 @@ public:
 	float pbBetaBegin = 0.4;
 	float pbBetaEnd = 1;
 	float pbEpsilon = 1e-6;
+	float pbBetaPart = 1;
 
 	//a2c
 	int batchSize;
