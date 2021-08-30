@@ -1,12 +1,13 @@
 /*
- * priodqn.hpp
+ * muldqn.hpp
  *
- *  Created on: Aug 26, 2021
+ *  Created on: Aug 28, 2021
  *      Author: zf
  */
 
-#ifndef INC_ALG_PRIODQN_HPP_
-#define INC_ALG_PRIODQN_HPP_
+#ifndef INC_ALG_MULDQN_HPP_
+#define INC_ALG_MULDQN_HPP_
+
 
 #include <torch/torch.h>
 #include <log4cxx/logger.h>
@@ -20,13 +21,10 @@
 #include "gymtest/env/envutils.h"
 #include "gymtest/utils/stats.h"
 #include "gymtest/utils/lossstats.h"
-
-#include "gymtest/utils/mheap.hpp"
-#include "gymtest/utils/stree.h"
 #include "dqnoption.h"
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-class PrioDqn {
+class MultiDqn {
 private:
 	NetType& bModel;
 	NetType& tModel;
@@ -41,24 +39,16 @@ private:
 
 	uint32_t updateNum = 0;
 
-	float beta;
-
 //	const int actionNum;
 //	std::vector<int64_t> indice;
 
 	const torch::TensorOptions longOpt = torch::TensorOptions().dtype(torch::kLong);
-	log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("priodqn");
+	log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("dqn");
 
 	Stats stater;
 	Stats testStater;
 	LossStats lossStater;
 
-	class FloatMaxPredFunc {
-	public:
-		bool operator()(const float a, const float b)  {
-			return a > b;
-		}
-	};
 
 	class ReplayBuffer {
 	private:
@@ -66,17 +56,11 @@ private:
 		int curSize = 0;
 		const int cap;
 
-		const float epsilon;
-
-		FloatMaxPredFunc maxPrioFunc;
-		MHeap<float, FloatMaxPredFunc> maxPrioHeap;
-		SegTree segTree;
-
 		const torch::TensorOptions longOpt = torch::TensorOptions().dtype(torch::kLong);
 		log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("dqn");
 
 	public:
-		ReplayBuffer (const int iCap, const at::IntArrayRef& inputShape, float iEpsilon);
+		ReplayBuffer (const int iCap, const at::IntArrayRef& inputShape);
 		~ReplayBuffer() = default;
 		ReplayBuffer(const ReplayBuffer&) = delete;
 
@@ -87,10 +71,7 @@ private:
 
 		//Store states and rewards after normalization
 		void add(torch::Tensor state, torch::Tensor nextState, int action, float reward, float done);
-		void update(torch::Tensor indiceTensor, torch::Tensor prioTensor);
-		std::pair<torch::Tensor, torch::Tensor> getSampleIndex(int batchSize);
-		inline int size() { return curSize;}
-		inline float sum() { return segTree.getSum();}
+		torch::Tensor getSampleIndex(int batchSize);
 	};
 
 	ReplayBuffer buffer; //buffer has to be defined after dqnOption so ReplayBuffer can get all parameters of dqnOption.
@@ -100,11 +81,10 @@ private:
 
 	void load();
 	void save();
-
 public:
-	PrioDqn(NetType& iModel, NetType& iTModel, EnvType& iEnv, EnvType& tEnv, PolicyType& iPolicy, OptimizerType& iOptimizer, DqnOption iOption);
-	~PrioDqn() = default;
-	PrioDqn(const PrioDqn&) = delete;
+	MultiDqn(NetType& iModel, NetType& iTModel, EnvType& iEnv, EnvType& tEnv, PolicyType& iPolicy, OptimizerType& iOptimizer, DqnOption iOption);
+	~MultiDqn() = default;
+	MultiDqn(const Dqn&) = delete;
 
 	void train(const int epochNum);
 	void test(const int epochNum, bool render = false);
@@ -113,12 +93,7 @@ public:
 
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::ReplayBuffer(const int iCap, const at::IntArrayRef& inputShape, float iEps)
-	: cap(iCap),
-	  epsilon(iEps),
-	  maxPrioHeap(iCap, maxPrioFunc),
-	  segTree(iCap)
-{
+MultiDqn<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::ReplayBuffer(const int iCap, const at::IntArrayRef& inputShape): cap(iCap) {
 	std::vector<int64_t> stateInputShape;
 	stateInputShape.push_back(cap);
 	//input state shape = {1, 4, 84, 84};
@@ -136,7 +111,7 @@ PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::ReplayBuffer
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::add(
+void MultiDqn<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::add(
 		torch::Tensor state, torch::Tensor nextState, int action, float reward, float done) {
 	{
 		//For log
@@ -162,55 +137,18 @@ void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::add(
 	if (curSize < cap) {
 		curSize ++;
 	}
-
-	float maxPrio = std::max(maxPrioHeap.getM(), epsilon);
-	LOG4CXX_DEBUG(logger, "add " << maxPrio);
-	segTree.add(maxPrio);
-	maxPrioHeap.add(maxPrio);
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-std::pair<torch::Tensor, torch::Tensor> PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::getSampleIndex(int batchSize) {
-//	torch::Tensor indices = torch::randint(0, curSize, {batchSize}, longOpt);
-//
-//	return indices;
-	auto rc = segTree.sample(batchSize);
-	std::vector<int> indice = std::get<0>(rc);
-	std::vector<float> prios = std::get<1>(rc);
+torch::Tensor MultiDqn<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::getSampleIndex(int batchSize) {
+	torch::Tensor indices = torch::randint(0, curSize, {batchSize}, longOpt);
 
-	torch::Tensor indiceTensor = torch::zeros({batchSize}, longOpt);
-	torch::Tensor prioTensor = torch::zeros({batchSize});
-
-	for (int i = 0; i < batchSize; i ++) {
-		indiceTensor[i] = indice[i];
-		prioTensor[i] = prios[i];
-	}
-	LOG4CXX_DEBUG(logger, "sample indice: " << indiceTensor);
-	LOG4CXX_DEBUG(logger, "sample prio: " << prioTensor);
-	return {indiceTensor, prioTensor};
+	return indices;
 }
 
-template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::update(
-		torch::Tensor indiceTensor, torch::Tensor prioTensor) {
-	int batchSize = indiceTensor.numel();
-	LOG4CXX_DEBUG(logger, "To update " << batchSize);
-	LOG4CXX_DEBUG(logger, "before convert: " << prioTensor);
-	int64_t* indice = indiceTensor.to(torch::kCPU).data_ptr<int64_t>();
-//	float* prios = prioTensor.to(torch::kCPU).data_ptr<float>();
-	prioTensor = prioTensor.to(torch::kCPU);
-	std::vector<float> prios(prioTensor.data_ptr<float>(), prioTensor.data_ptr<float>() + batchSize);
-
-	for (int i = 0; i < batchSize; i ++) {
-		maxPrioHeap.update(indice[i], prios[i]);
-		segTree.update(indice[i], prios[i]);
-
-		LOG4CXX_DEBUG(logger, "update " << indice[i] << " into " << prios[i]);
-	}
-}
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::PrioDqn(NetType& iModel, NetType& iTModel,
+MultiDqn<NetType, EnvType, PolicyType, OptimizerType>::MultiDqn(NetType& iModel, NetType& iTModel,
 		EnvType& iEnv, EnvType& tEnv, PolicyType& iPolicy, OptimizerType& iOptimizer,
 		DqnOption iOption):
 	bModel(iModel),
@@ -222,8 +160,7 @@ PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::PrioDqn(NetType& iModel, N
 	dqnOption(iOption),
 	deviceType(iOption.deviceType),
 	inputShape(iOption.inputShape),
-	buffer(iOption.rbCap, iOption.inputShape, iOption.pbEpsilon),
-	beta(iOption.pbBetaBegin),
+	buffer(iOption.rbCap, iOption.inputShape),
 	stater(iOption.statPathPrefix + "_stat.txt", iOption.statCap),
 	testStater(iOption.statPathPrefix + "_test.txt", iOption.statCap),
 	lossStater(iOption.statPathPrefix + "_loss.txt")
@@ -232,7 +169,7 @@ PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::PrioDqn(NetType& iModel, N
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epochNum) {
+void MultiDqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epochNum) {
 	load();
 	updateModel(true); //model assignment
 	tModel.eval();
@@ -246,13 +183,11 @@ void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epoch
 
 	while (updateNum < epochNum) {
 		updateNum ++;
-		LOG4CXX_DEBUG(logger, "---------------------------------------> update " << updateNum);
 		//Run step
 		torch::Tensor cpuinputTensor = torch::from_blob(stateVec.data(), inputShape).div(dqnOption.inputScale);
 		torch::Tensor inputTensor = cpuinputTensor.to(deviceType);
 
 		torch::Tensor outputTensor = bModel.forward(inputTensor); //TODO: bModel or tModel?
-		LOG4CXX_DEBUG(logger, "outputTensor: " << outputTensor);
 		std::vector<int64_t> actions = policy.getActions(outputTensor);
 
 		auto stepResult = env.step(actions);
@@ -269,7 +204,7 @@ void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epoch
 			stater.update(statLens[0], statRewards[0]);
 			statRewards[0] = 0;
 			statLens[0] = 0;
-			LOG4CXX_INFO(logger, "" << policy.getEpsilon() << "-" << beta << "--" << updateNum << stater);
+			LOG4CXX_INFO(logger, "" << policy.getEpsilon() << "--" << updateNum << stater);
 		}
 
 		torch::Tensor nextInputTensor = torch::from_blob(nextInputVec.data(), inputShape).div(dqnOption.inputScale);
@@ -284,18 +219,15 @@ void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epoch
 			continue;
 		}
 
-		int sampleNum = buffer.size();
-		auto rc = buffer.getSampleIndex(dqnOption.batchSize);
-		torch::Tensor sampleIndice = std::get<0>(rc);
-		torch::Tensor samplePrios = std::get<1>(rc);
+		torch::Tensor sampleIndice = buffer.getSampleIndex(dqnOption.batchSize);
 		torch::Tensor curStateTensor = buffer.states.index_select(0, sampleIndice).to(deviceType);
 		torch::Tensor actionTensor = buffer.actions.index_select(0, sampleIndice).to(deviceType);
 		torch::Tensor rewardTensor = buffer.rewards.index_select(0, sampleIndice).to(deviceType);
 		torch::Tensor doneMaskTensor = buffer.donesMask.index_select(0, sampleIndice).to(deviceType);
 		LOG4CXX_DEBUG(logger, "sampleIndex before: " << sampleIndice);
-		torch::Tensor nextSampleIndice = (sampleIndice + 1) % dqnOption.rbCap;
-		torch::Tensor nextStateTensor = buffer.states.index_select(0, nextSampleIndice).to(deviceType);
-		LOG4CXX_DEBUG(logger, "sampleIndice after: " << nextSampleIndice);
+		sampleIndice = (sampleIndice + 1) % dqnOption.rbCap;
+		torch::Tensor nextStateTensor = buffer.states.index_select(0, sampleIndice).to(deviceType);
+		LOG4CXX_DEBUG(logger, "sampleIndice after: " << sampleIndice);
 		LOG4CXX_DEBUG(logger, "nextStateTensor: " << nextStateTensor);
 
 		torch::Tensor targetQ;
@@ -319,42 +251,14 @@ void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epoch
 		torch::Tensor curQ = curOutput.gather(-1, actionTensor); //TODO: shape of actionTensor and curQ
 		LOG4CXX_DEBUG(logger, "curQ: " << curQ);
 
-		//PRIO
-		torch::Tensor probs = samplePrios.view({dqnOption.batchSize, 1}).to(deviceType) / buffer.sum();
-		LOG4CXX_DEBUG(logger, "Sum: " << buffer.sum());
-		LOG4CXX_DEBUG(logger, "probs: " << probs);
-		torch::Tensor weights = (buffer.size() * probs).pow(- beta);
-		weights = weights / weights.max();
-		torch::Tensor lossTensor = weights * ((targetQ - curQ).pow(2) / 2.0f);
-//		torch::Tensor loss = (weights * ((targetQ - curQ).pow(2) / 2.0f)).mean();
-		torch::Tensor loss = lossTensor.mean();
-		LOG4CXX_DEBUG(logger, "weights: " << weights);
-		LOG4CXX_DEBUG(logger, "loss: " << loss);
-
-		torch::Tensor delta = (targetQ - curQ).abs();
-		torch::Tensor newPrios = delta.pow(dqnOption.pbAlpha) + dqnOption.pbEpsilon;
-		LOG4CXX_DEBUG(logger, "delta: " << delta);
-		LOG4CXX_DEBUG(logger, "newPrios: " << newPrios);
-		buffer.update(sampleIndice, newPrios);
-
-//		torch::Tensor loss = loss_value.mean();
 //		auto loss = torch::nn::SmoothL1Loss(curQ, targetQ);
-//		auto loss = torch::nn::functional::smooth_l1_loss(curQ, targetQ);
+		//TODO: Try mse.
+		auto loss = torch::nn::functional::smooth_l1_loss(curQ, targetQ);
 
 		if ((updateNum % dqnOption.logInterval) == 0) {
-			float deltaValue = delta.mean().item<float>();
-			float weightValue = weights.mean().item<float>();
 			float lossValue = loss.item<float>();
 			auto curStat = stater.getCurState();
-			lossStater.update({(float)updateNum, lossValue, deltaValue, weightValue, beta, curStat[0], curStat[1]});
-
-//			if (lossValue > 1.5) {
-//				LOG4CXX_INFO(logger, "targetQ: " << targetQ);
-//				LOG4CXX_INFO(logger, "curQ: " << curQ);
-//				LOG4CXX_INFO(logger, "delta: " << delta);
-//				LOG4CXX_INFO(logger, "weights: " << weights);
-//				LOG4CXX_INFO(logger, "loss tensor: " << lossTensor);
-//			}
+			lossStater.update({(float)updateNum, lossValue, curStat[0], curStat[1]});
 		}
 
 		optimizer.zero_grad();
@@ -367,7 +271,7 @@ void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epoch
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::updateModel(bool force) {
+void MultiDqn<NetType, EnvType, PolicyType, OptimizerType>::updateModel(bool force) {
 	if (!force) {
 		if ((updateNum % dqnOption.targetUpdateStep) != 0) {
 			return;
@@ -402,23 +306,19 @@ void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::updateModel(bool forc
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::updateStep(const float epochNum) {
+void MultiDqn<NetType, EnvType, PolicyType, OptimizerType>::updateStep(const float epochNum) {
 	updateModel(false);
 
-	if (updateNum <= dqnOption.pbBetaPart * epochNum) {
-		beta = dqnOption.pbBetaBegin + (updateNum / (dqnOption.pbBetaPart * epochNum)) * (dqnOption.pbBetaEnd - dqnOption.pbBetaBegin);
+	if (updateNum > (dqnOption.explorePart * epochNum)) {
+		return;
 	}
-
-	if (updateNum <= (dqnOption.explorePart * epochNum)) {
-		float newEpsilon = (dqnOption.exploreBegin - dqnOption.exploreEnd) * (epochNum * dqnOption.explorePart - updateNum) / (epochNum * dqnOption.explorePart) + dqnOption.exploreEnd;
-		policy.updateEpsilon(newEpsilon);
-	}
-
+	float newEpsilon = (dqnOption.exploreBegin - dqnOption.exploreEnd) * (epochNum * dqnOption.explorePart - updateNum) / (epochNum * dqnOption.explorePart) + dqnOption.exploreEnd;
+	policy.updateEpsilon(newEpsilon);
 }
 //TODO: update, train, test, syncModel
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::test(const int epochNum, bool render) {
+void MultiDqn<NetType, EnvType, PolicyType, OptimizerType>::test(const int epochNum, bool render) {
 	load();
 
 	std::vector<float> statRewards(dqnOption.envNum, 0);
@@ -454,7 +354,7 @@ void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::test(const int epochN
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::save() {
+void MultiDqn<NetType, EnvType, PolicyType, OptimizerType>::save() {
 	if (!dqnOption.saveModel) {
 		return;
 	}
@@ -473,7 +373,7 @@ void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::save() {
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::load() {
+void MultiDqn<NetType, EnvType, PolicyType, OptimizerType>::load() {
 	if (!dqnOption.loadModel) {
 		return;
 	}
@@ -497,4 +397,4 @@ void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::load() {
 }
 
 
-#endif /* INC_ALG_PRIODQN_HPP_ */
+#endif /* INC_ALG_MULDQN_HPP_ */

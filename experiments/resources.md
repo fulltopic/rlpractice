@@ -2,6 +2,7 @@
 ## General 
 [RL debugging](https://andyljones.com/posts/rl-debugging.html)
 
+[A DQN hyperparameters](https://github.com/ShanHaoYu/Deep-Q-Network-Breakout/blob/master/argument.py)
 ## Initiation
 1. [Initiation introduction](https://www.deeplearning.ai/ai-notes/initialization/)
 
@@ -58,3 +59,10 @@ Ref(3) explains math behind these algorithms (Xavier and Kaiming):
 [eps ref](https://www.reddit.com/r/reinforcementlearning/comments/ctytuq/using_larger_epsilon_with_adam_for_rl/)
 
 [Update pytorch lr of optimizer](https://stackoverflow.com/questions/62415285/updating-learning-rate-with-libtorch-1-5-and-optimiser-options-in-c)
+
+## Continuous Space
+* DDPG
+* TD3
+## TODO
+* ACER
+* SAC for discrete action space

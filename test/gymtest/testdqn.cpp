@@ -697,7 +697,7 @@ void testBreakout(const int epochNum) {
     option.savePathPrefix = "./dqn_testtest121";
     option.loadModel = true;
     option.loadOptimizer = false;
-    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/dqn_test121";
+    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/dqn_test122";
 
 
     RawPolicy policy(option.exploreBegin, outputNum);
@@ -1377,6 +1377,68 @@ void test124(const int epochNum) {
     Dqn<AirCnnNet, AirEnv, RawPolicy, torch::optim::RMSprop> dqn(model, targetModel, env, env, policy, optimizer, option);
     dqn.train(epochNum);
 }
+
+//To try 200,000 and expect short time
+void test125(const int epochNum) {
+	const std::string envName = "BreakoutNoFrameskip-v4";
+	const int outputNum = 4;
+	const int clientNum = 1;
+	std::string serverAddr = "tcp://127.0.0.1:10201";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	AirCnnNet model(outputNum);
+	model.to(deviceType);
+	AirCnnNet targetModel(outputNum);
+	targetModel.to(deviceType);
+
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-3)); //rmsprop: 0.00025
+//    torch::optim::RMSprop optimizer(model.parameters(), torch::optim::RMSpropOptions(0.0001));
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-4));
+//	torch::optim::RMSprop optimizer(model.parameters());
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    option.envNum = clientNum;
+    //target model
+    option.targetUpdateStep = 10000;
+    option.tau = 1;
+    //buffer
+    option.rbCap = 100000;
+    //explore
+    option.exploreBegin = 1;
+    option.exploreEnd = 0.1;
+    option.explorePart = 0.5;
+    //input
+    option.inputScale = 256;
+    option.rewardScale = 1;
+    option.rewardMin = -1; //TODO: reward may not require clip
+    option.rewardMax = 1;
+    option.gamma = 0.99;
+    //grad
+    option.batchSize = 32;
+    option.startStep = 100000;
+    option.maxGradNormClip = 1;
+    //log
+    option.logInterval = 1000;
+    option.statCap = 128;
+    option.statPathPrefix = "./dqn_test125";
+    //model
+    option.saveModel = true;
+    option.savePathPrefix = "./dqn_test125";
+    option.loadModel = false;
+    option.loadOptimizer = false;
+//    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/dqn_test123";
+
+
+    RawPolicy policy(option.exploreBegin, outputNum);
+
+    Dqn<AirCnnNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, env, policy, optimizer, option);
+    dqn.train(epochNum);
+}
 }
 
 namespace {
@@ -1400,9 +1462,9 @@ int main(int argc, char** argv) {
 	logConfigure(false);
 
 //	test0(atoi(argv[1]));
-	test124(atoi(argv[1]));
+//	test124(atoi(argv[1]));
 //	testPong(atoi(argv[1]));
-//	testBreakout(atoi(argv[1]));
+	testBreakout(atoi(argv[1]));
 
 
 	LOG4CXX_INFO(logger, "End of test");
