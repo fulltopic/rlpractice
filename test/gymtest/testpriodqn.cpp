@@ -74,7 +74,7 @@ void testProbe(const int epochNum) {
     option.pbBetaPart = 1;
     //explore
     option.exploreBegin = 1;
-    option.exploreEnd = 0.1;
+    option.exploreEnd = 0.01;
     option.explorePart = 0.8;
     //input
     option.inputScale = 1;
@@ -501,6 +501,555 @@ void testPong4(const int epochNum) {
     dqn.train(epochNum);
 }
 
+void testPong5(const int epochNum) {
+	const std::string envName = "PongNoFrameskip-v4";
+	const int outputNum = 6;
+	const int clientNum = 1;
+	std::string serverAddr = "tcp://127.0.0.1:10205";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	AirCnnNet model(outputNum);
+	model.to(deviceType);
+	AirCnnNet targetModel(outputNum);
+	targetModel.to(deviceType);
+
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-3)); //rmsprop: 0.00025
+//    torch::optim::RMSprop optimizer(model.parameters(), torch::optim::RMSpropOptions(0.0001).eps(0.01).alpha(0.95));
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-4));
+//	torch::optim::RMSprop optimizer(model.parameters());
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    option.envNum = clientNum;
+    //target model
+    option.targetUpdateStep = 5000;
+    option.tau = 1;
+    //prio
+    option.rbCap = 8192 * 4; //Cap to be 2^x
+    option.pbAlpha = 0.6;
+    option.pbBetaBegin = 0.5;
+    option.pbBetaEnd = 1;
+    option.pbEpsilon = 1e-6;
+    option.pbBetaPart = 1;    //explore
+    option.exploreBegin = 1;
+    option.exploreEnd = 0.01;
+    option.explorePart = 1;
+    //input
+    option.inputScale = 256;
+    option.rewardScale = 1;
+    option.rewardMin = -1; //TODO: reward may not require clip
+    option.rewardMax = 1;
+    option.gamma = 0.99;
+    //grad
+    option.batchSize = 128;
+    option.startStep = 10000;
+    option.maxGradNormClip = 1;
+    //log
+    option.logInterval = 1000;
+    option.statCap = 128;
+    option.statPathPrefix = "./priodqn_testpong5";
+    //model
+    option.saveThreshold = -14;
+    option.saveStep = 1;
+    option.saveModel = true;
+    option.savePathPrefix = "./priodqn_testpong5";
+    option.loadModel = true;
+    option.loadOptimizer = true;
+    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/priodqn_testpong1";
+
+
+    RawPolicy policy(option.exploreBegin, outputNum);
+
+    PrioDqn<AirCnnNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, env, policy, optimizer, option);
+
+    dqn.train(epochNum);
+}
+
+
+void testPong6(const int epochNum) {
+	const std::string envName = "PongNoFrameskip-v4";
+	const int outputNum = 6;
+	const int clientNum = 1;
+	std::string serverAddr = "tcp://127.0.0.1:10205";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	AirCnnNet model(outputNum);
+	model.to(deviceType);
+	AirCnnNet targetModel(outputNum);
+	targetModel.to(deviceType);
+
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-3)); //rmsprop: 0.00025
+//    torch::optim::RMSprop optimizer(model.parameters(), torch::optim::RMSpropOptions(0.0001).eps(0.01).alpha(0.95));
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-4));
+//	torch::optim::RMSprop optimizer(model.parameters());
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    option.envNum = clientNum;
+    //target model
+    option.targetUpdateStep = 5000;
+    option.tau = 1;
+    //prio
+    option.rbCap = 8192 * 4; //Cap to be 2^x
+    option.pbAlpha = 0.6;
+    option.pbBetaBegin = 0.6;
+    option.pbBetaEnd = 1;
+    option.pbEpsilon = 1e-6;
+    option.pbBetaPart = 1;    //explore
+    option.exploreBegin = 0.2;
+    option.exploreEnd = 0.1;
+    option.explorePart = 1;
+    //input
+    option.inputScale = 256;
+    option.rewardScale = 1;
+    option.rewardMin = -1; //TODO: reward may not require clip
+    option.rewardMax = 1;
+    option.gamma = 0.99;
+    //grad
+    option.batchSize = 128;
+    option.startStep = 10000;
+    option.maxGradNormClip = 1;
+    //log
+    option.logInterval = 1000;
+    option.statCap = 128;
+    option.statPathPrefix = "./priodqn_testpong6";
+    //model
+    option.saveThreshold = -14;
+    option.saveStep = 1;
+    option.saveModel = true;
+    option.savePathPrefix = "./priodqn_testpong6";
+    option.loadModel = true;
+    option.loadOptimizer = true;
+    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/priodqn_testpong2";
+
+
+    RawPolicy policy(option.exploreBegin, outputNum);
+
+    PrioDqn<AirCnnNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, env, policy, optimizer, option);
+
+    dqn.train(epochNum);
+}
+
+void testPong7(const int epochNum) {
+	const std::string envName = "PongNoFrameskip-v4";
+	const int outputNum = 6;
+	const int clientNum = 1;
+	std::string serverAddr = "tcp://127.0.0.1:10205";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	AirCnnNet model(outputNum);
+	model.to(deviceType);
+	AirCnnNet targetModel(outputNum);
+	targetModel.to(deviceType);
+
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-3)); //rmsprop: 0.00025
+//    torch::optim::RMSprop optimizer(model.parameters(), torch::optim::RMSpropOptions(0.0001).eps(0.01).alpha(0.95));
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-4));
+//	torch::optim::RMSprop optimizer(model.parameters());
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    option.envNum = clientNum;
+    //target model
+    option.targetUpdateStep = 5000;
+    option.tau = 1;
+    //prio
+    option.rbCap = 8192 * 4; //Cap to be 2^x
+    option.pbAlpha = 0.6;
+    option.pbBetaBegin = 0.6;
+    option.pbBetaEnd = 1;
+    option.pbEpsilon = 1e-6;
+    option.pbBetaPart = 1;    //explore
+    option.exploreBegin = 0.2;
+    option.exploreEnd = 0.1;
+    option.explorePart = 1;
+    //input
+    option.inputScale = 256;
+    option.rewardScale = 1;
+    option.rewardMin = -1; //TODO: reward may not require clip
+    option.rewardMax = 1;
+    option.gamma = 0.99;
+    //grad
+    option.batchSize = 128;
+    option.startStep = 10000;
+    option.maxGradNormClip = 1;
+    //log
+    option.logInterval = 1000;
+    option.statCap = 128;
+    option.statPathPrefix = "./priodqn_testpong7";
+    //model
+    option.saveThreshold = -14;
+    option.saveStep = 1;
+    option.saveModel = true;
+    option.savePathPrefix = "./priodqn_testpong7";
+    option.loadModel = true;
+    option.loadOptimizer = true;
+    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/priodqn_testpong6";
+
+
+    RawPolicy policy(option.exploreBegin, outputNum);
+
+    PrioDqn<AirCnnNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, env, policy, optimizer, option);
+
+    dqn.train(epochNum);
+}
+
+
+void testPong8(const int epochNum) {
+	const std::string envName = "PongNoFrameskip-v4";
+	const int outputNum = 6;
+	const int clientNum = 1;
+	std::string serverAddr = "tcp://127.0.0.1:10205";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	AirCnnNet model(outputNum);
+	model.to(deviceType);
+	AirCnnNet targetModel(outputNum);
+	targetModel.to(deviceType);
+
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-3)); //rmsprop: 0.00025
+//    torch::optim::RMSprop optimizer(model.parameters(), torch::optim::RMSpropOptions(0.0001).eps(0.01).alpha(0.95));
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-4));
+//	torch::optim::RMSprop optimizer(model.parameters());
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    option.envNum = clientNum;
+    //target model
+    option.targetUpdateStep = 5000;
+    option.tau = 1;
+    //prio
+    option.rbCap = 8192 * 4; //Cap to be 2^x
+    option.pbAlpha = 0.6;
+    option.pbBetaBegin = 0.9;
+    option.pbBetaEnd = 9;
+    option.pbEpsilon = 1e-6;
+    option.pbBetaPart = 1;    //explore
+    option.exploreBegin = 0.1;
+    option.exploreEnd = 0.1;
+    option.explorePart = 1;
+    //input
+    option.inputScale = 256;
+    option.rewardScale = 1;
+    option.rewardMin = -1; //TODO: reward may not require clip
+    option.rewardMax = 1;
+    option.gamma = 0.99;
+    //grad
+    option.batchSize = 128;
+    option.startStep = 10000;
+    option.maxGradNormClip = 1;
+    //log
+    option.logInterval = 1000;
+    option.statCap = 128;
+    option.statPathPrefix = "./priodqn_testpong8";
+    //model
+    option.saveThreshold = -5;
+    option.saveStep = 1;
+    option.saveModel = true;
+    option.savePathPrefix = "./priodqn_testpong8";
+    option.loadModel = true;
+    option.loadOptimizer = true;
+    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/priodqn_testpong7";
+
+
+    RawPolicy policy(option.exploreBegin, outputNum);
+
+    PrioDqn<AirCnnNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, env, policy, optimizer, option);
+
+    dqn.train(epochNum);
+}
+
+
+void testPong9(const int epochNum) {
+	const std::string envName = "PongNoFrameskip-v4";
+	const int outputNum = 6;
+	const int clientNum = 1;
+	std::string serverAddr = "tcp://127.0.0.1:10205";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	AirCnnNet model(outputNum);
+	model.to(deviceType);
+	AirCnnNet targetModel(outputNum);
+	targetModel.to(deviceType);
+
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-3)); //rmsprop: 0.00025
+//    torch::optim::RMSprop optimizer(model.parameters(), torch::optim::RMSpropOptions(0.0001).eps(0.01).alpha(0.95));
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-4));
+//	torch::optim::RMSprop optimizer(model.parameters());
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    option.envNum = clientNum;
+    //target model
+    option.targetUpdateStep = 5000;
+    option.tau = 1;
+    //prio
+    option.rbCap = 8192 * 4; //Cap to be 2^x
+    option.pbAlpha = 0.6;
+    option.pbBetaBegin = 0.9;
+    option.pbBetaEnd = 0.9;
+    option.pbEpsilon = 1e-6;
+    option.pbBetaPart = 1;    //explore
+    option.exploreBegin = 0.1;
+    option.exploreEnd = 0.1;
+    option.explorePart = 1;
+    //input
+    option.inputScale = 256;
+    option.rewardScale = 1;
+    option.rewardMin = -1; //TODO: reward may not require clip
+    option.rewardMax = 1;
+    option.gamma = 0.99;
+    //grad
+    option.batchSize = 128;
+    option.startStep = 10000;
+    option.maxGradNormClip = 1;
+    //log
+    option.logInterval = 1000;
+    option.statCap = 128;
+    option.statPathPrefix = "./priodqn_testpong9";
+    //model
+    option.saveThreshold = -5;
+    option.saveStep = 1;
+    option.saveModel = true;
+    option.savePathPrefix = "./priodqn_testpong9";
+    option.loadModel = true;
+    option.loadOptimizer = true;
+    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/priodqn_testpong7";
+
+
+    RawPolicy policy(option.exploreBegin, outputNum);
+
+    PrioDqn<AirCnnNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, env, policy, optimizer, option);
+
+    dqn.train(epochNum);
+}
+
+
+
+void testPong10(const int epochNum) {
+	const std::string envName = "PongNoFrameskip-v4";
+	const int outputNum = 6;
+	const int clientNum = 1;
+	std::string serverAddr = "tcp://127.0.0.1:10205";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	AirCnnNet model(outputNum);
+	model.to(deviceType);
+	AirCnnNet targetModel(outputNum);
+	targetModel.to(deviceType);
+
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-3)); //rmsprop: 0.00025
+//    torch::optim::RMSprop optimizer(model.parameters(), torch::optim::RMSpropOptions(0.0001).eps(0.01).alpha(0.95));
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-4));
+//	torch::optim::RMSprop optimizer(model.parameters());
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    option.envNum = clientNum;
+    //target model
+    option.targetUpdateStep = 5000;
+    option.tau = 1;
+    //prio
+    option.rbCap = 8192 * 4; //Cap to be 2^x
+    option.pbAlpha = 0.6;
+    option.pbBetaBegin = 0.9;
+    option.pbBetaEnd = 0.9;
+    option.pbEpsilon = 1e-6;
+    option.pbBetaPart = 1;    //explore
+    option.exploreBegin = 0.1;
+    option.exploreEnd = 0.1;
+    option.explorePart = 1;
+    //input
+    option.inputScale = 256;
+    option.rewardScale = 1;
+    option.rewardMin = -1; //TODO: reward may not require clip
+    option.rewardMax = 1;
+    option.gamma = 0.99;
+    //grad
+    option.batchSize = 128;
+    option.startStep = 10000;
+    option.maxGradNormClip = 1;
+    //log
+    option.logInterval = 1000;
+    option.statCap = 128;
+    option.statPathPrefix = "./priodqn_testpong10";
+    //model
+    option.saveThreshold = 4;
+    option.saveStep = 1;
+    option.saveModel = true;
+    option.savePathPrefix = "./priodqn_testpong10";
+    option.loadModel = true;
+    option.loadOptimizer = true;
+    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/priodqn_testpong9";
+
+
+    RawPolicy policy(option.exploreBegin, outputNum);
+
+    PrioDqn<AirCnnNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, env, policy, optimizer, option);
+
+    dqn.train(epochNum);
+}
+
+
+
+void testPong11(const int epochNum) {
+	const std::string envName = "PongNoFrameskip-v4";
+	const int outputNum = 6;
+	const int clientNum = 1;
+	std::string serverAddr = "tcp://127.0.0.1:10205";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	AirCnnNet model(outputNum);
+	model.to(deviceType);
+	AirCnnNet targetModel(outputNum);
+	targetModel.to(deviceType);
+
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-3)); //rmsprop: 0.00025
+//    torch::optim::RMSprop optimizer(model.parameters(), torch::optim::RMSpropOptions(0.0001).eps(0.01).alpha(0.95));
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-4));
+//	torch::optim::RMSprop optimizer(model.parameters());
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    option.envNum = clientNum;
+    //target model
+    option.targetUpdateStep = 5000;
+    option.tau = 1;
+    //prio
+    option.rbCap = 8192 * 4; //Cap to be 2^x
+    option.pbAlpha = 0.6;
+    option.pbBetaBegin = 0.9;
+    option.pbBetaEnd = 0.9;
+    option.pbEpsilon = 1e-6;
+    option.pbBetaPart = 1;    //explore
+    option.exploreBegin = 0.1;
+    option.exploreEnd = 0.05;
+    option.explorePart = 1;
+    //input
+    option.inputScale = 256;
+    option.rewardScale = 1;
+    option.rewardMin = -1; //TODO: reward may not require clip
+    option.rewardMax = 1;
+    option.gamma = 0.99;
+    //grad
+    option.batchSize = 128;
+    option.startStep = 10000;
+    option.maxGradNormClip = 1;
+    //log
+    option.logInterval = 1000;
+    option.statCap = 128;
+    option.statPathPrefix = "./priodqn_testpong11";
+    //model
+    option.saveThreshold = 4;
+    option.saveStep = 1;
+    option.saveModel = true;
+    option.savePathPrefix = "./priodqn_testpong11";
+    option.loadModel = true;
+    option.loadOptimizer = true;
+    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/priodqn_testpong9";
+
+
+    RawPolicy policy(option.exploreBegin, outputNum);
+
+    PrioDqn<AirCnnNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, env, policy, optimizer, option);
+
+    dqn.train(epochNum);
+}
+
+void testtestPong(const int epochNum) {
+	const std::string envName = "PongNoFrameskip-v4";
+	const int outputNum = 6;
+	const int clientNum = 1;
+	std::string serverAddr = "tcp://127.0.0.1:10205";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	AirCnnNet model(outputNum);
+	model.to(deviceType);
+	AirCnnNet targetModel(outputNum);
+	targetModel.to(deviceType);
+
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-3)); //rmsprop: 0.00025
+//    torch::optim::RMSprop optimizer(model.parameters(), torch::optim::RMSpropOptions(0.0001).eps(0.01).alpha(0.95));
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-4));
+//	torch::optim::RMSprop optimizer(model.parameters());
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    option.envNum = clientNum;
+    //target model
+    option.targetUpdateStep = 5000;
+    option.tau = 1;
+    //prio
+    option.rbCap = 8192 * 4; //Cap to be 2^x
+    option.pbAlpha = 0.6;
+    option.pbBetaBegin = 0.9;
+    option.pbBetaEnd = 0.9;
+    option.pbEpsilon = 1e-6;
+    option.pbBetaPart = 1;    //explore
+    option.exploreBegin = 0.1;
+    option.exploreEnd = 0.1;
+    option.explorePart = 1;
+    //input
+    option.inputScale = 256;
+    option.rewardScale = 1;
+    option.rewardMin = -1; //TODO: reward may not require clip
+    option.rewardMax = 1;
+    option.gamma = 0.99;
+    //grad
+    option.batchSize = 128;
+    option.startStep = 10000;
+    option.maxGradNormClip = 1;
+    //log
+    option.logInterval = 1000;
+    option.statCap = 128;
+    option.statPathPrefix = "./priodqn_testtestpong";
+    //model
+    option.saveThreshold = 4;
+    option.saveStep = 1;
+    option.saveModel = false;
+    option.savePathPrefix = "./priodqn_testtestpong";
+    option.loadModel = true;
+    option.loadOptimizer = true;
+    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/priodqn_testpong10";
+
+
+    RawPolicy policy(option.exploreBegin, outputNum);
+
+    PrioDqn<AirCnnNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, env, policy, optimizer, option);
+    dqn.test(epochNum);
+}
 //TODO: increase beta
 }
 
@@ -527,12 +1076,13 @@ int main(int argc, char** argv) {
 
 //	testtestCart(atoi(argv[1]));
 //	test103(atoi(argv[1]));
-	testPong4(atoi(argv[1]));
+//	testPong11(atoi(argv[1]));
 //	testBreakout(atoi(argv[1]));
 
 //	testCart(atoi(argv[1]));
-//	testProbe(atoi(argv[1]));
+	testProbe(atoi(argv[1]));
 //	testPong(atoi(argv[1]));
+//	testtestPong(atoi(argv[1]));
 
 	LOG4CXX_INFO(logger, "End of test");
 }

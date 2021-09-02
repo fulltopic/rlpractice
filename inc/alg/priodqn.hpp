@@ -42,7 +42,7 @@ private:
 	uint32_t updateNum = 0;
 
 	float beta;
-
+	float maxAveReward;
 //	const int actionNum;
 //	std::vector<int64_t> indice;
 
@@ -100,6 +100,9 @@ private:
 
 	void load();
 	void save();
+
+	void saveByReward(float reward);
+
 
 public:
 	PrioDqn(NetType& iModel, NetType& iTModel, EnvType& iEnv, EnvType& tEnv, PolicyType& iPolicy, OptimizerType& iOptimizer, DqnOption iOption);
@@ -224,6 +227,7 @@ PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::PrioDqn(NetType& iModel, N
 	inputShape(iOption.inputShape),
 	buffer(iOption.rbCap, iOption.inputShape, iOption.pbEpsilon),
 	beta(iOption.pbBetaBegin),
+	maxAveReward(iOption.saveThreshold),
 	stater(iOption.statPathPrefix + "_stat.txt", iOption.statCap),
 	testStater(iOption.statPathPrefix + "_test.txt", iOption.statCap),
 	lossStater(iOption.statPathPrefix + "_loss.txt")
@@ -270,6 +274,13 @@ void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epoch
 			statRewards[0] = 0;
 			statLens[0] = 0;
 			LOG4CXX_INFO(logger, "" << policy.getEpsilon() << "-" << beta << "--" << updateNum << stater);
+
+			auto curAveReward = stater.getCurState()[0];
+			if (curAveReward > maxAveReward) {
+				maxAveReward += dqnOption.saveStep;
+				saveByReward(curAveReward);
+			}
+
 		}
 
 		torch::Tensor nextInputTensor = torch::from_blob(nextInputVec.data(), inputShape).div(dqnOption.inputScale);
@@ -331,15 +342,17 @@ void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epoch
 		LOG4CXX_DEBUG(logger, "weights: " << weights);
 		LOG4CXX_DEBUG(logger, "loss: " << loss);
 
-		torch::Tensor delta = (targetQ - curQ).abs();
+		torch::Tensor delta = (targetQ - curQ).abs().detach();
+
+		optimizer.zero_grad();
+		loss.backward();
+		torch::nn::utils::clip_grad_norm_(bModel.parameters(), dqnOption.maxGradNormClip);
+		optimizer.step();
+
 		torch::Tensor newPrios = delta.pow(dqnOption.pbAlpha) + dqnOption.pbEpsilon;
 		LOG4CXX_DEBUG(logger, "delta: " << delta);
 		LOG4CXX_DEBUG(logger, "newPrios: " << newPrios);
 		buffer.update(sampleIndice, newPrios);
-
-//		torch::Tensor loss = loss_value.mean();
-//		auto loss = torch::nn::SmoothL1Loss(curQ, targetQ);
-//		auto loss = torch::nn::functional::smooth_l1_loss(curQ, targetQ);
 
 		if ((updateNum % dqnOption.logInterval) == 0) {
 			float deltaValue = delta.mean().item<float>();
@@ -357,10 +370,6 @@ void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epoch
 //			}
 		}
 
-		optimizer.zero_grad();
-		loss.backward();
-		torch::nn::utils::clip_grad_norm_(bModel.parameters(), dqnOption.maxGradNormClip);
-		optimizer.step();
 	}
 
 	save();
@@ -494,6 +503,25 @@ void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::load() {
 		LOG4CXX_INFO(logger, "Load optimizer from " << optPath);
 	}
 
+}
+
+template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
+void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::saveByReward(float reward) {
+	if (!dqnOption.saveModel) {
+		return;
+	}
+
+	std::string modelPath = dqnOption.savePathPrefix + "_" + std::to_string(reward) + "_model.pt";
+	torch::serialize::OutputArchive outputArchive;
+	bModel.save(outputArchive);
+	outputArchive.save_to(modelPath);
+	LOG4CXX_INFO(logger, "Save model into " << modelPath);
+
+	std::string optPath = dqnOption.savePathPrefix + "_" + std::to_string(reward) + "_optimizer.pt";
+	torch::serialize::OutputArchive optimizerArchive;
+	optimizer.save(optimizerArchive);
+	optimizerArchive.save_to(optPath);
+	LOG4CXX_INFO(logger, "Save optimizer into " << optPath);
 }
 
 

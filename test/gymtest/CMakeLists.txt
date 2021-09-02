@@ -142,3 +142,7 @@ target_link_libraries(testdueldqn ${shared_libs} ${pytorch_cpp_rl_lib})
 add_executable(testpriodqn testpriodqn.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:probeenvs>)
 target_compile_features(testpriodqn PUBLIC cxx_range_for)
 target_link_libraries(testpriodqn ${shared_libs} ${pytorch_cpp_rl_lib})
+
+add_executable(testnoisydqn testnoisydqn.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:probeenvs> $<TARGET_OBJECTS:noisynets>)
+target_compile_features(testnoisydqn PUBLIC cxx_range_for)
+target_link_libraries(testnoisydqn ${shared_libs} ${pytorch_cpp_rl_lib})
