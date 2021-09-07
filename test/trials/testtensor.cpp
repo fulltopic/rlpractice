@@ -12,6 +12,7 @@
 #include <vector>
 #include <algorithm>
 #include <random>
+//#include <random.h>
 
 namespace {
 void testExpandAs() {
@@ -461,6 +462,16 @@ void testNorm() {
 //	auto device = torch::device("cuda:0");
 //	std::cout << "device " << device << std::endl;
 //}
+
+void testSqrt() {
+	int inFeatures = 16;
+	float stdValue = (float)sqrt(3 / (float)inFeatures);
+	std::cout << "stdValue: " << stdValue << std::endl;
+
+	torch::Tensor t = torch::zeros({4, 4});
+	torch::nn::init::uniform_(t, -stdValue, stdValue);
+	std::cout << "uniform value: " << t << std::endl;
+}
 }
 
 int main() {
@@ -485,7 +496,8 @@ int main() {
 //	testDevice();
 //	testChunk();
 
-	testNorm();
+//	testNorm();
+	testSqrt();
 
 	return 0;
 }

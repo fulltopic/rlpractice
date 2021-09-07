@@ -76,6 +76,7 @@ private:
 		//Store states and rewards after normalization
 		void add(torch::Tensor state, torch::Tensor nextState, int action, float reward, float done);
 		torch::Tensor getSampleIndex(int batchSize);
+		inline int size() { return curSize; }
 	};
 
 	ReplayBuffer buffer; //buffer has to be defined after dqnOption so ReplayBuffer can get all parameters of dqnOption.
@@ -148,7 +149,8 @@ void DoubleDqn<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::add(
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
 torch::Tensor DoubleDqn<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::getSampleIndex(int batchSize) {
 	torch::Tensor indices = torch::randint(0, curSize, {batchSize}, longOpt);
-
+//	LOG4CXX_INFO(logger, "curSize = " << curSize);
+//	LOG4CXX_INFO(logger, "indices: " << indices);
 	return indices;
 }
 
@@ -215,7 +217,7 @@ void DoubleDqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epo
 			stater.update(statLens[0], statRewards[0]);
 			statRewards[0] = 0;
 			statLens[0] = 0;
-			LOG4CXX_INFO(logger, "" << policy.getEpsilon() << "--" << updateNum << stater);
+			LOG4CXX_INFO(logger, "" << policy.getEpsilon() << "--" << updateNum << ", " << buffer.size() << stater);
 
 			auto curAveReward = stater.getCurState()[0];
 			if (curAveReward > maxAveReward) {
@@ -257,19 +259,27 @@ void DoubleDqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epo
 			torch::Tensor nextBOutput = bModel.forward(nextStateTensor).detach();
 			torch::Tensor nextTOutput = tModel.forward(nextStateTensor).detach();
 			torch::Tensor maxActions = nextBOutput.argmax(-1).unsqueeze(-1);
-//			torch::Tensor maxActions = std::get<1>(nextBOutput.max(-1));
-//			maxActions = maxActions.unsqueeze(-1);
 			torch::Tensor nextQ = nextTOutput.gather(-1, maxActions);
-//			torch::Tensor
 			targetQ = rewardTensor + dqnOption.gamma * nextQ * doneMaskTensor;
 			targetQ = targetQ.detach();
-//			LOG4CXX_INFO(logger, "nextBOutput: " << nextBOutput);
-//			LOG4CXX_INFO(logger, "maxActions: " << maxActions);
-//			LOG4CXX_INFO(logger, "nextTOutput: " << nextTOutput);
-//			LOG4CXX_INFO(logger, "nextQ: " << nextQ);
-//			LOG4CXX_INFO(logger, "rewardTensor: " << rewardTensor);
-//			LOG4CXX_INFO(logger, "doneMaskTensor: " << doneMaskTensor);
-//			LOG4CXX_INFO(logger, "targetQ: " << targetQ);
+			LOG4CXX_DEBUG(logger, "nextBOutput: " << nextBOutput);
+			LOG4CXX_DEBUG(logger, "maxActions: " << maxActions);
+			LOG4CXX_DEBUG(logger, "nextTOutput: " << nextTOutput);
+			LOG4CXX_DEBUG(logger, "nextQ: " << nextQ);
+			LOG4CXX_DEBUG(logger, "rewardTensor: " << rewardTensor);
+			LOG4CXX_DEBUG(logger, "doneMaskTensor: " << doneMaskTensor);
+			LOG4CXX_DEBUG(logger, "targetQ: " << targetQ);
+
+//			torch::Tensor nextOutput = tModel.forward(nextStateTensor).detach();
+//			LOG4CXX_DEBUG(logger, "nextOutput: " << nextOutput);
+//			auto maxOutput = nextOutput.max(-1);
+//			torch::Tensor nextQ = std::get<0>(maxOutput); //TODO: pay attention to shape
+//			nextQ = nextQ.unsqueeze(1);
+//			LOG4CXX_DEBUG(logger, "nextQ: " << nextQ);
+//			LOG4CXX_DEBUG(logger, "rewardTensor: " << rewardTensor);
+//			LOG4CXX_DEBUG(logger, "doneMaskTensor: " << doneMaskTensor);
+//			targetQ = rewardTensor + dqnOption.gamma * nextQ * doneMaskTensor;
+//			LOG4CXX_DEBUG(logger, "targetQ: " << targetQ);
 		}
 
 //		torch::Tensor targetQ = rewardTensor;

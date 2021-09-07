@@ -21,6 +21,18 @@ SegTree::SegTree(int iCap): cap(iCap), dataCap(iCap * 2), re(rd()), datas(iCap *
 	}
 }
 
+void printDatas(std::string cmt, const std::vector<float>& datas) {
+	std::cout << cmt << std::endl;
+	int size = datas.size();
+	for (int i = 0; i < size / 2; i ++) {
+		std::cout << datas[i + size / 2] << ", ";
+		if ((i + 1) % 10 == 0) {
+			std::cout << std::endl;
+		}
+	}
+	std::cout << std::endl;
+}
+
 void SegTree::add(float prio) {
 //	std::cout << "SegTree add" << std::endl;
 	int nextIndex = (curIndex + 1) % cap;
@@ -28,20 +40,21 @@ void SegTree::add(float prio) {
 	int curDataIndex = getDataIndex(curIndex);
 	float diff =  prio - datas[curDataIndex];
 	datas[curDataIndex] = prio;
+//	std::cout << "add " << curDataIndex << ", " << curIndex << std::endl;
 
 	curIndex = nextIndex;
 	if (len < cap) {
 		len ++;
 	}
 
-//	std::cout << "add " << curDataIndex << std::endl;
 	adjust(curDataIndex, diff);
 
 	//check not happen on first add
 	if (curIndex == 0) {
 		check();
 	}
-//	check();
+//	printDatas("after add", datas);
+
 }
 
 void SegTree::update(int index, float prio) {
@@ -52,6 +65,7 @@ void SegTree::update(int index, float prio) {
 
 	adjust(dataIndex, diff);
 
+//	printDatas("after update: ", datas);
 //	check();
 }
 
@@ -64,6 +78,7 @@ void SegTree::update(std::vector<int> indices, std::vector<float> prios) {
 std::pair<std::vector<int>, std::vector<float>> SegTree::sample(int batchSize) {
 	assert(batchSize < len);
 
+//	printDatas("sample from: ", datas);
 	float sumPrio = datas[1];
 
 	std::vector<int> indice(batchSize, 0);
@@ -79,6 +94,7 @@ std::pair<std::vector<int>, std::vector<float>> SegTree::sample(int batchSize) {
 //		std::cout << "expPrio = " << expPrio << std::endl;
 
 		int dataIndex = sample(expPrio);
+//		std::cout << "select index: " << dataIndex << std::endl;
 
 		indice[i] = getIndex(dataIndex);
 		prios[i] = datas[dataIndex];
@@ -143,7 +159,9 @@ void SegTree::check() {
 //	}
 
 	for (int i = cap - 1; i > 0; i --) {
-		datas[i] = datas[i * 2] + datas[i * 2 - 1];
+		datas[i] = datas[i * 2] + datas[i * 2 + 1];
+
+//		std::cout << "datas[" << i << "] = " << "datas[" << i * 2 << "] + datas[" << i * 2 + 1 << "] , " << datas[i] << " = " << datas[i * 2] << " + " << datas[i * 2 + 1] << std::endl;
 	}
 }
 

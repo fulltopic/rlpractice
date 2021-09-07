@@ -54,7 +54,7 @@ void test0(const int epochNum) {
 	targetModel.to(deviceType);
 
     torch::optim::RMSprop optimizer(model.parameters(), torch::optim::RMSpropOptions(0.00025).eps(0.01).alpha(0.95));
-    //    torch::optim::Adam optimizer(net.parameters(), torch::optim::AdamOptions(1e-3));
+//    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-3));
 //	torch::optim::RMSprop optimizer(model.parameters());
     LOG4CXX_INFO(logger, "Model ready");
 
@@ -63,13 +63,13 @@ void test0(const int epochNum) {
     option.envNum = clientNum;
     //target model
 //    option.targetUpdate = 10000;
-    option.targetUpdateStep = 2000;
+    option.targetUpdateStep = 1000; //1000 worse than 2000
     option.tau = 1;
     //buffer
-    option.rbCap = 10240;
+    option.rbCap = 8192;
     //explore
     option.exploreBegin = 1;
-    option.exploreEnd = 0.1;
+    option.exploreEnd = 0.01;
     option.explorePart = 0.8;
     //input
     option.inputScale = 1;
@@ -78,7 +78,7 @@ void test0(const int epochNum) {
     option.rewardMax = 1;
     option.gamma = 0.99;
     //grad
-    option.batchSize = 32;
+    option.batchSize = 16;
     option.startStep = 1000;
     option.maxGradNormClip = 1;
     //log
@@ -1461,10 +1461,10 @@ void logConfigure(bool err) {
 int main(int argc, char** argv) {
 	logConfigure(false);
 
-//	test0(atoi(argv[1]));
+	test0(atoi(argv[1]));
 //	test124(atoi(argv[1]));
 //	testPong(atoi(argv[1]));
-	testBreakout(atoi(argv[1]));
+//	testBreakout(atoi(argv[1]));
 
 
 	LOG4CXX_INFO(logger, "End of test");

@@ -10,6 +10,7 @@
 
 
 #include "alg/noisydoubledqn.hpp"
+#include "alg/noisydqn.hpp"
 
 #include "gymtest/env/airenv.h"
 #include "gymtest/env/lunarenv.h"
@@ -82,7 +83,7 @@ void testProbe(const int epochNum) {
     option.gamma = 0.99;
     //grad
     option.batchSize = 4;
-    option.startStep = 100;
+    option.startStep = 50;
     option.maxGradNormClip = 1;
     //log
     option.statCap = 128;
@@ -100,12 +101,190 @@ void testProbe(const int epochNum) {
     dqn.train(epochNum);
 }
 
+void testDqnProbe(const int epochNum) {
+	const int batchSize = 1;
+	const int inputNum = 4;
+	const int envId = 5;
+	const int outputNum = 2;
+
+	const int envNum = batchSize;
+	ProbeEnvWrapper env(inputNum, envId, envNum);
+
+	NoisyCartFcNet model(inputNum, outputNum);
+	model.to(deviceType);
+	NoisyCartFcNet targetModel(inputNum, outputNum);
+	targetModel.to(deviceType);
+
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-3)); //rmsprop: 0.00025
+//    torch::optim::RMSprop optimizer(model.parameters(), torch::optim::RMSpropOptions(0.00025).eps(0.01).alpha(0.95));
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-4));
+//	torch::optim::RMSprop optimizer(model.parameters());
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{envNum, 4};
+    DqnOption option(inputShape, deviceType);
+    option.envNum = envNum;
+    //target model
+    option.targetUpdateStep = 100;
+    option.tau = 1;
+    //buffer
+    option.rbCap = 100;
+    //explore
+    option.exploreBegin = 0;
+    option.exploreEnd = 0;
+    option.explorePart = 1;
+    //input
+    option.inputScale = 1;
+    option.rewardScale = 1;
+    option.rewardMin = -1; //TODO: reward may not require clip
+    option.rewardMax = 1;
+    option.gamma = 0.99;
+    //grad
+    option.batchSize = 4;
+    option.startStep = 50;
+    option.maxGradNormClip = 1;
+    //log
+    option.statCap = 128;
+    option.statPathPrefix = "./noisydqn_testprobe";
+    //model
+    option.saveModel = true;
+    option.savePathPrefix = "./noisydqn_testprobe";
+    option.loadModel = false;
+    option.loadOptimizer = false;
+
+
+    RawPolicy policy(option.exploreBegin, outputNum);
+
+    NoisyDqn<NoisyCartFcNet, ProbeEnvWrapper, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, env, policy, optimizer, option);
+    dqn.train(epochNum);
+}
+
 void testCart(const int epochNum) {
 	const std::string envName = "CartPole-v0";
 	const int clientNum = 1; //8
 	const int outputNum = 2;
 	const int inputNum = 4;
-	std::string serverAddr = "tcp://127.0.0.1:10207";
+	std::string serverAddr = "tcp://127.0.0.1:10204";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	LunarEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	NoisyCartFcNet model(inputNum, outputNum);
+	model.to(deviceType);
+	NoisyCartFcNet targetModel(inputNum, outputNum);
+	targetModel.to(deviceType);
+
+//    torch::optim::RMSprop optimizer(model.parameters(), torch::optim::RMSpropOptions(0.00025).eps(0.01).alpha(0.95));
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-3));
+//	torch::optim::RMSprop optimizer(model.parameters());
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4};
+    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    option.envNum = clientNum;
+    //target model
+    option.targetUpdateStep = 10000;
+    option.tau = 1;
+    //buffer
+    option.rbCap = 10000;
+    //explore
+    option.exploreBegin = 0;
+    option.exploreEnd = 0;
+    option.explorePart = 1;
+    //input
+    option.inputScale = 1;
+    option.rewardScale = 1;
+    option.rewardMin = -1; //TODO: reward may not require clip
+    option.rewardMax = 1;
+    option.gamma = 0.99;
+    //grad
+    option.batchSize = 4;
+    option.startStep = 1000;
+    option.maxGradNormClip = 1;
+    //log
+    option.statCap = 128;
+    option.statPathPrefix = "./noisydoubledqn_testcart";
+    //model
+    option.saveModel = true;
+    option.savePathPrefix = "./noisydoubledqn_testcart";
+    option.loadModel = false;
+    option.loadOptimizer = false;
+
+
+    RawPolicy policy(option.exploreBegin, outputNum);
+
+    NoisyDoubleDqn<NoisyCartFcNet, LunarEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, env, policy, optimizer, option);
+
+    dqn.train(epochNum);
+}
+
+void testCartV2(const int epochNum) {
+	const std::string envName = "CartPole-v0";
+	const int clientNum = 1; //8
+	const int outputNum = 2;
+	const int inputNum = 4;
+	std::string serverAddr = "tcp://127.0.0.1:10205";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	LunarEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	NoisyCartFcNet model(inputNum, outputNum);
+	model.to(deviceType);
+	NoisyCartFcNet targetModel(inputNum, outputNum);
+	targetModel.to(deviceType);
+
+//    torch::optim::RMSprop optimizer(model.parameters(), torch::optim::RMSpropOptions(0.00025).eps(0.01).alpha(0.95));
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-3));
+//	torch::optim::RMSprop optimizer(model.parameters());
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4};
+    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    option.envNum = clientNum;
+    //target model
+    option.targetUpdateStep = 10000;
+    option.tau = 1;
+    //buffer
+    option.rbCap = 10000;
+    //explore
+    option.exploreBegin = 0;
+    option.exploreEnd = 0;
+    option.explorePart = 1;
+    //input
+    option.inputScale = 1;
+    option.rewardScale = 1;
+    option.rewardMin = -1; //TODO: reward may not require clip
+    option.rewardMax = 1;
+    option.gamma = 0.99;
+    //grad
+    option.batchSize = 4;
+    option.startStep = 1000;
+    option.maxGradNormClip = 1;
+    //log
+    option.statCap = 128;
+    option.statPathPrefix = "./noisydoubledqnv2_testcart";
+    //model
+    option.saveModel = true;
+    option.savePathPrefix = "./noisydoubledqnv2_testcart";
+    option.loadModel = false;
+    option.loadOptimizer = false;
+
+
+    RawPolicy policy(option.exploreBegin, outputNum);
+
+    NoisyDoubleDqn<NoisyCartFcNet, LunarEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, env, policy, optimizer, option);
+
+    dqn.train(epochNum);
+}
+
+void testDqnCart(const int epochNum) {
+	const std::string envName = "CartPole-v0";
+	const int clientNum = 1; //8
+	const int outputNum = 2;
+	const int inputNum = 4;
+	std::string serverAddr = "tcp://127.0.0.1:10205";
 	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
 	LunarEnv env(serverAddr, envName, clientNum);
 	env.init();
@@ -125,7 +304,7 @@ void testCart(const int epochNum) {
     DqnOption option(inputShape, deviceType, 4096, 0.99);
     option.envNum = clientNum;
     //target model
-    option.targetUpdateStep = 10000;
+    option.targetUpdateStep = 1000;
     option.tau = 1;
     //buffer
     option.rbCap = 10000;
@@ -155,7 +334,7 @@ void testCart(const int epochNum) {
 
     RawPolicy policy(option.exploreBegin, outputNum);
 
-    NoisyDoubleDqn<NoisyCartFcNet, LunarEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, env, policy, optimizer, option);
+    NoisyDqn<NoisyCartFcNet, LunarEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, env, policy, optimizer, option);
 
     dqn.train(epochNum);
 }
@@ -223,7 +402,7 @@ void testtestCart(const int epochNum) {
 }
 
 
-void testPong(const int epochNum) {
+void testPong1(const int epochNum) {
 	const std::string envName = "PongNoFrameskip-v4";
 	const int outputNum = 6;
 	const int clientNum = 1;
@@ -240,7 +419,7 @@ void testPong(const int epochNum) {
 
 //    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-3)); //rmsprop: 0.00025
 //    torch::optim::RMSprop optimizer(model.parameters(), torch::optim::RMSpropOptions(0.0001).eps(0.01).alpha(0.95));
-    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-3));
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-4));
 //	torch::optim::RMSprop optimizer(model.parameters());
     LOG4CXX_INFO(logger, "Model ready");
 
@@ -248,10 +427,10 @@ void testPong(const int epochNum) {
     DqnOption option(inputShape, deviceType, 4096, 0.99);
     option.envNum = clientNum;
     //target model
-    option.targetUpdateStep = 2000;
+    option.targetUpdateStep = 1000;
     option.tau = 1;
     //buffer
-    option.rbCap = 10240;
+    option.rbCap = 100000;
     //explore
     option.exploreBegin = 0;
     option.exploreEnd = 0;
@@ -269,12 +448,12 @@ void testPong(const int epochNum) {
     //log
     option.logInterval = 1000;
     option.statCap = 128;
-    option.statPathPrefix = "./noisydoubledqn_testpongtry";
+    option.statPathPrefix = "./noisydoubledqn_testpong1";
     //model
-    option.saveThreshold = -19;
+    option.saveThreshold = -20;
     option.saveStep = 1;
     option.saveModel = true;
-    option.savePathPrefix = "./noisydoubledqn_testpongtry";
+    option.savePathPrefix = "./noisydoubledqn_testpong1";
     option.loadModel = false;
     option.loadOptimizer = false;
 
@@ -350,6 +529,134 @@ void testPongLog(const int epochNum) {
 
     dqn.train(epochNum);
 }
+
+
+void testPong2(const int epochNum) {
+	const std::string envName = "PongNoFrameskip-v4";
+	const int outputNum = 6;
+	const int clientNum = 1;
+	std::string serverAddr = "tcp://127.0.0.1:10205";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	NoisyAirCnnNet model(outputNum);
+	model.to(deviceType);
+	NoisyAirCnnNet targetModel(outputNum);
+	targetModel.to(deviceType);
+
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-3)); //rmsprop: 0.00025
+    torch::optim::RMSprop optimizer(model.parameters(), torch::optim::RMSpropOptions(0.0001).eps(0.01).alpha(0.95));
+//    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-3));
+//	torch::optim::RMSprop optimizer(model.parameters());
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    option.envNum = clientNum;
+    //target model
+    option.targetUpdateStep = 1000;
+    option.tau = 1;
+    //buffer
+    option.rbCap = 10240;
+    //explore
+    option.exploreBegin = 0;
+    option.exploreEnd = 0;
+    option.explorePart = 1;
+    //input
+    option.inputScale = 256;
+    option.rewardScale = 1;
+    option.rewardMin = -1; //TODO: reward may not require clip
+    option.rewardMax = 1;
+    option.gamma = 0.99;
+    //grad
+    option.batchSize = 128;
+    option.startStep = 10000;
+    option.maxGradNormClip = 1;
+    //log
+    option.logInterval = 1000;
+    option.statCap = 128;
+    option.statPathPrefix = "./noisydoubledqn_testpong2";
+    //model
+    option.saveThreshold = -20;
+    option.saveStep = 1;
+    option.saveModel = true;
+    option.savePathPrefix = "./noisydoubledqn_testpong2";
+    option.loadModel = false;
+    option.loadOptimizer = false;
+
+
+    RawPolicy policy(option.exploreBegin, outputNum);
+
+    NoisyDoubleDqn<NoisyAirCnnNet, AirEnv, RawPolicy, torch::optim::RMSprop> dqn(model, targetModel, env, env, policy, optimizer, option);
+
+    dqn.train(epochNum);
+}
+
+
+void testPong3(const int epochNum) {
+	const std::string envName = "PongNoFrameskip-v4";
+	const int outputNum = 6;
+	const int clientNum = 1;
+	std::string serverAddr = "tcp://127.0.0.1:10205";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	NoisyAirCnnNet model(outputNum);
+	model.to(deviceType);
+	NoisyAirCnnNet targetModel(outputNum);
+	targetModel.to(deviceType);
+
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-3)); //rmsprop: 0.00025
+    torch::optim::RMSprop optimizer(model.parameters(), torch::optim::RMSpropOptions(0.0001).eps(0.01).alpha(0.95));
+//    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-3));
+//	torch::optim::RMSprop optimizer(model.parameters());
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    option.envNum = clientNum;
+    //target model
+    option.targetUpdateStep = 1024;
+    option.tau = 1;
+    //buffer
+    option.rbCap = 100000;
+    //explore
+    option.exploreBegin = 0;
+    option.exploreEnd = 0;
+    option.explorePart = 1;
+    //input
+    option.inputScale = 256;
+    option.rewardScale = 1;
+    option.rewardMin = -1; //TODO: reward may not require clip
+    option.rewardMax = 1;
+    option.gamma = 0.99;
+    //grad
+    option.batchSize = 32;
+    option.startStep = 10000;
+    option.maxGradNormClip = 1;
+    //log
+    option.logInterval = 1000;
+    option.statCap = 128;
+    option.statPathPrefix = "./noisydoubledqn_testpong3";
+    //model
+    option.saveThreshold = -20;
+    option.saveStep = 1;
+    option.saveModel = true;
+    option.savePathPrefix = "./noisydoubledqn_testpong3";
+    option.loadModel = false;
+    option.loadOptimizer = false;
+
+
+    RawPolicy policy(option.exploreBegin, outputNum);
+
+    NoisyDoubleDqn<NoisyAirCnnNet, AirEnv, RawPolicy, torch::optim::RMSprop> dqn(model, targetModel, env, env, policy, optimizer, option);
+
+    dqn.train(epochNum);
+}
 }
 
 namespace {
@@ -375,12 +682,16 @@ int main(int argc, char** argv) {
 
 //	testtestCart(atoi(argv[1]));
 //	test103(atoi(argv[1]));
-//	testPong(atoi(argv[1]));
+	testPong1(atoi(argv[1]));
 //	testBreakout(atoi(argv[1]));
 
-//	testCart(atoi(argv[1]));
+//	testCartV2(atoi(argv[1]));
 //	testProbe(atoi(argv[1]));
-	testPong(atoi(argv[1]));
+//	testPong3(atoi(argv[1]));
+
+//	testDqnProbe(atoi(argv[1]));
+//	testDqnCart(atoi(argv[1]));
+
 
 //	testPongLog(atoi(argv[1]));
 

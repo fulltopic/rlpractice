@@ -328,8 +328,17 @@ void test9() {
 	int index = st.sample(st.getSum());
 	std::cout << "sampled index = " << index << std::endl;
 }
+
+void test10() {
+	const int num = 32;
+	SegTree st(num);
+
+	for (int i = 0; i < num; i ++) {
+		st.add(1);
+	}
+}
 }
 
 int main() {
-	test8();
+	test10();
 }

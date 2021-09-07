@@ -27,24 +27,36 @@ void NoisyLinear::reset() {
 
 	resetParams();
 	resetNoise();
+
+	std::cout << "-----------------------------------------------> reset" << std::endl;
 }
 
 void NoisyLinear::resetParams() {
-	float stdValue = (float)sqrt(3 / inFeatures);
+	float stdValue = (float)sqrt(3 / (float)inFeatures);
 
 	torch::nn::init::uniform_(wMu, -stdValue, stdValue);
 	torch::nn::init::uniform_(bMu, -stdValue, stdValue); //bias always defined
 
-	float wSigmaValue = stdInit / (float)sqrt(wSigma.size(1));
-	float bSigmaValue = stdInit / (float)sqrt(bSigma.size(0));
+//	float wSigmaValue = stdInit / (float)sqrt(wSigma.size(1));
+//	float bSigmaValue = stdInit / (float)sqrt(bSigma.size(0));
+	float wSigmaValue = stdInit / (float)sqrt(inFeatures);
+	float bSigmaValue = stdInit / (float)sqrt(outFeatures);
 
-	torch::nn::init::constant_(wSigma, wSigmaValue);
-	torch::nn::init::constant_(bSigma, bSigmaValue);
+	torch::nn::init::constant_(wSigma, 0.017);
+	torch::nn::init::constant_(bSigma, 0.017);
+
+//	std::cout << "resetParams" << std::endl;
+//	std::cout << "wMu: " << wMu << std::endl;
+//	std::cout << "bMu: " << bMu << std::endl;
+//	std::cout << "wSigma: " << wSigma << std::endl;
+//	std::cout << "bSigma: " << bSigma << std::endl;
 }
 
 void NoisyLinear::resetNoise() {
+//	if (this->is_training()) {
 	wEpsilon.normal_();
 	bEpsilon.normal_();
+//	}
 }
 
 torch::Tensor NoisyLinear::forward(torch::Tensor input) {
@@ -59,6 +71,10 @@ torch::Tensor NoisyLinear::forward(torch::Tensor input) {
 //		weight = wMu + wSigma.mul(wEpsilon);
 //		bias = bMu + bSigma.mul(bEpsilon);
 
+//		std::cout << "wMu " << wMu << std::endl;
+//		std::cout << "bMu " << bMu << std::endl;
+//		std::cout << "wSigma " << wSigma << std::endl;
+//		std::cout << "bSigma " << bSigma << std::endl;
 //		std::cout << "wSigma " << wSigma.sizes() << std::endl;
 //		std::cout << "wEpsilon " << wEpsilon.sizes() << std::endl;
 //		std::cout << "mul " << wSigma.mul(wEpsilon).sizes() << std::endl;
@@ -69,6 +85,11 @@ torch::Tensor NoisyLinear::forward(torch::Tensor input) {
 		bias = bMu;
 	}
 
+//	weight = wMu + wSigma * wEpsilon;
+//	bias = bMu;
+
+//	weight = wMu + wSigma * wEpsilon;
+//	bias = bMu + bSigma * bEpsilon;
 	torch::Tensor output = torch::nn::functional::linear(input, weight, bias);
 	return output;
 }

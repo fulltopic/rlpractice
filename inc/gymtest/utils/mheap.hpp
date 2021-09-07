@@ -44,8 +44,10 @@ template <typename ValueType, typename FuncType>
 void MHeap<ValueType, FuncType>::add(const ValueType& value) {
 	if (datas.size() < cap) {
 		datas.push_back(value);
+//		std::cout << "heap push curIndex: " << datas.size() - 1 << std::endl;
 	} else {
 		datas[curIndex] = value;
+//		std::cout << "heap add curIndex: " << curIndex << std::endl;
 	}
 
 

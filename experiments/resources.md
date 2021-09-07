@@ -47,6 +47,7 @@ Ref(3) explains math behind these algorithms (Xavier and Kaiming):
 * Kaiming takes Relu as example, as P(Relu(x)) = 1/2, there is sqrt(2) in Kaiming initiation.
 * Backward prove is the same with forward process, except that the input is from layer<sup>(l + 1)</sup> instead of layer<sup>l-1</sup>
 * Take both forward and backward in consideration, Xavier takes mean of input layer of each direction. Kaiming argues taking one direction in consideration is good enough.
+
 ### TODO
 * Ref(1) declares Xavier is a normal distribution, Ref(2) declares it is a uniform one. To check the paper
 
@@ -63,6 +64,17 @@ Ref(3) explains math behind these algorithms (Xavier and Kaiming):
 ## Continuous Space
 * DDPG
 * TD3
+
 ## TODO
 * ACER
 * SAC for discrete action space
+
+* [Soft Actor-Critic for continuous and discrete actions](https://medium.com/@kengz/soft-actor-critic-for-continuous-and-discrete-actions-eeff6f651954)
+
+## Math
+* [Quantile regression](https://en.wikipedia.org/wiki/Quantile_regression)
+
+* [Wasserstein metric](https://en.wikipedia.org/wiki/Wasserstein_metric)
+
+## CPP
+[Detect anomaly in C++](https://discuss.pytorch.org/t/detect-anomaly-in-c/49011/9)
