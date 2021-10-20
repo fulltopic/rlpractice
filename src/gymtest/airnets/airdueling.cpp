@@ -11,6 +11,7 @@
 #include <iostream>
 
 #include "gymtest/airnets/airdueling.h"
+#include "gymtest/utils/netinitutils.h"
 
 AirCnnDuelNet::AirCnnDuelNet(const int outputNum):
 	conv0(torch::nn::Conv2dOptions(4, 32, 8).stride(4)),
@@ -29,6 +30,10 @@ AirCnnDuelNet::AirCnnDuelNet(const int outputNum):
 	register_module("vfc1", vfc1);
 	register_module("afc0", afc0);
 	register_module("afc1", afc1);
+
+	NetInitUtils::Init_weights(conv0->named_parameters(), sqrt(2.0), 0, NetInitUtils::Kaiming);
+	NetInitUtils::Init_weights(conv1->named_parameters(), sqrt(2.0), 0, NetInitUtils::Kaiming);
+	NetInitUtils::Init_weights(conv2->named_parameters(), sqrt(2.0), 0, NetInitUtils::Kaiming);
 }
 
 torch::Tensor AirCnnDuelNet::forward(torch::Tensor input) {

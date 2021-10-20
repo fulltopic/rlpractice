@@ -21,7 +21,9 @@ void testGetInfo(std::string serverAddr) {
 	LOG4CXX_INFO(logger, "To connect to " << serverAddr);
 //	AirEnv env(serverAddr, "SpaceInvaders-v0", clientNum);
 //	AirEnv env(serverAddr, "Pong-v0", clientNum);
-	AirEnv env(serverAddr, "PongNoFrameskip-v4", clientNum);
+	//Qbert = 6
+	//Pacman = 9
+	AirEnv env(serverAddr, "QbertNoFrameskip-v4", clientNum);
 
 	auto info = env.init();
 	auto actionSpace = std::get<1>(info);
@@ -114,8 +116,8 @@ void testReset() {
 int main(int argc, char** argv) {
 	log4cxx::BasicConfigurator::configure();
 
-//	testGetInfo(argv[1]);
-	testEpisode();
+	testGetInfo(argv[1]);
+//	testEpisode();
 //	testReset();
 
 	LOG4CXX_INFO(logger, "End of test");

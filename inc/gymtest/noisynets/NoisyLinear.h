@@ -29,6 +29,9 @@ public:
 	torch::Tensor bSigma;
 	torch::Tensor bEpsilon;
 
+	torch::Tensor epsilonInput;
+	torch::Tensor epsilonOutput;
+
 	const torch::TensorOptions longOpt = torch::TensorOptions().dtype(torch::kLong);
 	const torch::TensorOptions floatOpt = torch::TensorOptions().dtype(torch::kFloat);
 

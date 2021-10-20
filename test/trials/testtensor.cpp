@@ -472,6 +472,61 @@ void testSqrt() {
 	torch::nn::init::uniform_(t, -stdValue, stdValue);
 	std::cout << "uniform value: " << t << std::endl;
 }
+
+void testTo() {
+	const int num = 10;
+	const int upper = 256;
+	const torch::TensorOptions longOpt = torch::TensorOptions().dtype(torch::kLong);
+
+
+	torch::Tensor origInt = torch::randint(0, upper, {1, num});
+	torch::Tensor intT = origInt.to(torch::kByte);
+	torch::Tensor intBT = intT.to(torch::kFloat);
+	std::cout << "orig: " << origInt << std::endl;
+	std::cout << "int: " << intT << std::endl;
+	std::cout << "convert: " << intBT << std::endl;
+
+	torch::Tensor origBool = torch::randint(0, 2, {1, num});
+	torch::Tensor BoolT = origBool.to(torch::kByte);
+	torch::Tensor boolBT = BoolT.to(torch::kFloat);
+	std::cout << "orig: " << origBool << std::endl;
+	std::cout << "int: " << BoolT << std::endl;
+	std::cout << "convert: " << boolBT << std::endl;
+
+	torch::Tensor origLong = torch::randint(0, 10, {1, num}, longOpt);
+	torch::Tensor longT = origLong.to(torch::kByte);
+	torch::Tensor longBT = longT.to(torch::kLong);
+	std::cout << "orig: " << origLong << std::endl;
+	std::cout << "int: " << longT << std::endl;
+	std::cout << "convert: " << longBT << std::endl;
+}
+
+
+void testTensorAssign() {
+	const int num = 10;
+	const torch::TensorOptions byteOpt = torch::TensorOptions().dtype(torch::kByte);
+
+	std::vector<float> dones {1, 0, 1, 0, 1, 0, 1, 0, 1, 0};
+	std::vector<int64_t> actions {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+
+	torch::Tensor doneTensor =  torch::zeros({num, 1}, byteOpt);
+	torch::Tensor actionTensor = torch::zeros({num, 1}, byteOpt);
+
+	for (int i = 0; i < num; i ++) {
+		doneTensor[i][0] = dones[i];
+		actionTensor[i][0] = actions[i];
+	}
+	std::cout << "Assigned " << std::endl;
+	std::cout << "done: " << doneTensor << std::endl;
+	std::cout << "action: " << actionTensor << std::endl;
+
+	torch::Tensor fDoneTensor = doneTensor.to(torch::kFloat);
+	torch::Tensor fActionTensor = actionTensor.to(torch::kFloat);
+	std::cout << "To " << std::endl;
+	std::cout << "done: " << fDoneTensor << std::endl;
+	std::cout << "action: " << fActionTensor << std::endl;
+}
+
 }
 
 int main() {
@@ -497,7 +552,11 @@ int main() {
 //	testChunk();
 
 //	testNorm();
-	testSqrt();
+//	testSqrt();
+
+//	testTo();
+
+	testTensorAssign();
 
 	return 0;
 }

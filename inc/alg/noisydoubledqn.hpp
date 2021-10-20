@@ -230,7 +230,7 @@ void NoisyDoubleDqn<NetType, EnvType, PolicyType, OptimizerType>::train(const in
 
 		torch::Tensor nextInputTensor = torch::from_blob(nextInputVec.data(), inputShape).div(dqnOption.inputScale);
 		float reward = std::max(std::min((rewardVec[0] / dqnOption.rewardScale), dqnOption.rewardMax), dqnOption.rewardMin);
-		buffer.add(cpuinputTensor, nextInputTensor, actions[0], rewardVec[0], doneMask);
+		buffer.add(cpuinputTensor, nextInputTensor, actions[0], reward, doneMask);
 
 		//Update
 		stateVec = nextInputVec;
@@ -367,7 +367,7 @@ template<typename NetType, typename EnvType, typename PolicyType, typename Optim
 void NoisyDoubleDqn<NetType, EnvType, PolicyType, OptimizerType>::test(const int epochNum, bool render) {
 	load();
 
-	bModel.eval();
+//	bModel.eval();
 	std::vector<float> statRewards(dqnOption.envNum, 0);
 	std::vector<float> statLens(dqnOption.envNum, 0);
 

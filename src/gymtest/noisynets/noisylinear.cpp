@@ -25,6 +25,9 @@ void NoisyLinear::reset() {
 	bSigma = register_parameter("bSigma", torch::empty({outFeatures}));
 	bEpsilon = register_buffer("bEpsilon", torch::zeros({outFeatures}, floatOpt));
 
+	epsilonInput = register_buffer("epsilonInput", torch::zeros({1, inFeatures}));
+	epsilonOutput = register_buffer("epsilonOutput", torch::zeros({outFeatures, 1}));
+
 	resetParams();
 	resetNoise();
 
@@ -53,10 +56,20 @@ void NoisyLinear::resetParams() {
 }
 
 void NoisyLinear::resetNoise() {
-//	if (this->is_training()) {
 	wEpsilon.normal_();
 	bEpsilon.normal_();
-//	}
+
+//	epsilonInput.normal_();
+//	epsilonOutput.normal_();
+//
+//	auto input = (epsilonInput.sign() * epsilonInput.abs().sqrt()).to(epsilonInput.device());
+//	auto output = epsilonOutput.sign() * epsilonOutput.abs().sqrt().to(epsilonOutput.device());
+//
+//	wEpsilon = input * output;
+//	bEpsilon.copy_(output.squeeze(1));
+
+//	std::cout << "w ep: " << wEpsilon << std::endl;
+//	std::cout << "b ep: " << bEpsilon << std::endl;
 }
 
 torch::Tensor NoisyLinear::forward(torch::Tensor input) {

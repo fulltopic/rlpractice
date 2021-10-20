@@ -902,15 +902,16 @@ void testtestPong(const int epochNum) {
     //log
     option.logInterval = 1000;
     option.statCap = 128;
-    option.statPathPrefix = "./doubledqn_testtestpong9";
+    option.statPathPrefix = "./doubledqn_testtestpong99";
     //model
     option.saveThreshold = -11;
     option.saveStep = 1;
     option.saveModel = false;
-    option.savePathPrefix = "./doubledqn_testtestpong9";
+    option.savePathPrefix = "./doubledqn_testtestpong99";
     option.loadModel = true;
     option.loadOptimizer = true;
-    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/doubledqn_testpong9";
+//    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/doubledqn_testpong9";
+    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/experiments/dqn/doubledqn/docs/9/doubledqn_testpong9_21.000000";
 
 
     RawPolicy policy(option.exploreBegin, outputNum);

@@ -23,6 +23,9 @@ public:
 	bool isAtari = true;
 	float inputScale = 1;
 
+	//output
+	int outputNum = 1;
+
 	//reward
 	float rewardScale = 1;
 	float rewardMin = -1;
@@ -101,14 +104,25 @@ public:
 	bool toTest = false;
 	int testGapEp = 100;
 	int testBatch = 1;
+	int testEp = 1;
 	int testOutput = 1;
+	bool testRender = false;
 	float hangRewardTh = 1;
 	int hangNumTh = 1;
 	int randomStep = 1;
 	bool randomHang = false;
+	int livePerEpisode = 1;
 
 	//log
 	int logInterval = 10;
+	std::string tensorboardLogPath = "./";
+
+	//sac
+	float targetEntropy;
+	std::vector<float> targetEntropies;
+	std::vector<int> targetSteps;
+	bool fixedEntropy = true;
+	int envStep = 1;
 
 	DqnOption(at::IntArrayRef iShape, torch::Device dType = torch::kCPU, int cap = 128, float gm = 0.99, std::string path = "./stat.txt", int tUpdate = 128);
 	~DqnOption() = default;

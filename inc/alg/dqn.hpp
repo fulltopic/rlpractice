@@ -37,6 +37,7 @@ private:
 	const DqnOption dqnOption;
 
 	uint32_t updateNum = 0;
+	float maxTestReward = -1000;
 
 //	const int actionNum;
 //	std::vector<int64_t> indice;
@@ -80,13 +81,14 @@ private:
 
 	void load();
 	void save();
+	void saveTModel(float reward);
 public:
 	Dqn(NetType& iModel, NetType& iTModel, EnvType& iEnv, EnvType& tEnv, PolicyType& iPolicy, OptimizerType& iOptimizer, DqnOption iOption);
 	~Dqn() = default;
 	Dqn(const Dqn&) = delete;
 
 	void train(const int epochNum);
-	void test(const int epochNum, bool render = false);
+	void test(const int epochNum, bool render = false, bool toLoad = true);
 };
 
 
@@ -161,10 +163,10 @@ Dqn<NetType, EnvType, PolicyType, OptimizerType>::Dqn(NetType& iModel, NetType& 
 	inputShape(iOption.inputShape),
 	buffer(iOption.rbCap, iOption.inputShape),
 	stater(iOption.statPathPrefix + "_stat.txt", iOption.statCap),
-	testStater(iOption.statPathPrefix + "_test.txt", iOption.statCap),
+	testStater(iOption.statPathPrefix + "_test.txt", iOption.testEp),
 	lossStater(iOption.statPathPrefix + "_loss.txt")
 {
-
+	maxTestReward = iOption.saveThreshold;
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
@@ -213,6 +215,13 @@ void Dqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epochNum)
 		//Update
 		stateVec = nextInputVec;
 		updateStep(epochNum);
+		//TEST
+		if (dqnOption.toTest) {
+			if ((updateNum % dqnOption.testGapEp) == 0) {
+				test(dqnOption.testEp, false, false);
+			}
+		}
+
 		//Learning
 		if (updateNum < dqnOption.startStep) {
 			continue;
@@ -317,38 +326,95 @@ void Dqn<NetType, EnvType, PolicyType, OptimizerType>::updateStep(const float ep
 //TODO: update, train, test, syncModel
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-void Dqn<NetType, EnvType, PolicyType, OptimizerType>::test(const int epochNum, bool render) {
-	load();
+void Dqn<NetType, EnvType, PolicyType, OptimizerType>::test(const int epochNum, bool render, bool toLoad) {
+//	load();
+//
+//	std::vector<float> statRewards(dqnOption.envNum, 0);
+//	std::vector<float> statLens(dqnOption.envNum, 0);
+//
+//	std::vector<float> stateVec = env.reset();
+//
+//	while (updateNum < epochNum) {
+//		torch::Tensor inputTensor = torch::from_blob(stateVec.data(), inputShape).div(dqnOption.inputScale).to(deviceType);
+//		torch::Tensor outputTensor = bModel.forward(inputTensor);
+//		std::vector<int64_t> actions = policy.getTestActions(outputTensor);
+//
+//		auto stepResult = env.step(actions, render);
+//		auto nextInputVec = std::get<0>(stepResult);
+//		auto rewardVec = std::get<1>(stepResult);
+//		auto doneVec = std::get<2>(stepResult);
+//
+//		Stats::UpdateReward(statRewards, rewardVec);
+//		Stats::UpdateLen(statLens);
+//		float doneMask = 1;
+//		if (doneVec[0]) {
+//			doneMask = 0;
+//
+//			testStater.update(statLens[0], statRewards[0]);
+//			statRewards[0] = 0;
+//			statLens[0] = 0;
+//			LOG4CXX_INFO(logger, testStater);
+//		}
+//
+//		stateVec = nextInputVec;
+//		updateNum ++;
+//	}
 
-	std::vector<float> statRewards(dqnOption.envNum, 0);
-	std::vector<float> statLens(dqnOption.envNum, 0);
+	if (toLoad) {
+		load();
+		updateModel();
+	}
 
-	std::vector<float> stateVec = env.reset();
+	int epUpdate = 0;
 
-	while (updateNum < epochNum) {
-		torch::Tensor inputTensor = torch::from_blob(stateVec.data(), inputShape).div(dqnOption.inputScale).to(deviceType);
-		torch::Tensor outputTensor = bModel.forward(inputTensor);
+	std::vector<long> testShapeData;
+	testShapeData.push_back(dqnOption.testBatch);
+	for (int i = 1; i < inputShape.size(); i ++) {
+		testShapeData.push_back(inputShape[i]);
+	}
+	at::IntArrayRef testInputShape(testShapeData);
+//	LOG4CXX_INFO(logger, "testInputShape: " << testInputShape);
+
+	std::vector<float> statRewards(dqnOption.testBatch, 0);
+	std::vector<float> statLens(dqnOption.testBatch, 0);
+
+	std::vector<float> stateVec = testEnv.reset();
+
+	while (epUpdate < dqnOption.testEp) {
+		torch::Tensor inputTensor = torch::from_blob(stateVec.data(), testInputShape).div(dqnOption.inputScale).to(deviceType);
+		torch::Tensor outputTensor = tModel.forward(inputTensor);
 		std::vector<int64_t> actions = policy.getTestActions(outputTensor);
+//		LOG4CXX_INFO(logger, "actions: " << actions);
 
-		auto stepResult = env.step(actions, render);
+		auto stepResult = testEnv.step(actions, true);
 		auto nextInputVec = std::get<0>(stepResult);
 		auto rewardVec = std::get<1>(stepResult);
 		auto doneVec = std::get<2>(stepResult);
+//		LOG4CXX_INFO(logger, "rewardVec: " << rewardVec);
 
 		Stats::UpdateReward(statRewards, rewardVec);
 		Stats::UpdateLen(statLens);
-		float doneMask = 1;
-		if (doneVec[0]) {
-			doneMask = 0;
 
-			testStater.update(statLens[0], statRewards[0]);
-			statRewards[0] = 0;
-			statLens[0] = 0;
-			LOG4CXX_INFO(logger, testStater);
+		for (int i = 0; i < dqnOption.testBatch; i ++) {
+			if (doneVec[i]) {
+				testStater.update(statLens[i], statRewards[i]);
+				statRewards[i] = 0;
+				statLens[i] = 0;
+				LOG4CXX_INFO(logger, "c" << i << "-" << testStater);
+
+				epUpdate ++;
+			}
 		}
-
 		stateVec = nextInputVec;
-		updateNum ++;
+	}
+
+	if (dqnOption.saveModel) {
+		auto curState = testStater.getCurState();
+		float curReward = curState[0];
+		if (curReward > maxTestReward) {
+			maxTestReward = curReward + dqnOption.saveStep;
+			saveTModel(curReward);
+		}
 	}
 }
 
@@ -365,6 +431,25 @@ void Dqn<NetType, EnvType, PolicyType, OptimizerType>::save() {
 	LOG4CXX_INFO(logger, "Save model into " << modelPath);
 
 	std::string optPath = dqnOption.savePathPrefix + "_optimizer.pt";
+	torch::serialize::OutputArchive optimizerArchive;
+	optimizer.save(optimizerArchive);
+	optimizerArchive.save_to(optPath);
+	LOG4CXX_INFO(logger, "Save optimizer into " << optPath);
+}
+
+template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
+void Dqn<NetType, EnvType, PolicyType, OptimizerType>::saveTModel(float reward) {
+	if (!dqnOption.saveModel) {
+		return;
+	}
+
+	std::string modelPath = dqnOption.savePathPrefix + "_" + std::to_string(reward) + "_model" + ".pt";
+	torch::serialize::OutputArchive outputArchive;
+	tModel.save(outputArchive);
+	outputArchive.save_to(modelPath);
+	LOG4CXX_INFO(logger, "Save model into " << modelPath);
+
+	std::string optPath = dqnOption.savePathPrefix + "_" + std::to_string(reward) + "_optimizer" + ".pt";
 	torch::serialize::OutputArchive optimizerArchive;
 	optimizer.save(optimizerArchive);
 	optimizerArchive.save_to(optPath);

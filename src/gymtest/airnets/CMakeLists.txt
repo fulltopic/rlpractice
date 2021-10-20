@@ -6,4 +6,6 @@ add_library(airnets OBJECT aircnnnet.cpp
 							airacbmsmallkernelnet.cpp
 							airsmallkernelnet.cpp
 							airachonet.cpp
+							airsacqnet.cpp
+							airsacpnet.cpp
 )

@@ -1,19 +1,20 @@
 /*
- * aircnnnet.cpp
+ * airsacpnet.cpp
  *
- *  Created on: Apr 5, 2021
+ *  Created on: Sep 21, 2021
  *      Author: zf
  */
+
 
 
 #include <torch/torch.h>
 
 #include <iostream>
 
-#include "gymtest/airnets/aircnnnet.h"
+#include "gymtest/airnets/airsacpnet.h"
 #include "gymtest/utils/netinitutils.h"
 
-AirCnnNet::AirCnnNet(const int outputNum):
+AirSacPNet::AirSacPNet(const int outputNum):
 	conv0(torch::nn::Conv2dOptions(4, 32, 8).stride(4)),
 	conv1(torch::nn::Conv2dOptions(32, 64, 4).stride(2)),
 	conv2(torch::nn::Conv2dOptions(64, 64, 3).stride(1)),
@@ -32,11 +33,11 @@ AirCnnNet::AirCnnNet(const int outputNum):
 	NetInitUtils::Init_weights(conv0->named_parameters(), sqrt(2.0), 0, NetInitUtils::Kaiming);
 	NetInitUtils::Init_weights(conv1->named_parameters(), sqrt(2.0), 0, NetInitUtils::Kaiming);
 	NetInitUtils::Init_weights(conv2->named_parameters(), sqrt(2.0), 0, NetInitUtils::Kaiming);
-//	NetInitUtils::Init_weights(fc2->named_parameters(), sqrt(2.0), 0, NetInitUtils::Xavier);
-//	NetInitUtils::Init_weights(fc3->named_parameters(), sqrt(2.0), 0, NetInitUtils::Xavier);
+//	NetInitUtils::Init_weights(fc2->named_parameters(), sqrt(2.0), 0, NetInitUtils::Kaiming);
+//	NetInitUtils::Init_weights(fc3->named_parameters(), sqrt(2.0), 0, NetInitUtils::Kaiming);
 }
 
-torch::Tensor AirCnnNet::forward(torch::Tensor input) {
+torch::Tensor AirSacPNet::forward(torch::Tensor input) {
 	torch::Tensor output = conv0->forward(input);
 	output = torch::relu(output);
 
@@ -59,4 +60,6 @@ torch::Tensor AirCnnNet::forward(torch::Tensor input) {
 
 	return output;
 }
+
+
 

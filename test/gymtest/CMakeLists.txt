@@ -20,12 +20,20 @@ include_directories(${ZMPHPP_INC_PATH})
 set(MSGPACK_INC_PATH /home/zf/workspaces/workspace_cpp/pytorch-cpp-rl/example/lib/msgpack-c/include)
 include_directories(${MSGPACK_INC_PATH})
 
+############################ Tensorboard ##################################
+set(TENSORBOARD_PATH /home/zf/workspaces/workspace_cpp/tensorboard_logger/)
+set(TENSORBOARD_INC_PATH ${TENSORBOARD_PATH}/include)
+set(tensorboard_libs ${TENSORBOARD_PATH}/build/libtensorboard_logger.a)
+include_directories(${TENSORBOARD_INC_PATH})
+include_directories(${TENSORBOARD_PATH}/build/)
+#set(PROTO_LIB_PATH /home/zf/workspaces/workspace_cpp/pytorch_1_9/pytorch/build/lib)
+#set(Protobuf_LIBRARIES ${PROTO_LIB_PATH}/libprotobuf.a)
 
 add_executable(gymclient gymclient.cpp $<TARGET_OBJECTS:gymenv>)
 target_compile_features(gymclient PUBLIC cxx_range_for)
 target_link_libraries(gymclient ${shared_libs} ${pytorch_cpp_rl_lib})
 
-add_executable(testsimplenet testsimplenet.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:lunarnets>)
+add_executable(testsimplenet testsimplenet.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils>)
 target_compile_features(testsimplenet PUBLIC cxx_range_for)
 target_link_libraries(testsimplenet ${shared_libs} ${pytorch_cpp_rl_lib})
 
@@ -146,3 +154,19 @@ target_link_libraries(testpriodqn ${shared_libs} ${pytorch_cpp_rl_lib})
 add_executable(testnoisydqn testnoisydqn.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:probeenvs> $<TARGET_OBJECTS:noisynets>)
 target_compile_features(testnoisydqn PUBLIC cxx_range_for)
 target_link_libraries(testnoisydqn ${shared_libs} ${pytorch_cpp_rl_lib})
+
+######################################################## SAC
+add_executable(testsac testsac.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:probeenvs>)
+target_compile_features(testsac PUBLIC cxx_range_for)
+target_link_libraries(testsac ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
+
+add_executable(testsaczip testsaczip.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:probeenvs>)
+target_compile_features(testsaczip PUBLIC cxx_range_for)
+target_link_libraries(testsaczip ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
+
+
+######################################################## Sync
+add_executable(testmodelsync testmodelsync.cpp $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils>)
+target_compile_features(testmodelsync PUBLIC cxx_range_for)
+target_link_libraries(testmodelsync ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
+

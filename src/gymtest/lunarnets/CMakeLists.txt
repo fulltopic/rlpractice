@@ -3,5 +3,7 @@ add_library(lunarnets OBJECT lunarfcnet.cpp
 							cartduelnet.cpp
 							cartacnet.cpp
 							cartqnet.cpp
+							cartsacqnet.cpp
+							cartsacpolicynet.cpp
 
 )

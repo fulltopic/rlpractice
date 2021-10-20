@@ -51,6 +51,6 @@ std::vector<int64_t> SoftmaxPolicy::getTestActions(torch::Tensor input) {
 	std::vector<int64_t> actionData(actionTensor.data_ptr<int64_t>(), actionTensor.data_ptr<int64_t>() + batchSize);
 //	LOG4CXX_INFO(logger, "actionTensor " << actionTensor);
 
-	//vector copied
+	//TODO: vector copied, but no deep clone
 	return actionData;
 }

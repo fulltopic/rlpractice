@@ -94,7 +94,7 @@ public:
 	DoubleDqn(const DoubleDqn&) = delete;
 
 	void train(const int epochNum);
-	void test(const int epochNum, bool render = false);
+	void test(const int epochNum, bool render = false, bool loadModel = true);
 };
 
 
@@ -308,6 +308,12 @@ void DoubleDqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epo
 			auto curStat = stater.getCurState();
 			lossStater.update({(float)updateNum, lossValue, curStat[0], curStat[1]});
 		}
+
+		if (dqnOption.toTest) {
+			if (updateNum % dqnOption.testGapEp == 0) {
+				test(dqnOption.testEp, false, false);
+			}
+		}
 	}
 
 	save();
@@ -369,40 +375,68 @@ void DoubleDqn<NetType, EnvType, PolicyType, OptimizerType>::updateStep(const fl
 //TODO: update, train, test, syncModel
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-void DoubleDqn<NetType, EnvType, PolicyType, OptimizerType>::test(const int epochNum, bool render) {
-	load();
+void DoubleDqn<NetType, EnvType, PolicyType, OptimizerType>::test(const int epochNum, bool render, bool loadModel) {
+	if (loadModel) {
+		load();
+	}
 
-	bModel.eval();
-	std::vector<float> statRewards(dqnOption.envNum, 0);
-	std::vector<float> statLens(dqnOption.envNum, 0);
 
-	std::vector<float> stateVec = env.reset();
+	std::vector<long> testShapeData;
+	testShapeData.push_back(dqnOption.testBatch);
+	for (int i = 1; i < inputShape.size(); i ++) {
+		testShapeData.push_back(inputShape[i]);
+	}
+	at::IntArrayRef testInputShape(testShapeData);
+	LOG4CXX_INFO(logger, "testInputShape: " << testInputShape);
 
-	while (updateNum < epochNum) {
-		torch::Tensor inputTensor = torch::from_blob(stateVec.data(), inputShape).div(dqnOption.inputScale).to(deviceType);
+//	bModel.eval();
+	std::vector<float> statRewards(dqnOption.testBatch, 0);
+	std::vector<float> statLens(dqnOption.testBatch, 0);
+
+
+
+//	std::vector<float> statRewards(batchSize, 0);
+//	std::vector<float> statLens(batchSize, 0);
+//	std::vector<float> sumRewards(batchSize, 0);
+//	std::vector<float> sumLens(batchSize, 0);
+//	std::vector<int> liveCounts(batchSize, 0);
+//	std::vector<int> noReward(batchSize, 0);
+//	std::vector<int> randomStep(batchSize, 0);
+
+	std::vector<float> stateVec = testEnv.reset();
+	LOG4CXX_INFO(logger, "stateVecShape: " << stateVec.size());
+
+	int updateEp = 0;
+	while (updateEp < epochNum) {
+		torch::Tensor inputTensor = torch::from_blob(stateVec.data(), testInputShape).div(dqnOption.inputScale).to(deviceType);
 		torch::Tensor outputTensor = bModel.forward(inputTensor);
 		std::vector<int64_t> actions = policy.getTestActions(outputTensor);
 
-		auto stepResult = env.step(actions, render);
+		auto stepResult = testEnv.step(actions, render);
 		auto nextInputVec = std::get<0>(stepResult);
 		auto rewardVec = std::get<1>(stepResult);
 		auto doneVec = std::get<2>(stepResult);
 
+
 		Stats::UpdateReward(statRewards, rewardVec);
 		Stats::UpdateLen(statLens);
-		float doneMask = 1;
-		if (doneVec[0]) {
-			doneMask = 0;
 
-			testStater.update(statLens[0], statRewards[0]);
-			statRewards[0] = 0;
-			statLens[0] = 0;
-			LOG4CXX_INFO(logger, testStater);
+		for (int i = 0; i < dqnOption.testBatch; i ++) {
+			if (doneVec[i]) {
+				updateEp ++;
+
+				testStater.update(statLens[i], statRewards[i]);
+				statRewards[i] = 0;
+				statLens[i] = 0;
+				LOG4CXX_INFO(logger, "client-" << i << ": " << testStater);
+			}
 		}
 
 		stateVec = nextInputVec;
-		updateNum ++;
+//		updateNum ++;
 	}
+
+//	bModel.train();
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
