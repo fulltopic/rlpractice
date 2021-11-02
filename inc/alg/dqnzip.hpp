@@ -13,6 +13,8 @@
 #include <log4cxx/logger.h>
 #include <log4cxx/basicconfigurator.h>
 
+#include <tensorboard_logger.h>
+
 #include <vector>
 #include <algorithm>
 #include <ctime>
@@ -40,15 +42,25 @@ private:
 	uint32_t updateNum = 0;
 	float maxTestReward = -1000;
 
+	std::vector<float> statRewards = std::vector<float>(dqnOption.testBatch, 0);
+	std::vector<float> statLens = std::vector<float>(dqnOption.testBatch, 0);
+	std::vector<float> statEpRewards = std::vector<float>(dqnOption.testBatch, 0);
+	std::vector<float> statEpLens = std::vector<float>(dqnOption.testBatch, 0);
+	std::vector<int> livePerEp = std::vector<int>(dqnOption.testBatch, 0);
+	int totalTestLive = 0;
+	int totalTestEp = 0;
+
 //	const int actionNum;
 //	std::vector<int64_t> indice;
 
 	const torch::TensorOptions longOpt = torch::TensorOptions().dtype(torch::kLong);
 	log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("dqn");
 
-	Stats stater;
-	Stats testStater;
-	LossStats lossStater;
+//	Stats stater;
+//	Stats testStater;
+//	LossStats lossStater;
+	TensorBoardLogger tLogger;
+
 
 	class ReplayBuffer {
 	private:
@@ -152,7 +164,9 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::add(
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
 torch::Tensor DqnZip<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::getSampleIndex(int batchSize) {
-	torch::Tensor indices = torch::randint(0, curSize, {batchSize}, longOpt);
+	torch::Tensor indices = torch::randint(0, curSize - 1, {batchSize}, longOpt);
+
+	indices = (indices + (curIndex + 1)) % curSize; //No curIndex involved as its next not match
 
 	return indices;
 }
@@ -172,9 +186,10 @@ DqnZip<NetType, EnvType, PolicyType, OptimizerType>::DqnZip(NetType& iModel, Net
 	deviceType(iOption.deviceType),
 	inputShape(iOption.inputShape),
 	buffer(iOption.rbCap, iOption.inputShape),
-	stater(iOption.statPathPrefix + "_stat.txt", iOption.statCap),
-	testStater(iOption.statPathPrefix + "_test.txt", iOption.testEp),
-	lossStater(iOption.statPathPrefix + "_loss.txt")
+//	stater(iOption.statPathPrefix + "_stat.txt", iOption.statCap),
+//	testStater(iOption.statPathPrefix + "_test.txt", iOption.testEp),
+//	lossStater(iOption.statPathPrefix + "_loss.txt")
+	tLogger(iOption.tensorboardLogPath.c_str())
 {
 	maxTestReward = iOption.saveThreshold;
 }
@@ -193,38 +208,39 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::train(const int epochN
 
 	while (updateNum < epochNum) {
 		for (int k = 0; k < dqnOption.envStep; k ++) {
-		updateNum ++;
-		//Run step
-		torch::Tensor cpuinputTensor = torch::from_blob(stateVec.data(), inputShape);
-		torch::Tensor inputTensor = cpuinputTensor.to(deviceType).div(dqnOption.inputScale);
+			updateNum ++;
+			//Run step
+			torch::Tensor cpuinputTensor = torch::from_blob(stateVec.data(), inputShape);
+			torch::Tensor inputTensor = cpuinputTensor.to(deviceType).div(dqnOption.inputScale);
 
-		torch::Tensor outputTensor = bModel.forward(inputTensor); //TODO: bModel or tModel?
-		std::vector<int64_t> actions = policy.getActions(outputTensor);
+			torch::Tensor outputTensor = bModel.forward(inputTensor); //TODO: bModel or tModel?
+			std::vector<int64_t> actions = policy.getActions(outputTensor);
 
-		auto stepResult = env.step(actions);
-		auto nextInputVec = std::get<0>(stepResult);
-		auto rewardVec = std::get<1>(stepResult);
-		auto doneVec = std::get<2>(stepResult);
+			auto stepResult = env.step(actions);
+			auto nextInputVec = std::get<0>(stepResult);
+			auto rewardVec = std::get<1>(stepResult);
+			auto doneVec = std::get<2>(stepResult);
 
-		Stats::UpdateReward(statRewards, rewardVec);
-		Stats::UpdateLen(statLens);
-		float doneMask = 1;
-		if (doneVec[0]) {
-			doneMask = 0;
+			Stats::UpdateReward(statRewards, rewardVec);
+			Stats::UpdateLen(statLens);
+			float doneMask = 1;
+			if (doneVec[0]) {
+				tLogger.add_scalar("train/reward", updateNum, statRewards[0]);
+				tLogger.add_scalar("train/len", updateNum, statLens[0]);
+				LOG4CXX_INFO(logger, "" << policy.getEpsilon() << "--" << updateNum << ": " << statLens[0] << ", " << statRewards[0]);
+//				stater.update(statLens[0], statRewards[0]);
+				doneMask = 0;
+				statRewards[0] = 0;
+				statLens[0] = 0;
+			}
 
-			stater.update(statLens[0], statRewards[0]);
-			statRewards[0] = 0;
-			statLens[0] = 0;
-			LOG4CXX_INFO(logger, "" << policy.getEpsilon() << "--" << updateNum << stater);
-		}
+			torch::Tensor nextInputTensor = torch::from_blob(nextInputVec.data(), inputShape); //.div(dqnOption.inputScale);
+			float reward = std::max(std::min((rewardVec[0] * dqnOption.rewardScale), dqnOption.rewardMax), dqnOption.rewardMin);
+			buffer.add(cpuinputTensor, nextInputTensor, actions[0], rewardVec[0], doneMask);
 
-		torch::Tensor nextInputTensor = torch::from_blob(nextInputVec.data(), inputShape); //.div(dqnOption.inputScale);
-		float reward = std::max(std::min((rewardVec[0] / dqnOption.rewardScale), dqnOption.rewardMax), dqnOption.rewardMin);
-		buffer.add(cpuinputTensor, nextInputTensor, actions[0], rewardVec[0], doneMask);
-
-		//Update
-		stateVec = nextInputVec;
-		updateStep(epochNum);
+			//Update
+			stateVec = nextInputVec;
+			updateStep(epochNum);
 		} //End of envStep
 
 		//TEST
@@ -285,8 +301,12 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::train(const int epochN
 
 		if ((updateNum % dqnOption.logInterval) == 0) {
 			float lossValue = loss.item<float>();
-			auto curStat = stater.getCurState();
-			lossStater.update({(float)updateNum, lossValue, curStat[0], curStat[1]});
+			float qValue = curQ.mean().item<float>();
+			tLogger.add_scalar("loss/loss", updateNum, lossValue);
+			tLogger.add_scalar("loss/qValue", updateNum, qValue);
+			tLogger.add_scalar("loss/epsilon", updateNum, policy.getEpsilon());
+//			auto curStat = stater.getCurState();
+//			lossStater.update({(float)updateNum, lossValue, curStat[0], curStat[1]});
 		}
 
 		optimizer.zero_grad();
@@ -350,10 +370,8 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::test(const int epochNu
 		load();
 		updateModel();
 	}
-
 	tModel.eval();
 
-	int epUpdate = 0;
 
 	std::vector<long> testShapeData;
 	testShapeData.push_back(dqnOption.testBatch);
@@ -361,20 +379,22 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::test(const int epochNu
 		testShapeData.push_back(inputShape[i]);
 	}
 	at::IntArrayRef testInputShape(testShapeData);
-//	LOG4CXX_INFO(logger, "testInputShape: " << testInputShape);
 
-	std::vector<float> statRewards(dqnOption.testBatch, 0);
-	std::vector<float> statLens(dqnOption.testBatch, 0);
+	int epUpdate = 0;
+	float totalLen = 0;
+	float totalReward = 0;
+//	std::vector<float> statRewards(dqnOption.testBatch, 0);
+//	std::vector<float> statLens(dqnOption.testBatch, 0);
+
 
 	std::vector<float> stateVec = testEnv.reset();
-
 	while (epUpdate < dqnOption.testEp) {
 		torch::Tensor inputTensor = torch::from_blob(stateVec.data(), testInputShape).div(dqnOption.inputScale).to(deviceType);
 		torch::Tensor outputTensor = tModel.forward(inputTensor);
 		std::vector<int64_t> actions = policy.getTestActions(outputTensor);
 //		LOG4CXX_INFO(logger, "actions: " << actions);
 
-		auto stepResult = testEnv.step(actions, true);
+		auto stepResult = testEnv.step(actions, render);
 		auto nextInputVec = std::get<0>(stepResult);
 		auto rewardVec = std::get<1>(stepResult);
 		auto doneVec = std::get<2>(stepResult);
@@ -382,26 +402,48 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::test(const int epochNu
 
 		Stats::UpdateReward(statRewards, rewardVec);
 		Stats::UpdateLen(statLens);
+		Stats::UpdateReward(statEpRewards, rewardVec);
+		Stats::UpdateLen(statEpLens);
 
 		for (int i = 0; i < dqnOption.testBatch; i ++) {
 			if (doneVec[i]) {
-				testStater.update(statLens[i], statRewards[i]);
+//				testStater.update(statLens[i], statRewards[i]);
+
+				totalTestLive ++;
+				LOG4CXX_INFO(logger, "ep" << totalTestLive << ": " << statRewards[i] << ", " << statLens[i]);
 				statRewards[i] = 0;
 				statLens[i] = 0;
-				LOG4CXX_INFO(logger, "c" << i << "-" << testStater);
 
-				epUpdate ++;
+//				epUpdate ++;
+				livePerEp[i] ++;
+				if (livePerEp[i] == dqnOption.livePerEpisode) {
+					epUpdate ++;
+					totalTestEp ++;
+					totalLen += statEpLens[i];
+					totalReward += statEpRewards[i];
+
+					tLogger.add_scalar("test/reward", totalTestEp, statEpRewards[i]);
+					tLogger.add_scalar("test/len", totalTestEp, statEpLens[i]);
+
+					statEpRewards[i] = 0;
+					statEpLens[i] = 0;
+					livePerEp[i] = 0;
+				}
 			}
 		}
+
 		stateVec = nextInputVec;
 	}
 
+	float aveLen = totalLen / (float)dqnOption.testEp;
+	float aveReward = totalReward / (float)dqnOption.testEp;
+	tLogger.add_scalar("test/ave_reward", updateNum, aveReward);
+	tLogger.add_scalar("test/ave_len", updateNum, aveLen);
+
 	if (dqnOption.saveModel) {
-		auto curState = testStater.getCurState();
-		float curReward = curState[0];
-		if (curReward > maxTestReward) {
-			maxTestReward = curReward + dqnOption.saveStep;
-			saveTModel(curReward);
+		if (aveReward > maxTestReward) {
+			maxTestReward = aveReward + dqnOption.saveStep;
+			saveTModel(aveReward);
 		}
 	}
 }

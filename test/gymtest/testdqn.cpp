@@ -1681,6 +1681,167 @@ void test128(const int epochNum) {
     DqnZip<AirCnnNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
     dqn.train(epochNum);
 }
+
+
+void test200(const int epochNum) {
+	const std::string envName = "BreakoutNoFrameskip-v4";
+	const int outputNum = 4;
+	const int clientNum = 1;
+	const int testClientNum = 5;
+	std::string serverAddr = "tcp://127.0.0.1:10207";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+	std::string testServerAddr = "tcp://127.0.0.1:10205";
+	LOG4CXX_DEBUG(logger, "To connect to " << testServerAddr);
+	AirEnv testEnv(testServerAddr, envName, testClientNum);
+	testEnv.init();
+	LOG4CXX_INFO(logger, "Test env " << envName << " ready");
+
+	AirCnnNet model(outputNum);
+	model.to(deviceType);
+	AirCnnNet targetModel(outputNum);
+	targetModel.to(deviceType);
+
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-3)); //rmsprop: 0.00025
+//    torch::optim::RMSprop optimizer(model.parameters(), torch::optim::RMSpropOptions(0.0001));
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-4));
+//	torch::optim::RMSprop optimizer(model.parameters());
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    option.envNum = clientNum;
+    //target model
+    option.targetUpdateStep = 10000;
+    option.tau = 1;
+    //buffer
+    option.rbCap = 300000;
+    //explore
+    option.exploreBegin = 1;
+    option.exploreEnd = 0.05;
+    option.explorePart = 0.5;
+    //input
+    option.inputScale = 255;
+    option.rewardScale = 1;
+    option.rewardMin = -1; //TODO: reward may not require clip
+    option.rewardMax = 1;
+    option.gamma = 0.99;
+    //output
+    option.outputNum = outputNum;
+    //update
+    option.envStep = 4;
+    //grad
+    option.batchSize = 32;
+    option.startStep = 50000;
+    option.maxGradNormClip = 1;
+    //test
+    option.toTest = true;
+    option.testEp = testClientNum;
+    option.testGapEp = option.targetUpdateStep;
+    option.testBatch = testClientNum;
+    option.livePerEpisode = 5;
+    //log
+    option.logInterval = 1000;
+    option.tensorboardLogPath = "./logs/dqnzip_br200/tfevents.pb";
+//    option.statCap = 128;
+//    option.statPathPrefix = "./dqnzip_test128";
+    //model
+    option.saveThreshold = 50;
+    option.saveStep = 10;
+    option.saveModel = true;
+    option.savePathPrefix = "./dqnzip_test200";
+    option.loadModel = false;
+    option.loadOptimizer = false;
+//    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/dqnzip_test127";
+
+
+    RawPolicy policy(option.exploreBegin, outputNum);
+
+    DqnZip<AirCnnNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
+    dqn.train(epochNum);
+}
+
+void test201(const int epochNum) {
+	const std::string envName = "BreakoutNoFrameskip-v4";
+	const int outputNum = 4;
+	const int clientNum = 1;
+	const int testClientNum = 5;
+	std::string serverAddr = "tcp://127.0.0.1:10207";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+	std::string testServerAddr = "tcp://127.0.0.1:10205";
+	LOG4CXX_DEBUG(logger, "To connect to " << testServerAddr);
+	AirEnv testEnv(testServerAddr, envName, testClientNum);
+	testEnv.init();
+	LOG4CXX_INFO(logger, "Test env " << envName << " ready");
+
+	AirCnnNet model(outputNum);
+	model.to(deviceType);
+	AirCnnNet targetModel(outputNum);
+	targetModel.to(deviceType);
+
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-3)); //rmsprop: 0.00025
+//    torch::optim::RMSprop optimizer(model.parameters(), torch::optim::RMSpropOptions(0.0001));
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-4));
+//	torch::optim::RMSprop optimizer(model.parameters());
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    option.envNum = clientNum;
+    //target model
+    option.targetUpdateStep = 10000;
+    option.tau = 1;
+    //buffer
+    option.rbCap = 300000;
+    //explore
+    option.exploreBegin = 0.5;
+    option.exploreEnd = 0.05;
+    option.explorePart = 0.7;
+    //input
+    option.inputScale = 255;
+    option.rewardScale = 1;
+    option.rewardMin = -1; //TODO: reward may not require clip
+    option.rewardMax = 1;
+    option.gamma = 0.99;
+    //output
+    option.outputNum = outputNum;
+    //update
+    option.envStep = 4;
+    //grad
+    option.batchSize = 32;
+    option.startStep = 50000;
+    option.maxGradNormClip = 1;
+    //test
+    option.toTest = true;
+    option.testEp = testClientNum;
+    option.testGapEp = option.targetUpdateStep;
+    option.testBatch = testClientNum;
+    option.livePerEpisode = 5;
+    //log
+    option.logInterval = 1000;
+    option.tensorboardLogPath = "./logs/dqnzip_br201/tfevents.pb";
+//    option.statCap = 128;
+//    option.statPathPrefix = "./dqnzip_test128";
+    //model
+    option.saveThreshold = 50;
+    option.saveStep = 10;
+    option.saveModel = true;
+    option.savePathPrefix = "./dqnzip_test201";
+    option.loadModel = true;
+    option.loadOptimizer = true;
+    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/dqnzip_test200";
+
+
+    RawPolicy policy(option.exploreBegin, outputNum);
+
+    DqnZip<AirCnnNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
+    dqn.train(epochNum);
+}
 }
 
 namespace {
@@ -1703,7 +1864,7 @@ void logConfigure(bool err) {
 int main(int argc, char** argv) {
 	logConfigure(false);
 
-	test128(atoi(argv[1]));
+	test201(atoi(argv[1]));
 //	test124(atoi(argv[1]));
 //	testPong(atoi(argv[1]));
 //	testBreakout(atoi(argv[1]));

@@ -59,11 +59,17 @@ private:
 
 	uint32_t updateNum = 0;
 	uint32_t totalTestEp = 0;
+	uint32_t totalTestLive = 0;
 
 	float maxReward;
 
 //	const int actionNum;
 //	std::vector<int64_t> indice;
+	std::vector<float> statRewards = std::vector<float>(dqnOption.testBatch, 0);
+	std::vector<float> statLens = std::vector<float>(dqnOption.testBatch, 0);
+	std::vector<float> statEpRewards = std::vector<float>(dqnOption.testBatch, 0);
+	std::vector<float> statEpLens = std::vector<float>(dqnOption.testBatch, 0);
+	std::vector<int> livePerEp = std::vector<int>(dqnOption.testBatch, 0);
 
 	const torch::TensorOptions longOpt = torch::TensorOptions().dtype(torch::kLong);
 	log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("sac");
@@ -108,8 +114,8 @@ private:
 	void updateModel(bool force = false);
 	void disableTargetGrad();
 
-	void load();
 	void save(std::string flag = "");
+	void load();
 
 	void testModel(const int epochNum, bool render = false);
 public:
@@ -124,6 +130,8 @@ public:
 
 	void train(const int epochNum);
 	void test(const int epochNum, bool render = false);
+
+	void testLoad(int stepNum);
 };
 
 template <typename QNetType, typename PNetType, typename EnvType, typename PolicyType, typename QOptimizerType, typename POptimizerType, typename AlphaOptimizerType>
@@ -293,21 +301,38 @@ void SacZip<QNetType, PNetType, EnvType, PolicyType, QOptimizerType, POptimizerT
 
 			Stats::UpdateReward(statRewards, rewardVec);
 			Stats::UpdateLen(statLens);
-			float doneMask = 1;
-			if (doneVec[0]) {
-				doneMask = 0;
-
-				tLogger.add_scalar("train/reward", updateNum, statRewards[0]);
-				tLogger.add_scalar("train/len", updateNum, statLens[0]);
-				LOG4CXX_INFO(logger, "--" << updateNum << ": " << statRewards[0] << ", " << statLens[0]);
-//				stater.update(statLens[0], statRewards[0]);
-				statRewards[0] = 0;
-				statLens[0] = 0;
-			}
+//			float doneMask = 1;
+			std::vector<float> doneMasks(dqnOption.envNum, 1);
+//			if (doneVec[0]) {
+//				doneMask = 0;
+//
+//				tLogger.add_scalar("train/reward", updateNum, statRewards[0]);
+//				tLogger.add_scalar("train/len", updateNum, statLens[0]);
+//				LOG4CXX_INFO(logger, "--" << updateNum << ": " << statRewards[0] << ", " << statLens[0]);
+////				stater.update(statLens[0], statRewards[0]);
+//				statRewards[0] = 0;
+//				statLens[0] = 0;
+//			}
 
 			torch::Tensor nextInputTensor = torch::from_blob(nextInputVec.data(), inputShape); //.div(dqnOption.inputScale);
-			float reward = std::max(std::min((rewardVec[0] * dqnOption.rewardScale), dqnOption.rewardMax), dqnOption.rewardMin);
-			buffer.add(cpuinputTensor, nextInputTensor, actions[0], reward, doneMask);
+			for (int envId = 0; envId < dqnOption.envNum; envId ++) {
+				if (doneVec[envId]) {
+					doneMasks[envId] = 0;
+					tLogger.add_scalar("train/reward", updateNum, statRewards[envId]);
+					tLogger.add_scalar("train/len", updateNum, statLens[envId]);
+					LOG4CXX_INFO(logger, "--" << updateNum << ": " << statRewards[envId] << ", " << statLens[envId]);
+//					stater.update(statLens[envId], statRewards[envId]);
+					statRewards[envId] = 0;
+					statLens[envId] = 0;
+				}
+
+				rewardVec[envId] = std::max(std::min((rewardVec[envId] * dqnOption.rewardScale), dqnOption.rewardMax), dqnOption.rewardMin);
+
+				buffer.add(cpuinputTensor[envId], nextInputTensor[envId], actions[envId], rewardVec[envId], doneMasks[envId]);
+			}
+
+//			float reward = std::max(std::min((rewardVec[0] * dqnOption.rewardScale), dqnOption.rewardMax), dqnOption.rewardMin);
+//			buffer.add(cpuinputTensor, nextInputTensor, actions[0], reward, doneMask);
 
 			stateVec = nextInputVec;
 		}
@@ -417,6 +442,17 @@ void SacZip<QNetType, PNetType, EnvType, PolicyType, QOptimizerType, POptimizerT
 		alphaLoss.backward();
 		alphaOptimizer.step();
 
+		alpha = logAlpha.exp().detach();
+//		alpha = torch::clamp(logAlpha.exp(), dqnOption.targetEntropy, 1);
+//		alpha = torch::clamp(logAlpha.exp(), 0, 1);
+//
+//		if ((updateNum % dqnOption.logInterval) == 0) {
+//			lossStater.update({alpha.item<float>(), entropyValue, policyLossValue, alphaLossValue});
+//		}
+
+		updateModel(false);
+
+
 		//log
 		if ((updateNum % dqnOption.logInterval) == 0) {
 			float qLoss1Value = qLoss1.item<float>();
@@ -441,16 +477,8 @@ void SacZip<QNetType, PNetType, EnvType, PolicyType, QOptimizerType, POptimizerT
 			tLogger.add_scalar("stat/V", updateNum, vValue);
 		}
 
-		alpha = logAlpha.exp().detach();
-//		alpha = torch::clamp(logAlpha.exp(), dqnOption.targetEntropy, 1);
-//		alpha = torch::clamp(logAlpha.exp(), 0, 1);
-//
-//		if ((updateNum % dqnOption.logInterval) == 0) {
-//			lossStater.update({alpha.item<float>(), entropyValue, policyLossValue, alphaLossValue});
-//		}
 
-		updateModel(false);
-
+		//Test
 		if ((updateNum % dqnOption.testGapEp) == 0) {
 			if (dqnOption.toTest) {
 				testModel(dqnOption.testEp, dqnOption.testRender);
@@ -537,12 +565,6 @@ template <typename QNetType, typename PNetType, typename EnvType, typename Polic
 void SacZip<QNetType, PNetType, EnvType, PolicyType, QOptimizerType, POptimizerType, AlphaOptimizerType>::testModel(const int epochNum, bool render) {
 //	policyModel.eval();
 
-	std::vector<float> statRewards(dqnOption.testBatch, 0);
-	std::vector<float> statLens(dqnOption.testBatch, 0);
-	std::vector<float> statEpRewards(dqnOption.testBatch, 0);
-	std::vector<float> statEpLens(dqnOption.testBatch, 0);
-	std::vector<int> livePerEp(dqnOption.testBatch, 0);
-
 	std::vector<long> testShapeData;
 	testShapeData.push_back(dqnOption.testBatch);
 	for (int i = 1; i < inputShape.size(); i ++) {
@@ -551,18 +573,29 @@ void SacZip<QNetType, PNetType, EnvType, PolicyType, QOptimizerType, POptimizerT
 	at::IntArrayRef testInputShape(testShapeData);
 //	LOG4CXX_INFO(logger, "testInputShape: " << testInputShape);
 
-	std::vector<float> stateVec = testEnv.reset();
 //	int testStep = 0;
-	int testEpNum = 0;
+//	int testEpNum = 0;
 	int updateEp = 0;
 	float totalLen = 0;
 	float totalReward = 0;
 
-	while (updateEp < dqnOption.testEp) {
-//	while (testStep < dqnOption.testEp) {
-//		testStep ++;
+	std::vector<float> stateVec = testEnv.reset();
 
-//		std::vector<int64_t> actions(dqnOption.testBatch, 0);
+	while (updateEp < dqnOption.testEp) {
+		//log test
+//		{
+//			torch::NoGradGuard guard;
+//			torch::Tensor inputTensor = torch::from_blob(stateVec.data(), testInputShape).div(dqnOption.inputScale).to(deviceType);
+//
+//			torch::Tensor q1 = bModel1.forward(inputTensor);
+//			torch::Tensor q2 = bModel2.forward(inputTensor);
+//			torch::Tensor q = torch::min(q1, q2);
+//
+//			LOG4CXX_INFO(logger, "q1: \n" << q1);
+//			LOG4CXX_INFO(logger, "q2: \n" << q2);
+//			LOG4CXX_INFO(logger, "q: \n" << q);
+//		}
+
 		torch::Tensor greedyOutput;
 		{
 			torch::NoGradGuard guard;
@@ -571,18 +604,9 @@ void SacZip<QNetType, PNetType, EnvType, PolicyType, QOptimizerType, POptimizerT
 			torch::Tensor outputTensor = policyModel.forward(inputTensor).detach();
 //			greedyOutput = torch::softmax(outputTensor, -1);
 			greedyOutput = outputTensor.argmax(-1, true).to(torch::kCPU);
-			//		LOG4CXX_INFO(logger, "greedyOutput: " << greedyOutput);
-//			int64_t* greedyPtr = greedyOutput.data_ptr<int64_t>();
-//			for (int i = 0; i < dqnOption.testBatch; i ++) {
-//				actions[i] = greedyPtr[i];
-//			}
 		}
 		std::vector<int64_t> actions(greedyOutput.data_ptr<int64_t>(), greedyOutput.data_ptr<int64_t>() + dqnOption.testBatch);
 //		auto actions = policy.getActions(greedyOutput);
-
-
-//		torch::Tensor actionProbs = torch::softmax(outputTensor, -1);
-//		std::vector<int64_t> actions = policy.getTestActions(actionProbs);
 
 		auto stepResult = testEnv.step(actions, render);
 		auto nextInputVec = std::get<0>(stepResult);
@@ -597,10 +621,9 @@ void SacZip<QNetType, PNetType, EnvType, PolicyType, QOptimizerType, POptimizerT
 
 		for (int i = 0; i < dqnOption.testBatch; i ++) {
 			if (doneVec[i]) {
-//				totalLen += statLens[i];
-//				totalReward += statRewards[i];
+				totalTestLive ++;
 
-				LOG4CXX_INFO(logger, "ep" << totalTestEp << ": " << statRewards[i] << ", " << statLens[i]);
+				LOG4CXX_INFO(logger, "ep" << totalTestLive << ": " << statRewards[i] << ", " << statLens[i]);
 //				testStater.update(statLens[i], statRewards[i]);
 				statRewards[i] = 0;
 				statLens[i] = 0;
@@ -608,7 +631,7 @@ void SacZip<QNetType, PNetType, EnvType, PolicyType, QOptimizerType, POptimizerT
 				livePerEp[i] ++;
 				if (livePerEp[i] == dqnOption.livePerEpisode) {
 					updateEp ++;
-					testEpNum ++;
+//					testEpNum ++;
 					totalTestEp ++;
 					totalLen += statEpLens[i];
 					totalReward += statEpRewards[i];
@@ -626,8 +649,8 @@ void SacZip<QNetType, PNetType, EnvType, PolicyType, QOptimizerType, POptimizerT
 		stateVec = nextInputVec;
 	}
 
-	float aveLen = totalLen / (float)testEpNum;
-	float aveReward = totalReward / (float)testEpNum;
+	float aveLen = totalLen / (float)dqnOption.testEp;
+	float aveReward = totalReward / (float)dqnOption.testEp;
 	tLogger.add_scalar("test/ave_reward", updateNum, aveReward);
 	tLogger.add_scalar("test/ave_len", updateNum, aveLen);
 
@@ -722,7 +745,7 @@ void SacZip<QNetType, PNetType, EnvType, PolicyType, QOptimizerType, POptimizerT
 	std::string modelPathP = dqnOption.loadPathPrefix + "_p_model.pt";
 	torch::serialize::InputArchive inChiveP;
 	inChiveP.load_from(modelPathP);
-	policyModel.load(inChiveQ2);
+	policyModel.load(inChiveP);
 	LOG4CXX_INFO(logger, "Load model from " << modelPathP);
 
 	std::string modelPathA = dqnOption.loadPathPrefix + "_alpha.pt";
@@ -762,7 +785,36 @@ void SacZip<QNetType, PNetType, EnvType, PolicyType, QOptimizerType, POptimizerT
 
 }
 
+template <typename QNetType, typename PNetType, typename EnvType, typename PolicyType, typename QOptimizerType, typename POptimizerType, typename AlphaOptimizerType>
+void SacZip<QNetType, PNetType, EnvType, PolicyType, QOptimizerType, POptimizerType, AlphaOptimizerType>::testLoad(int stepNum) {
+	load();
 
+	LOG4CXX_INFO(logger, "load alpha: " << alpha);
+
+	for (int i = 0; i < stepNum; i ++) {
+		LOG4CXX_INFO(logger, "------------------> load case " << i);
+	torch::Tensor input = torch::randn(dqnOption.inputShape).to(dqnOption.deviceType);
+
+	torch::Tensor q1Output = bModel1.forward(input);
+	torch::Tensor q2Output = bModel2.forward(input);
+	torch::Tensor qOutput = torch::min(q1Output, q2Output);
+	torch::Tensor pOutput = policyModel.forward(input);
+	LOG4CXX_INFO(logger, "q1Output \n" << q1Output);
+	LOG4CXX_INFO(logger, "q2Output \n" << q2Output);
+	LOG4CXX_INFO(logger, "qOutput \n" << qOutput);
+	LOG4CXX_INFO(logger, "policyOutput \n" << pOutput);
+
+	torch::Tensor qMax = qOutput.argmax(-1);
+	torch::Tensor pMax = pOutput.argmax(-1);
+	LOG4CXX_INFO(logger, "qMax \n" << qMax);
+	LOG4CXX_INFO(logger, "pMax \n" << pMax);
+	}
+//	updateModel(true);
+//	torch::Tensor t1Output = tModel1.forward(input);
+//	torch::Tensor t2Output = tModel2.forward(input);
+//	LOG4CXX_INFO(logger, "t1Outptu \n" << t1Output);
+//	LOG4CXX_INFO(logger, "t2Output \n" << t2Output);
+}
 
 
 #endif /* INC_ALG_SACZIP_HPP_ */

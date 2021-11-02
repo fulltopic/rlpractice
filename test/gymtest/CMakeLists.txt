@@ -137,7 +137,7 @@ target_link_libraries(testprobeenv ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_
 ########################################################## DQN
 add_executable(testdqn testdqn.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:probeenvs>)
 target_compile_features(testdqn PUBLIC cxx_range_for)
-target_link_libraries(testdqn ${shared_libs} ${pytorch_cpp_rl_lib})
+target_link_libraries(testdqn ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
 
 add_executable(testdoubledqn testdoubledqn.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:probeenvs>)
 target_compile_features(testdoubledqn PUBLIC cxx_range_for)
@@ -154,6 +154,10 @@ target_link_libraries(testpriodqn ${shared_libs} ${pytorch_cpp_rl_lib})
 add_executable(testnoisydqn testnoisydqn.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:probeenvs> $<TARGET_OBJECTS:noisynets>)
 target_compile_features(testnoisydqn PUBLIC cxx_range_for)
 target_link_libraries(testnoisydqn ${shared_libs} ${pytorch_cpp_rl_lib})
+
+add_executable(testcatdqn testcatdqn.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:probeenvs> $<TARGET_OBJECTS:noisynets>)
+target_compile_features(testcatdqn PUBLIC cxx_range_for)
+target_link_libraries(testcatdqn ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
 
 ######################################################## SAC
 add_executable(testsac testsac.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:probeenvs>)

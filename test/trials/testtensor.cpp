@@ -527,6 +527,117 @@ void testTensorAssign() {
 	std::cout << "action: " << fActionTensor << std::endl;
 }
 
+void testDist() {
+	std::cout << "-------------------> testDist" << std::endl;
+
+	int batchSize = 2;
+	int actionNum = 3;
+	int atomNum = 4;
+	float vMax = 1;
+	float vMin = -1;
+	float deltaZ = (vMax - vMin) / ((float)(atomNum - 1));
+
+	torch::Tensor valueItem = torch::linspace(vMin, vMax, atomNum);
+	std::cout << "valueItems: " << valueItem << std::endl;
+
+	torch::Tensor data = torch::rand({batchSize, actionNum, atomNum});
+	torch::Tensor dataProbs = data.softmax(-1);
+	std::cout << "dataProbs: " << dataProbs << std::endl;
+
+	torch::Tensor dataDist = dataProbs * valueItem;
+	std::cout << "dataDist: " << dataDist << std::endl;
+
+	torch::Tensor dataSum = dataDist.sum(-1, false);
+	std::cout << "dataSum: " << dataSum << std::endl;
+
+	auto dataMaxOutput = dataSum.max(-1, true);
+	torch::Tensor dataMax = std::get<0>(dataMaxOutput);
+	torch::Tensor dataMaxIndice = std::get<1>(dataMaxOutput);
+	std::cout << "dataMax: " << dataMax << std::endl;
+	std::cout << "dataMaxIndice: " << dataMaxIndice << std::endl;
+
+	dataMaxIndice = dataMaxIndice.unsqueeze(1).expand({batchSize, 1, atomNum});
+	std::cout << "Expanded dataMaxIndiec: " << dataMaxIndice << std::endl;
+	auto dataPick = dataProbs.gather(1, dataMaxIndice).squeeze(1);
+	std::cout << "dataPick: " << dataPick << std::endl;
+
+	torch::Tensor reward = torch::ones({batchSize, 1});
+	torch::Tensor mask = torch::ones({batchSize, 1});
+	torch::Tensor shift = reward + mask * valueItem;
+	std::cout << "shift: " << shift << std::endl;
+
+	shift = shift.clamp(vMin, vMax);
+	std::cout << "shift after adjust: " << shift << std::endl;
+	auto shiftIndice = (shift - vMin) / deltaZ;
+	std::cout << "shift raw indice: " << shiftIndice << std::endl;
+	auto l = shiftIndice.floor();
+	auto u = shiftIndice.ceil();
+	auto lIndice = l.to(torch::kLong);
+	auto uIndice = u.to(torch::kLong);
+	std::cout << "l: " << l << std::endl;
+	std::cout << "u: " << u << std::endl;
+
+	//TODO: delta not right, should be ml += (u - shift), mu += (shift - l)
+	auto uDelta = shiftIndice - l;
+	auto lDelta = u - shiftIndice;
+	std::cout << "lDelta: " << lDelta << std::endl;
+	std::cout << "uDelta: " << uDelta << std::endl;
+	//if lIndex == rIndex
+	auto eqIndice = lIndice.eq(uIndice).to(torch::kFloat);
+	std::cout << "eqIndice: " << eqIndice << std::endl;
+	lDelta.add_(eqIndice);
+	std::cout << "lDelta after adjust: " << lDelta << std::endl;
+
+//	auto lPick = dataPick.gather(-1, lIndice);
+//	auto uPick = dataPick.gather(-1, uIndice);
+//	std::cout << "lPick: " << lPick << std::endl;
+//	std::cout << "uPick: " << uPick << std::endl;
+//	std::cout << "lPick sum " << lPick.sum(-1) << std::endl;
+//	std::cout << "uPick sum " << uPick.sum(-1) << std::endl;
+//
+//	auto lDist = lPick * lDelta;
+//	auto uDist = uPick * uDelta;
+	auto lDist = dataPick * lDelta;
+	auto uDist = dataPick * uDelta;
+	std::cout << "lDist: " << lDist << std::endl;
+	std::cout << "uDist: " << uDist << std::endl;
+
+	auto offset = (torch::linspace(0, batchSize - 1, batchSize) * atomNum).unsqueeze(-1).to(torch::kLong);
+	std::cout << "offset: " << offset << std::endl;
+
+	auto nextDist = torch::zeros({batchSize * atomNum});
+	lIndice = (lIndice + offset).view({batchSize * atomNum});
+	std::cout << "lIndice as vector: " << lIndice << std::endl;
+	lDist = lDist.view({batchSize * atomNum});
+
+	nextDist.index_add_(0, lIndice, lDist);
+	std::cout << "nextDist after l: " << nextDist << std::endl;
+
+	uIndice = (uIndice + offset).view({batchSize * atomNum});
+	std::cout << "uIndice as vector: " << uIndice << std::endl;
+	uDist = uDist.view({batchSize * atomNum});
+	nextDist.index_add_(0, uIndice, uDist);
+	std::cout << "nextDist after r: " << nextDist << std::endl;
+
+	nextDist = nextDist.view({batchSize, atomNum});
+	auto sum = nextDist.sum(-1);
+	std::cout << "sum: " << sum << std::endl;
+
+	auto maxAction = std::get<1>(dataSum.max(-1));
+	std::cout << "max actions: " << maxAction << std::endl;
+}
+
+void testMin() {
+	int batch = 4;
+	int action = 4;
+	torch::Tensor q0 = torch::randn({batch, action});
+	torch::Tensor q1 = torch::randn({batch, action});
+	torch::Tensor q =  torch::min(q0, q1);
+
+	std::cout << "q0: \n " << q0 << std::endl;
+	std::cout << "q1: \n " << q1 << std::endl;
+	std::cout << "q2: \n " << q << std::endl;
+}
 }
 
 int main() {
@@ -556,7 +667,10 @@ int main() {
 
 //	testTo();
 
-	testTensorAssign();
+//	testTensorAssign();
+//	testDist();
+
+	testMin();
 
 	return 0;
 }

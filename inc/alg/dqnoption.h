@@ -124,6 +124,12 @@ public:
 	bool fixedEntropy = true;
 	int envStep = 1;
 
+	//categorical dqn
+	int atomNum = 51;
+	float vMax = 10;
+	float vMin = -10;
+	int epochPerUpdate = 1;
+
 	DqnOption(at::IntArrayRef iShape, torch::Device dType = torch::kCPU, int cap = 128, float gm = 0.99, std::string path = "./stat.txt", int tUpdate = 128);
 	~DqnOption() = default;
 };
