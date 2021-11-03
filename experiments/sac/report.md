@@ -1,4 +1,4 @@
-# SAC
+# SAC Discrete
 ## Reference
 * [A demo](https://github.com/ku2482/sac-discrete.pytorch)
 
@@ -336,9 +336,35 @@ Try to assign different targetEntropyCoef to different step phases:
 The assignment worked but not helped. More groups and steps to be tested
 ## TODO
 [This discussion](https://github.com/rail-berkeley/softlearning/issues/149) recommended:
-* keep alpha in [target_alpha, 1] guaranteed alpha converge
+* keep alpha in [target_alpha, 1] guarantees alpha converge
 * targetEntropyCoef is a hyperparameter to be tuned
 * for discrete SAC, the policy network could be removed, 2 critic networks (and their target networks) are enough.
 
-## Note
-Tuning targetEntropyCoef is same as tuning reward scale. To be proved.
+## Note∝ α
+The [paper](https://arxiv.org/pdf/1812.05905.pdf) said reward scale is the only hyper-parameter to be tuned for discrete SAC,
+and the [above discussion](https://github.com/rail-berkeley/softlearning/issues/149) recommended that the targetEntropyCoef is a hyper-parameter to be tuned.
+In fact, they tightly coupled:
+
+policyLoss = -(V + αH) :V is value of state, H is entropy
+
+To minimize policyLoss --> to maximize (V + αH) --> to maximize V and to maximize αH
+
+--> To maximize V is to max possibility of p(a*|s): a* = argmax<sub>a</sub>(Q(s, a)), and minimize others
+
+--> To maximize αH is to constraint increase of p(a*|s) to minimize
+
+--> While ultimately, it is still to maximize -(V + αH)
+
+--> The update over w in policy network is proportional to value of V and αH respectively
+
+alphaLoss = -log(α) * (targetH - H)
+
+--> If V >> αH, the update ignores the part propagated from αH, and H decreased --> α increased --> αH increased --> proportion of update from αH increased --> H increased --> they are supposed to be balanced.
+
+--> If V << αH, H is supposed to be that of uniform distribution --> if the targetH was very high and distribution to entropy mapping function is very sensitive,
+the alphaLoss may not be able to decrease to value of α into value small enough --> the V may not be pushed to work 
+--> the policyLoss manipulates the H up and down around  targetH without progress in V.
+
+So:
+* Do not make V (sum of rewards) too small especially at the beginning of the training to avoid dominance of αH
+* Whatever V is, if targetEntropy was set too high, the α will go definitely to infinity
