@@ -47,6 +47,7 @@ public:
 	void reset();
 	void put(torch::Tensor value, torch::Tensor actLinearOutput, torch::Tensor action, torch::Tensor reward, torch::Tensor doneMask);
 	torch::Tensor getLoss(torch::Tensor finalValue, float gamma, float entropyFactor, float valueFactor, Stats& stat, LossStats& lossStat);
+	std::vector<torch::Tensor> getLoss(torch::Tensor finalValue, float gamma, float entropyFactor, float valueFactor);
 
 	inline bool toUpdate() { return values.size() == cap;}
 };

@@ -116,3 +116,59 @@ torch::Tensor A2CNStorage::getLoss(torch::Tensor finalValue, float gamma, float 
 
 	return loss;
 }
+
+
+std::vector<torch::Tensor> A2CNStorage::getLoss(torch::Tensor finalValue, float gamma, float entropyFactor, float valueFactor) {
+//	LOG4CXX_INFO(logger, "getLoss: " << values.size());
+	std::vector<torch::Tensor> tmpRs;
+	torch::Tensor returnValue = finalValue;
+	for (int i = values.size() - 1; i >= 0; i --) {
+		tmpRs.push_back(returnValue * gamma * doneMasks[i] + rewards[i]);
+		returnValue = tmpRs[tmpRs.size() - 1];
+//		LOG4CXX_INFO(logger, "push tmpRs " << tmpRs.size());
+	}
+//	LOG4CXX_INFO(logger, "To create rs");
+	std::vector<torch::Tensor> rs;
+	for (int i = tmpRs.size() - 1; i >= 0; i --) {
+		rs.push_back(tmpRs[i]);
+	}
+
+	torch::Tensor returnTensor = torch::stack(rs, 0).squeeze(-1);
+	torch::Tensor valueTensor =  torch::stack(values, 0).squeeze(-1);
+//	LOG4CXX_INFO(logger, "return " << returnTensor);
+//	LOG4CXX_INFO(logger, "value: " << valueTensor);
+
+	torch::Tensor advTensor = returnTensor - valueTensor;
+//	torch::Tensor valueLoss = advTensor.pow(2).mean();
+	torch::Tensor valueLoss = torch::nn::functional::mse_loss(valueTensor, returnTensor);
+//	LOG4CXX_INFO(logger, "advTensor = " << advTensor);
+
+	torch::Tensor advPi = torch::stack(advLogs, 0).squeeze(-1);
+	torch::Tensor actLoss = -(advPi * advTensor.detach()).mean();
+//	LOG4CXX_INFO(logger, "advPi = " << advPi);
+
+	entropy = entropy.div(cap);
+
+	torch::Tensor loss = valueFactor * valueLoss + actLoss - entropyFactor * entropy;
+
+	auto lossV = loss.item<float>();
+	auto aLossV = actLoss.item<float>();
+	auto vLossV = valueLoss.item<float>();
+	auto entropyV = entropy.item<float>();
+
+	LOG4CXX_INFO(logger, "loss" << updateSeq << ": " << lossV
+		<< ", " << vLossV << ", " << aLossV << ", " << entropyV);
+
+//	auto curState = stat.getCurState();
+//	lossStat.update({lossV, vLossV, aLossV, entropyV,
+//		vLossV * valueFactor, entropyV * entropyFactor * (-1),
+//		curState[0], curState[1]});
+
+//	LOG4CXX_INFO(logger, "udpate" << updateSeq << ": " << loss.item<float>() << ", " << valueLoss.item<float>() << ", " << actLoss.item<float>() << ", " << entropy.item<float>());
+//	stat.update({loss.item<float>(), valueLoss.item<float>(), actLoss.item<float>(), entropy.item<float>()});
+
+	updateSeq ++;
+
+//	return loss;
+	return {loss, actLoss, valueLoss, entropy};
+}

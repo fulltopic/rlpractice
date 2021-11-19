@@ -425,12 +425,12 @@ void SacZip<QNetType, PNetType, EnvType, PolicyType, QOptimizerType, POptimizerT
 		 */
 		qOptimizer1.zero_grad();
 		qLoss1.backward();
-//		torch::nn::utils::clip_grad_norm_(bModel1.parameters(), dqnOption.maxGradNormClip);
+		torch::nn::utils::clip_grad_norm_(bModel1.parameters(), dqnOption.maxGradNormClip);
 		qOptimizer1.step();
 
 		qOptimizer2.zero_grad();
 		qLoss2.backward();
-//		torch::nn::utils::clip_grad_norm_(bModel2.parameters(), dqnOption.maxGradNormClip);
+		torch::nn::utils::clip_grad_norm_(bModel2.parameters(), dqnOption.maxGradNormClip);
 		qOptimizer2.step();
 
 		pOptimizer.zero_grad();
@@ -531,7 +531,8 @@ void SacZip<QNetType, PNetType, EnvType, PolicyType, QOptimizerType, POptimizerT
 		const auto& buff = item.value();
 		auto& targetBuff = targetBuffDict1[key];
 
-		targetBuff.mul(1 - dqnOption.tau);
+		LOG4CXX_INFO(logger, "update target1 buffer");
+		targetBuff.mul_(1 - dqnOption.tau);
 		targetBuff.add_(buff, dqnOption.tau);
 	}
 	LOG4CXX_INFO(logger, "target network 1 synched");
@@ -555,7 +556,8 @@ void SacZip<QNetType, PNetType, EnvType, PolicyType, QOptimizerType, POptimizerT
 		const auto& buff = item.value();
 		auto& targetBuff = targetBuffDict2[key];
 
-		targetBuff.mul(1 - dqnOption.tau);
+		LOG4CXX_INFO(logger, "update target2 buffer");
+		targetBuff.mul_(1 - dqnOption.tau);
 		targetBuff.add_(buff, dqnOption.tau);
 	}
 	LOG4CXX_INFO(logger, "target network 2 synched");

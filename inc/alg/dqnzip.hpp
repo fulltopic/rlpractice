@@ -347,6 +347,7 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::updateModel(bool force
 		const auto& buff = item.value();
 		auto& targetBuff = targetBuffDict[key];
 
+		//TODO: should mul_ instead of mul?
 		targetBuff.mul(1 - dqnOption.tau);
 		targetBuff.add_(buff, dqnOption.tau);
 	}

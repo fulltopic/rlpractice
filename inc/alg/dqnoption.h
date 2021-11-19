@@ -85,6 +85,11 @@ public:
 	float entropyCoef = 1e-3;
 	float valueCoef = 0.5;
 	int statCap = 1024;
+
+	//a3c
+	int gradSyncStep = 1000;
+//	int targetUpdateStep = 1000;
+
 	//ppo
 	int trajStepNum = 1;
 	int epochNum = 1;

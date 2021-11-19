@@ -174,3 +174,8 @@ add_executable(testmodelsync testmodelsync.cpp $<TARGET_OBJECTS:airnets> $<TARGE
 target_compile_features(testmodelsync PUBLIC cxx_range_for)
 target_link_libraries(testmodelsync ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
 
+######################################################## A3C
+add_executable(testa3c testa3c.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:probeenvs> $<TARGET_OBJECTS:a3c>)
+target_compile_features(testa3c PUBLIC cxx_range_for)
+target_link_libraries(testa3c ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
+

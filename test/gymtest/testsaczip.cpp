@@ -26,6 +26,7 @@
 #include "gymtest/airnets/airachonet.h"
 #include "gymtest/airnets/airsacqnet.h"
 #include "gymtest/airnets/airsacpnet.h"
+#include "gymtest/airnets/airsacqb1net.h"
 #include "gymtest/noisynets/noisycartfcnet.h"
 #include "gymtest/noisynets/noisyaircnnnet.h"
 #include "gymtest/train/rawpolicy.h"
@@ -1291,6 +1292,362 @@ void testPacman7(const int epochNum) {
     sac.train(epochNum);
 }
 
+
+void testPacman8(const int epochNum) {
+	const std::string envName = "MsPacmanNoFrameskip-v4";
+	const int clientNum = 1; //8
+	const int testClientNum = 6;
+	const int outputNum = 9;
+	std::string serverAddr = "tcp://127.0.0.1:10205";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	std::string testServerAddr = "tcp://127.0.0.1:10207";
+	LOG4CXX_DEBUG(logger, "To connect to " << testServerAddr);
+	AirEnv testEnv(testServerAddr, envName, testClientNum);
+	testEnv.init();
+	LOG4CXX_INFO(logger, "Test env " << envName << " ready");
+
+	torch::manual_seed(0);
+
+	AirSacQNet model1(outputNum);
+	model1.to(deviceType);
+	AirSacQNet model2(outputNum);
+	model2.to(deviceType);
+	AirSacQNet targetModel1(outputNum);
+	targetModel1.to(deviceType);
+	AirSacQNet targetModel2(outputNum);
+	targetModel2.to(deviceType);
+	LOG4CXX_INFO(logger, "Q models ready");
+
+	AirSacPNet pModel(outputNum);
+	pModel.to(deviceType);
+	LOG4CXX_INFO(logger, "Policy model ready");
+
+	torch::Tensor logAlpha = torch::zeros({1}, torch::TensorOptions().requires_grad(true).device(deviceType));
+	LOG4CXX_INFO(logger, "Alpha ready");
+
+	//TODO: decrease lr
+	float lr = 0.0003;
+    torch::optim::Adam optimizerQ1(model1.parameters(), torch::optim::AdamOptions(lr));
+    torch::optim::Adam optimizerQ2(model2.parameters(), torch::optim::AdamOptions(lr));
+    LOG4CXX_INFO(logger, "Q optimizer ready");
+    torch::optim::Adam optimizerP(pModel.parameters(), torch::optim::AdamOptions(lr));
+    torch::optim::Adam optimizerA({logAlpha}, torch::optim::AdamOptions(lr));
+    LOG4CXX_INFO(logger, "Model ready");
+
+
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    DqnOption option(inputShape, deviceType);
+    option.envNum = clientNum;
+    //target model
+    //TODO: increase update gap
+    option.targetUpdateStep = 8000;
+    option.tau = 1;
+    //buffer
+    option.rbCap = 300000;
+    //explore
+    option.exploreBegin = 0;
+    option.exploreEnd = 0;
+    option.explorePart = 1;
+    //input
+    option.inputScale = 255;
+    option.rewardScale = 1;
+    option.rewardMin = -100; //TODO: reward may not require clip
+    option.rewardMax = 100;
+    option.gamma = 0.99;
+    //output
+    option.outputNum = outputNum;
+    //grad
+    option.batchSize = 64;
+    option.startStep = 20000;
+    option.maxGradNormClip = 1;
+    //log
+    option.statCap = 128;
+    option.tensorboardLogPath = "./logs/saczip_testpac8/tfevents.pb";
+    option.logInterval = 1000;
+    //model
+    option.saveModel = true;
+    option.savePathPrefix = "./saczip_testpacman8";
+    option.saveThreshold = 1000;
+    option.saveStep = 50;
+    option.loadModel = false;
+    option.loadOptimizer = false;
+    //test
+    option.toTest = true;
+	option.testGapEp = 10000;
+	option.testEp = 6;
+	option.testBatch = testClientNum;
+	option.livePerEpisode = 3;
+    //sac
+	option.fixedEntropy = true;
+//	option.targetSteps = {0, 600000, 1000000};
+//	option.targetEntropies = { -0.98 * std::log(1.0f / (float)outputNum),  -0.95 * std::log(1.0f / (float)outputNum),  -0.90 * std::log(1.0f / (float)outputNum)};
+    option.targetEntropy = -0.90 * std::log(1.0f / (float)outputNum);
+    option.envStep = 4;
+
+    SoftmaxPolicy policy(outputNum);
+
+    /*
+     * Sac<QNetType, PNetType, EnvType, PolicyType, QOptimizerType, POptimizerType, AlphaOptimizerType>::Sac(
+		QNetType& qModel1, QNetType& qModel2, QNetType& qTargetModel1, QNetType& qTargetModel2, QOptimizerType& qOpt1, QOptimizerType& qOpt2,
+		PNetType& pModel, POptimizerType& pOpt,
+		torch::Tensor& iLogAlpha, AlphaOptimizerType& aOpt,
+		EnvType& iEnv, PolicyType iPolicy,
+		const torch::Device dType, DqnOption iOption)
+     */
+    SacZip<AirSacQNet, AirSacPNet, AirEnv, SoftmaxPolicy, torch::optim::Adam, torch::optim::Adam, torch::optim::Adam>
+    	sac(model1, model2, targetModel1, targetModel2, optimizerQ1, optimizerQ2,
+    			pModel, optimizerP,
+				logAlpha, optimizerA,
+				env, policy,
+				testEnv,
+				deviceType, option);
+
+    sac.train(epochNum);
+}
+
+
+void testPacman81(const int epochNum) {
+	const std::string envName = "MsPacmanNoFrameskip-v4";
+	const int clientNum = 4; //8
+	const int testClientNum = 6;
+	const int outputNum = 9;
+	std::string serverAddr = "tcp://127.0.0.1:10205";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	std::string testServerAddr = "tcp://127.0.0.1:10207";
+	LOG4CXX_DEBUG(logger, "To connect to " << testServerAddr);
+	AirEnv testEnv(testServerAddr, envName, testClientNum);
+	testEnv.init();
+	LOG4CXX_INFO(logger, "Test env " << envName << " ready");
+
+	torch::manual_seed(0);
+
+	AirSacQNet model1(outputNum);
+	model1.to(deviceType);
+	AirSacQNet model2(outputNum);
+	model2.to(deviceType);
+	AirSacQNet targetModel1(outputNum);
+	targetModel1.to(deviceType);
+	AirSacQNet targetModel2(outputNum);
+	targetModel2.to(deviceType);
+	LOG4CXX_INFO(logger, "Q models ready");
+
+	AirSacPNet pModel(outputNum);
+	pModel.to(deviceType);
+	LOG4CXX_INFO(logger, "Policy model ready");
+
+	torch::Tensor logAlpha = torch::zeros({1}, torch::TensorOptions().requires_grad(true).device(deviceType));
+	LOG4CXX_INFO(logger, "Alpha ready");
+
+	//TODO: decrease lr
+	float lr = 0.0003;
+    torch::optim::Adam optimizerQ1(model1.parameters(), torch::optim::AdamOptions(lr));
+    torch::optim::Adam optimizerQ2(model2.parameters(), torch::optim::AdamOptions(lr));
+    LOG4CXX_INFO(logger, "Q optimizer ready");
+    torch::optim::Adam optimizerP(pModel.parameters(), torch::optim::AdamOptions(lr));
+    torch::optim::Adam optimizerA({logAlpha}, torch::optim::AdamOptions(lr));
+    LOG4CXX_INFO(logger, "Model ready");
+
+
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    DqnOption option(inputShape, deviceType);
+    option.envNum = clientNum;
+    //target model
+    //TODO: increase update gap
+    option.targetUpdateStep = 8000;
+    option.tau = 1;
+    //buffer
+    option.rbCap = 300000;
+    //explore
+    option.exploreBegin = 0;
+    option.exploreEnd = 0;
+    option.explorePart = 1;
+    //input
+    option.inputScale = 255;
+    option.rewardScale = 1;
+    option.rewardMin = -100; //TODO: reward may not require clip
+    option.rewardMax = 100;
+    option.gamma = 0.99;
+    //output
+    option.outputNum = outputNum;
+    //grad
+    option.batchSize = 64;
+    option.startStep = 20000;
+    option.maxGradNormClip = 1;
+    //log
+    option.statCap = 128;
+    option.tensorboardLogPath = "./logs/saczip_testpac81/tfevents.pb";
+    option.logInterval = 1000;
+    //model
+    option.saveModel = true;
+    option.savePathPrefix = "./saczip_testpacman81";
+    option.saveThreshold = 1000;
+    option.saveStep = 50;
+    option.loadModel = true;
+    option.loadOptimizer = true;
+    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/saczip_testpacman8";
+
+    //test
+    option.toTest = true;
+	option.testGapEp = 10000;
+	option.testEp = 6;
+	option.testBatch = testClientNum;
+	option.livePerEpisode = 3;
+    //sac
+	option.fixedEntropy = true;
+//	option.targetSteps = {0, 600000, 1000000};
+//	option.targetEntropies = { -0.98 * std::log(1.0f / (float)outputNum),  -0.95 * std::log(1.0f / (float)outputNum),  -0.90 * std::log(1.0f / (float)outputNum)};
+    option.targetEntropy = -0.90 * std::log(1.0f / (float)outputNum);
+    option.envStep = 4;
+
+    SoftmaxPolicy policy(outputNum);
+
+    /*
+     * Sac<QNetType, PNetType, EnvType, PolicyType, QOptimizerType, POptimizerType, AlphaOptimizerType>::Sac(
+		QNetType& qModel1, QNetType& qModel2, QNetType& qTargetModel1, QNetType& qTargetModel2, QOptimizerType& qOpt1, QOptimizerType& qOpt2,
+		PNetType& pModel, POptimizerType& pOpt,
+		torch::Tensor& iLogAlpha, AlphaOptimizerType& aOpt,
+		EnvType& iEnv, PolicyType iPolicy,
+		const torch::Device dType, DqnOption iOption)
+     */
+    SacZip<AirSacQNet, AirSacPNet, AirEnv, SoftmaxPolicy, torch::optim::Adam, torch::optim::Adam, torch::optim::Adam>
+    	sac(model1, model2, targetModel1, targetModel2, optimizerQ1, optimizerQ2,
+    			pModel, optimizerP,
+				logAlpha, optimizerA,
+				env, policy,
+				testEnv,
+				deviceType, option);
+
+    sac.train(epochNum);
+}
+
+
+void testPacman9(const int epochNum) {
+	const std::string envName = "MsPacmanNoFrameskip-v4";
+	const int clientNum = 1; //8
+	const int testClientNum = 6;
+	const int outputNum = 9;
+	std::string serverAddr = "tcp://127.0.0.1:10205";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	std::string testServerAddr = "tcp://127.0.0.1:10207";
+	LOG4CXX_DEBUG(logger, "To connect to " << testServerAddr);
+	AirEnv testEnv(testServerAddr, envName, testClientNum);
+	testEnv.init();
+	LOG4CXX_INFO(logger, "Test env " << envName << " ready");
+
+	torch::manual_seed(0);
+
+	AirSacQB1Net model1(outputNum);
+	model1.to(deviceType);
+	AirSacQB1Net model2(outputNum);
+	model2.to(deviceType);
+	AirSacQB1Net targetModel1(outputNum);
+	targetModel1.to(deviceType);
+	AirSacQB1Net targetModel2(outputNum);
+	targetModel2.to(deviceType);
+	LOG4CXX_INFO(logger, "Q models ready");
+
+	AirSacQB1Net pModel(outputNum);
+	pModel.to(deviceType);
+	LOG4CXX_INFO(logger, "Policy model ready");
+
+	torch::Tensor logAlpha = torch::zeros({1}, torch::TensorOptions().requires_grad(true).device(deviceType));
+	LOG4CXX_INFO(logger, "Alpha ready");
+
+	//TODO: decrease lr
+	float lr = 0.0003;
+    torch::optim::Adam optimizerQ1(model1.parameters(), torch::optim::AdamOptions(lr));
+    torch::optim::Adam optimizerQ2(model2.parameters(), torch::optim::AdamOptions(lr));
+    LOG4CXX_INFO(logger, "Q optimizer ready");
+    torch::optim::Adam optimizerP(pModel.parameters(), torch::optim::AdamOptions(lr));
+    torch::optim::Adam optimizerA({logAlpha}, torch::optim::AdamOptions(lr));
+    LOG4CXX_INFO(logger, "Model ready");
+
+
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    DqnOption option(inputShape, deviceType);
+    option.envNum = clientNum;
+    //target model
+    //TODO: increase update gap
+    option.targetUpdateStep = 8000;
+    option.tau = 1;
+    //buffer
+    option.rbCap = 300000;
+    //explore
+    option.exploreBegin = 0;
+    option.exploreEnd = 0;
+    option.explorePart = 1;
+    //input
+    option.inputScale = 255;
+    option.rewardScale = 1;
+    option.rewardMin = -100; //TODO: reward may not require clip
+    option.rewardMax = 100;
+    option.gamma = 0.99;
+    //output
+    option.outputNum = outputNum;
+    //grad
+    option.batchSize = 64;
+    option.startStep = 20000;
+    option.maxGradNormClip = 1;
+    //log
+    option.statCap = 128;
+    option.tensorboardLogPath = "./logs/saczip_testpac9/tfevents.pb";
+    option.logInterval = 1000;
+    //model
+    option.saveModel = true;
+    option.savePathPrefix = "./saczip_testpacman9";
+    option.saveThreshold = 1000;
+    option.saveStep = 50;
+    option.loadModel = false;
+    option.loadOptimizer = false;
+    //test
+    option.toTest = true;
+	option.testGapEp = 10000;
+	option.testEp = 6;
+	option.testBatch = testClientNum;
+	option.livePerEpisode = 3;
+    //sac
+	option.fixedEntropy = true;
+//	option.targetSteps = {0, 600000, 1000000};
+//	option.targetEntropies = { -0.98 * std::log(1.0f / (float)outputNum),  -0.95 * std::log(1.0f / (float)outputNum),  -0.90 * std::log(1.0f / (float)outputNum)};
+    option.targetEntropy = -0.90 * std::log(1.0f / (float)outputNum);
+    option.envStep = 4;
+
+    SoftmaxPolicy policy(outputNum);
+
+    /*
+     * Sac<QNetType, PNetType, EnvType, PolicyType, QOptimizerType, POptimizerType, AlphaOptimizerType>::Sac(
+		QNetType& qModel1, QNetType& qModel2, QNetType& qTargetModel1, QNetType& qTargetModel2, QOptimizerType& qOpt1, QOptimizerType& qOpt2,
+		PNetType& pModel, POptimizerType& pOpt,
+		torch::Tensor& iLogAlpha, AlphaOptimizerType& aOpt,
+		EnvType& iEnv, PolicyType iPolicy,
+		const torch::Device dType, DqnOption iOption)
+     */
+    SacZip<AirSacQB1Net, AirSacQB1Net, AirEnv, SoftmaxPolicy, torch::optim::Adam, torch::optim::Adam, torch::optim::Adam>
+    	sac(model1, model2, targetModel1, targetModel2, optimizerQ1, optimizerQ2,
+    			pModel, optimizerP,
+				logAlpha, optimizerA,
+				env, policy,
+				testEnv,
+				deviceType, option);
+
+    sac.train(epochNum);
+}
+
 void testQbert0(const int epochNum) {
 	const std::string envName = "QbertNoFrameskip-v4";
 	const int clientNum = 8; //8
@@ -2000,7 +2357,7 @@ int main(int argc, char** argv) {
 //	testProbe(atoi(argv[1]));
 //	testLog(atoi(argv[1]));
 //	testQbert11(atoi(argv[1]));
-	testPacman01(atoi(argv[1]));
+	testPacman0(atoi(argv[1]));
 //	testPong(atoi(argv[1]));
 //	testtestCart(atoi(argv[1]));
 //	testAssault2(atoi(argv[1]));
