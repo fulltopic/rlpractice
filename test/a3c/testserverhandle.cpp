@@ -64,7 +64,8 @@ void testConn() {
 				);
 
 	std::shared_ptr<A3CTCPServer> server = A3CTCPServer::Create(iio,factory);
-	server->startAccept();
+	server->setPollMinute(10000);
+	server->start();
 
 	std::unique_ptr<std::thread> t = std::make_unique<std::thread>(
 		static_cast<std::size_t (boost::asio::io_context::*) ()>(&boost::asio::io_context::run), &iio);

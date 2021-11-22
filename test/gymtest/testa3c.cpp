@@ -8,6 +8,9 @@
 
 
 #include "alg/a3c.hpp"
+#include "alg/a3ctest.hpp"
+#include "alg/a2cnstep.hpp"
+#include "alg/algtester.hpp"
 
 #include "a3c/a3ctcpserverhandle.hpp"
 #include "a3c/a3ctcpserverconn.h"
@@ -46,12 +49,20 @@ const torch::Device deviceType = torch::kCUDA;
 const int inputNum = 4;
 //const int outputNum = 6;
 
-void testServer0() {
+void testServer0(const int batchSize, const int epNum, std::string logPath) {
+	/////////////////////////////////////////////// Env
 	const int outputNum = 2;
 	CartACFcNet net(inputNum, outputNum);
 //	AirACCnnNet net(outputNum);
-
     torch::optim::Adam optimizer(net.parameters(), torch::optim::AdamOptions(0.001).eps(1e-3));
+
+    SoftmaxPolicy policy(outputNum);
+
+
+
+
+
+    ///////////////////////////////////////////////// Network
 	boost::asio::io_service iio;
 
 	std::shared_ptr<A3CTCPHandleFactory> factory
@@ -60,7 +71,8 @@ void testServer0() {
 			);
 
 	std::shared_ptr<A3CTCPServer> server = A3CTCPServer::Create(iio,factory);
-	server->startAccept();
+//	server->startAccept();
+	server->start();
 
 //	std::unique_ptr<std::thread> t = std::make_unique<std::thread>(
 //		static_cast<std::size_t (boost::asio::io_context::*) ()>(&boost::asio::io_context::run), &iio);
@@ -76,6 +88,52 @@ void testServer0() {
 	}
 
 
+    ////////////////////////////////////////////// Test
+    at::IntArrayRef inputShape{batchSize, 4};
+    DqnOption option(inputShape, torch::kCPU);
+
+    option.isAtari = false;
+    option.donePerEp = 1;
+    option.multiLifes = false;
+    option.entropyCoef = 0; //0.01
+    option.valueCoef = 0.5;
+    option.maxGradNormClip = 0.1;
+    option.ppoLambda = 0.95;
+    option.gamma = 0.99;
+    option.saveModel = false;
+
+    option.toTest = true;
+    option.inputScale = 1;
+    option.testGapEp = 100;
+    option.testBatch = batchSize;
+    option.testEp = epNum;
+    option.tensorboardLogPath = logPath;
+
+	const std::string envName = "CartPole-v0";
+//	const std::string envName = "CartPoleNoFrameskip-v4";
+
+	std::string serverAddr = "tcp://127.0.0.1:10210";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	LunarEnv env(serverAddr, envName, batchSize);
+	env.init();
+	LOG4CXX_INFO(logger, "test env inited");
+
+	AlgTester<CartACFcNet, LunarEnv, SoftmaxPolicy> tester(net, env, policy, option);
+	uint64_t lastUpdateNum = server->getUpdateNum();
+
+    const int pollMinute = 3;
+    server->setPollMinute(pollMinute);
+
+    while (true) {
+    	sleep(pollMinute);
+
+    	auto updateNum = server->getUpdateNum();
+    	if (updateNum - lastUpdateNum > option.testGapEp) {
+    		tester.test();
+    	}
+    }
+
+    ///////////////////////////////////////////// Join
     for (int i = 0; i < tNum; i ++) {
     	ts[i]->join();
     }
@@ -83,8 +141,10 @@ void testServer0() {
 //	t->join();
 }
 
-void test0(const int batchSize, const int epochNum, const float entropyCoef, std::string serverAddr) {
+void test0(const int batchSize, const int epochNum, const float entropyCoef,
+		std::string serverAddr, std::string logPath) {
 	const int outputNum = 2;
+    const int maxStep = 8;
 	const std::string envName = "CartPole-v0";
 //	const std::string envName = "CartPoleNoFrameskip-v4";
 
@@ -116,7 +176,7 @@ void test0(const int batchSize, const int epochNum, const float entropyCoef, std
     option.donePerEp = 1;
     option.multiLifes = false;
     option.statCap = batchSize * 2;
-    option.entropyCoef = entropyCoef;
+    option.entropyCoef = entropyCoef; //0.01
     option.valueCoef = 0.5;
     option.maxGradNormClip = 0.1;
     option.ppoLambda = 0.95;
@@ -137,12 +197,12 @@ void test0(const int batchSize, const int epochNum, const float entropyCoef, std
     option.loadOptimizer = false;
     option.saveModel = false;
 //    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/boa2cnbatch_test17";
-    option.tensorboardLogPath = "./logs/a3c_testcart0/tfevents.pb";
-    option.gradSyncStep = 10;
-    option.targetUpdateStep = 100;
+//    option.tensorboardLogPath = "./logs/a3c_testcart0/tfevents.pb";
+    option.tensorboardLogPath = logPath;
+    option.gradSyncStep = maxStep * 2;
+    option.targetUpdateStep = maxStep * 2;
 
     SoftmaxPolicy policy(outputNum);
-    const int maxStep = 8;
 
     /////////////////////////////////////// A3C
 	boost::asio::io_service iio;
@@ -187,7 +247,8 @@ void testServer1() {
 			);
 
 	std::shared_ptr<A3CTCPServer> server = A3CTCPServer::Create(iio,factory);
-	server->startAccept();
+//	server->startAccept();
+	server->start();
 
 	const int tNum = 2;
 	std::vector<std::unique_ptr<std::thread>> ts;
@@ -297,9 +358,248 @@ void test1(const int batchSize, const int epochNum, const float entropyCoef, std
 }
 
 
-//void testClient() {
-//
-//}
+void testasync(const int updateNum) {
+	const int outputNum = 2;
+    const int maxStep = 5;
+	const std::string envName = "CartPole-v0";
+	const int batchSize = 32;
+//	const float entropyCoef = 0.05;
+//	const std::string envName = "CartPoleNoFrameskip-v4";
+
+	const int num = batchSize;
+	std::string serverAddr = "tcp://127.0.0.1:10203";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	LunarEnv env(serverAddr, envName, num);
+	env.init();
+//	std::string testServerAddr = "tcp://127.0.0.1:10204";
+//	LOG4CXX_DEBUG(logger, "To connect to " << testServerAddr);
+//	LunarEnv testEnv(testServerAddr, envName, num);
+//	testEnv.init();
+//	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	CartACFcNet model(inputNum, outputNum);
+	model.to(deviceType);
+	CartACFcNet targetModel(inputNum, outputNum);
+	targetModel.to(deviceType);
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-3)); //rmsprop: 0.00025
+//    torch::optim::RMSprop optimizer(model.parameters(), torch::optim::RMSpropOptions(0.00025).eps(0.01).alpha(0.95));
+    torch::optim::Adam optimizer(targetModel.parameters(), torch::optim::AdamOptions(0.001));
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{num, 4};
+    DqnOption option(inputShape, deviceType);
+
+    option.isAtari = false;
+    option.donePerEp = 1;
+    option.multiLifes = false;
+    option.statCap = batchSize * 2;
+    option.entropyCoef = 0.01;
+    option.valueCoef = 1;
+    option.maxGradNormClip = 0.1;
+//    option.ppoLambda = 0.95;
+    option.gamma = 0.99;
+    option.statPathPrefix = "./a3c_cart0";
+    option.saveModel = true;
+    option.savePathPrefix = "./a3c_cart0";
+
+    option.toTest = false;
+    option.inputScale = 1;
+    option.batchSize = batchSize;
+    option.rewardScale = 1;
+    option.rewardMin = -1;
+    option.rewardMax = 1;
+    option.valueClip = false;
+    option.normReward = false;
+    option.loadModel = false;
+    option.loadOptimizer = false;
+    option.saveModel = false;
+//    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/boa2cnbatch_test17";
+    option.tensorboardLogPath = "./logs/a3c_testcartasync/tfevents.pb";
+    option.gradSyncStep = maxStep;
+    option.targetUpdateStep = maxStep;
+
+    SoftmaxPolicy policy(outputNum);
+
+    A3CNStepTest<CartACFcNet, torch::optim::Adam, LunarEnv, SoftmaxPolicy> a3c(
+    		model, targetModel, optimizer, env, env, policy, maxStep, option);
+    a3c.train(updateNum, true);
+}
+
+void testasyncpong(const int updateNum) {
+	const std::string envName = "PongNoFrameskip-v4";
+	const int outputNum = 6;
+	const int batchSize = 32;
+	const int clientNum = batchSize;
+	std::string serverAddr = "tcp://127.0.0.1:10205";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	AirACHONet model(outputNum);
+	model.to(deviceType);
+	AirACHONet targetModel(outputNum);
+	targetModel.to(deviceType);
+
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-2)); //rmsprop: 0.00025
+    torch::optim::RMSprop optimizer(targetModel.parameters(),
+    		torch::optim::RMSpropOptions(7e-4).eps(1e-5).alpha(0.99));
+//    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-2));
+//	torch::optim::RMSprop optimizer(model.parameters());
+//    RawPolicy policy(1, outputNum);
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    option.isAtari = true;
+    option.statCap = batchSize;
+    option.entropyCoef = 0.01;
+    option.valueCoef = 0.25;
+    option.maxGradNormClip = 0.5;
+    option.tensorboardLogPath = "./logs/a3c_testasyncpong/tfevents.pb";
+    option.statPathPrefix = "./a3c_testasyncpong";
+    option.saveModel = false;
+    option.savePathPrefix = "./ponga2cnbatch_test30";
+    option.toTest = false;
+    option.inputScale = 256;
+    option.batchSize = batchSize;
+    option.rewardScale = 1;
+    option.rewardMin = -1;
+    option.rewardMax = 1;
+    option.loadModel = false;
+    option.loadOptimizer = false;
+    option.logInterval = 100;
+
+    SoftmaxPolicy policy(outputNum);
+    const int maxStep = 8;
+    //TODO: testenv
+    A3CNStepTest<AirACHONet, torch::optim::RMSprop, AirEnv, SoftmaxPolicy> a3c(
+    		model, targetModel, optimizer, env, env, policy, maxStep, option);
+    a3c.train(updateNum, true);
+}
+
+
+void testa2c(const int updateNum) {
+	const int inputNum = 4;
+	const int outputNum = 2;
+    const int maxStep = 5;
+	const std::string envName = "CartPole-v0";
+	const int batchSize = 32;
+	const int testEnvNum = 8;
+//	const float entropyCoef = 0.05;
+//	const std::string envName = "CartPoleNoFrameskip-v4";
+
+	const int num = batchSize;
+	std::string serverAddr = "tcp://127.0.0.1:10207";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	LunarEnv env(serverAddr, envName, num);
+	env.init();
+	std::string testServerAddr = "tcp://127.0.0.1:10208";
+	LOG4CXX_DEBUG(logger, "To connect to " << testServerAddr);
+	LunarEnv testEnv(testServerAddr, envName, testEnvNum);
+	testEnv.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	CartACFcNet model(inputNum, outputNum);
+	model.to(deviceType);
+//	CartACFcNet targetModel(inputNum, outputNum);
+//	targetModel.to(deviceType);
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-3)); //rmsprop: 0.00025
+//    torch::optim::RMSprop optimizer(model.parameters(), torch::optim::RMSpropOptions(0.00025).eps(0.01).alpha(0.95));
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-3));
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{num, 4};
+    DqnOption option(inputShape, deviceType);
+
+    option.isAtari = false;
+    option.donePerEp = 1;
+    option.multiLifes = false;
+    option.statCap = batchSize * 2;
+    option.entropyCoef = 0.05;
+    option.valueCoef = 0.5;
+    option.maxGradNormClip = 0.1;
+//    option.ppoLambda = 0.95;
+    option.gamma = 0.99;
+//    option.statPathPrefix = "./a3c_cart0";
+    option.saveModel = false;
+    option.savePathPrefix = "./a3c_cart0";
+
+    option.toTest = true;
+    option.testGapEp = 1000;
+    option.testBatch = testEnvNum;
+    option.testEp = testEnvNum;
+    option.inputScale = 1;
+    option.batchSize = batchSize;
+    option.rewardScale = 1;
+    option.rewardMin = -1;
+    option.rewardMax = 1;
+    option.valueClip = false;
+    option.normReward = false;
+    option.loadModel = false;
+    option.loadOptimizer = false;
+    option.saveModel = false;
+//    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/boa2cnbatch_test17";
+    option.tensorboardLogPath = "./logs/a3c_testcarta2c/tfevents.pb";
+    option.gradSyncStep = maxStep;
+    option.targetUpdateStep = maxStep;
+
+    SoftmaxPolicy policy(outputNum);
+
+//    A2CNStep<AirACCnnNet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
+
+    A2CNStep<CartACFcNet, LunarEnv, SoftmaxPolicy, torch::optim::Adam> a2c(
+    		model, env, testEnv, policy, optimizer, maxStep, option);
+    a2c.train(updateNum, true);
+}
+
+void testa2cpong(int updateNum) {
+	const std::string envName = "PongNoFrameskip-v4";
+	const int outputNum = 6;
+	const int batchSize = 32;
+	const int clientNum = batchSize;
+	std::string serverAddr = "tcp://127.0.0.1:10203";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	AirACHONet model(outputNum);
+	model.to(deviceType);
+
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-2)); //rmsprop: 0.00025
+//    torch::optim::RMSprop optimizer(model.parameters(),
+//    		torch::optim::RMSpropOptions(7e-4).eps(1e-5).alpha(0.99));
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-3).eps(1e-3));
+//	torch::optim::RMSprop optimizer(model.parameters());
+//    RawPolicy policy(1, outputNum);
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    option.isAtari = true;
+    option.statCap = batchSize;
+    option.entropyCoef = 0.01;
+    option.valueCoef = 0.5;
+    option.maxGradNormClip = 0.1;
+    option.statPathPrefix = "./a3c_testa2cpong";
+    option.saveModel = false;
+    option.savePathPrefix = "./ponga2cnbatch_test30";
+    option.toTest = false;
+    option.inputScale = 256;
+    option.batchSize = batchSize;
+    option.rewardScale = 1;
+    option.rewardMin = -1;
+    option.rewardMax = 1;
+    option.loadModel = false;
+    option.loadOptimizer = false;
+
+    SoftmaxPolicy policy(outputNum);
+    const int maxStep = 5;
+    //TODO: testenv
+    A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam> a2c(model, env, env, policy, optimizer, maxStep, option);
+    a2c.train(updateNum, true);
+}
 }
 
 namespace {
@@ -324,17 +624,26 @@ int main(int argc, char** argv) {
 	logConfigure(false);
 
 	if (atoi(argv[1]) == 1) {
+		int batchSize = atoi(argv[2]);
+		int epNum = atoi(argv[3]);
+		std::string logPath(argv[4]);
 		LOG4CXX_INFO(logger, "Start server");
-		testServer1();
+		testServer0(batchSize, epNum, logPath);
 	} else {
 		int batchSize = atoi(argv[2]);
 		int epochNum = atoi(argv[3]);
 		float entropyCoef = atof(argv[4]);
 		std::string serverAddr(argv[5]);
+		std::string logPath(argv[6]);
 		LOG4CXX_INFO(logger, "Start client: " << batchSize << ", " << epochNum << ", " << entropyCoef << " to " << serverAddr);
 
-		test1(batchSize, epochNum, entropyCoef, serverAddr);
+		test0(batchSize, epochNum, entropyCoef, serverAddr, logPath);
 	}
+
+//	testasync(atoi(argv[1]));
+//	testa2c(atoi(argv[1]));
+//	testa2cpong(atoi(argv[1]));
+//	testasyncpong(atoi(argv[1]));
 
 	return 0;
 }

@@ -49,13 +49,13 @@ void A3CTCPServerConn::peekRcv() {
 }
 
 void A3CTCPServerConn::handlePeekRcv(const boost::system::error_code& error, std::size_t len) {
-	LOG4CXX_INFO(logger, "peek cmd hd " << len);
+	LOG4CXX_DEBUG(logger, "peek cmd hd " << len);
 
 	A3CTCPCmdHd* hd = (A3CTCPCmdHd*)(rcvBuf.data());
 	uint64_t expSize = hd->expSize;
 
 	if (expSize <= A3CTCPConfig::BufCap) {
-		LOG4CXX_INFO(logger, "expect to receive msg with size " << expSize);
+		LOG4CXX_DEBUG(logger, "expect to receive msg with size " << expSize);
 		sock.async_receive( boost::asio::buffer(rcvBuf.data(), expSize),
 				boost::bind(&A3CTCPServerConn::handleRcv, this->shared_from_this(),
 						boost::asio::placeholders::error,
@@ -240,7 +240,7 @@ void A3CTCPServerConn::handleRead(const boost::system::error_code& err) {
 				boost::bind(&A3CTCPServerConn::handleRead, this->shared_from_this(),
 						boost::asio::placeholders::error));
 	} else if (err != boost::asio::error::eof) {
-		LOG4CXX_INFO(logger, "end of reading ");
+		LOG4CXX_DEBUG(logger, "end of reading ");
 	} else {
 		LOG4CXX_ERROR(logger, "Failed to read");
 	}
@@ -249,7 +249,7 @@ void A3CTCPServerConn::handleRead(const boost::system::error_code& err) {
 bool A3CTCPServerConn::send(void* data, std::size_t len) {
 	uint64_t* cmdPtr = (uint64_t*)data;
 	uint64_t cmd = *cmdPtr;
-	LOG4CXX_INFO(logger, "connection send cmd " << cmd);
+	LOG4CXX_DEBUG(logger, "connection send cmd " << cmd);
 
     boost::asio::async_write(sock, boost::asio::buffer(data, len),
         boost::bind(&A3CTCPServerConn::handleSnd, this->shared_from_this(),

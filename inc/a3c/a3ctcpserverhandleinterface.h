@@ -18,6 +18,7 @@ public:
 	virtual ~A3CTCPServerHandleInterface() = 0;
 	virtual boost::asio::ip::tcp::socket& getSock() = 0;
 	virtual void start() = 0;
+	virtual uint64_t getUpdateNum() = 0;
 };
 
 #endif

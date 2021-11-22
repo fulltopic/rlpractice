@@ -85,23 +85,23 @@ target_link_libraries(testa2c ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs}
 
 add_executable(testa2cnstep testa2cnstep.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:dbtools>)
 target_compile_features(testa2cnstep PUBLIC cxx_range_for)
-target_link_libraries(testa2cnstep ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
+target_link_libraries(testa2cnstep ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
 
 add_executable(testbreakout testbreakout.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:dbtools>)
 target_compile_features(testbreakout PUBLIC cxx_range_for)
-target_link_libraries(testbreakout ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
+target_link_libraries(testbreakout ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
 
 add_executable(testa2cnbatch testa2cnbatch.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:dbtools>)
 target_compile_features(testa2cnbatch PUBLIC cxx_range_for)
-target_link_libraries(testa2cnbatch ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
+target_link_libraries(testa2cnbatch ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
 
 add_executable(a2cnbatchpong a2cnbatchpong.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:dbtools>)
 target_compile_features(a2cnbatchpong PUBLIC cxx_range_for)
-target_link_libraries(a2cnbatchpong ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
+target_link_libraries(a2cnbatchpong ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
 
 add_executable(a2cnbreakout a2cnbreakout.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:dbtools>)
 target_compile_features(a2cnbreakout PUBLIC cxx_range_for)
-target_link_libraries(a2cnbreakout ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
+target_link_libraries(a2cnbreakout ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
 
 add_executable(a2cngae a2cngae.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:dbtools>)
 target_compile_features(a2cngae PUBLIC cxx_range_for)
@@ -132,7 +132,7 @@ target_link_libraries(ppobr2 ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
 
 add_executable(testprobeenv testprobeenv.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:dbtools> $<TARGET_OBJECTS:probeenvs>)
 target_compile_features(testprobeenv PUBLIC cxx_range_for)
-target_link_libraries(testprobeenv ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
+target_link_libraries(testprobeenv ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
 
 ########################################################## DQN
 add_executable(testdqn testdqn.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain> $<TARGET_OBJECTS:alg> $<TARGET_OBJECTS:probeenvs>)

@@ -55,7 +55,7 @@ private:
 	std::string targetStr;
 	uint64_t sendTargetIndex = 0;
 
-
+	uint64_t updateNum= 0;
 public:
 	virtual ~A3CTCPServerHandle();
 	A3CTCPServerHandle(const A3CTCPServerHandle&) = delete;
@@ -77,6 +77,8 @@ public:
 	void rcvTest(void* dataPtr, size_t len);
 
 	void processRcv(void* dataPtr, size_t len);
+
+	uint64_t getUpdateNum();
 };
 
 template<typename NetType, typename OptType>
@@ -94,6 +96,11 @@ A3CTCPServerHandle<NetType, OptType>::~A3CTCPServerHandle() {
 template<typename NetType, typename OptType>
 boost::asio::ip::tcp::socket&  A3CTCPServerHandle<NetType, OptType>::getSock() {
 	return conn->getSock();
+}
+
+template<typename NetType, typename OptType>
+uint64_t A3CTCPServerHandle<NetType, OptType>::getUpdateNum() {
+	return updateNum;
 }
 
 template<typename NetType, typename OptType>
@@ -120,7 +127,7 @@ void A3CTCPServerHandle<NetType, OptType>::start() {
 
 template<typename NetType, typename OptType>
 void A3CTCPServerHandle<NetType, OptType>::syncGrad() {
-	LOG4CXX_INFO(logger, "Server agreed to sync grad");
+	LOG4CXX_DEBUG(logger, "Server agreed to sync grad");
 
 	gradStream.clear();
 	gradStream.str("");
@@ -154,7 +161,7 @@ void A3CTCPServerHandle<NetType, OptType>::sendingGrad(void* dataPtr, std::size_
 		GradUpdateError* req = A3CTCPCmdFactory::CreateGradUpdateError(gradSndBuf.data());
 		conn->send((void*)(gradSndBuf.data()), sizeof(GradUpdateError));
 	} else {
-		LOG4CXX_INFO(logger, "Server receiving grad: " << len);
+		LOG4CXX_DEBUG(logger, "Server receiving grad: " << len);
 
 //		char* bufPtr = (char*)(cmdPtr + 3);
 		char* bufPtr = (char*)dataPtr + sizeof(GradUpdateRspHd);
@@ -174,6 +181,9 @@ void A3CTCPServerHandle<NetType, OptType>::sendingGrad(void* dataPtr, std::size_
 
 template<typename NetType, typename OptType>
 void A3CTCPServerHandle<NetType, OptType>::completeGrad() {
+	updateNum ++;
+
+	opt.zero_grad();
 	std::vector<torch::Tensor> ts;
 
 	try {
@@ -200,14 +210,14 @@ void A3CTCPServerHandle<NetType, OptType>::completeGrad() {
 
 		for (int i = 0; i < params.size(); i ++) {
 			if (ts[i].numel() == 0) {
-				LOG4CXX_INFO(logger, "No grad of layer " << i);
+				LOG4CXX_DEBUG(logger, "No grad of layer " << i);
 				continue;
 			}
 
 			params[i].mutable_grad() = ts[i]; //TODO: grad valid?
+//			LOG4CXX_INFO(logger, "server get grad \n" << net.parameters()[i].grad());
 		}
 
-		opt.zero_grad();
 		torch::nn::utils::clip_grad_norm_(net.parameters(), 0.1);
 		opt.step();
 		//TODO: no zero_grad?
@@ -245,7 +255,7 @@ void A3CTCPServerHandle<NetType, OptType>::startUpdateTarget() {
 	torch::save(net.parameters(), targetStream);
 	targetStr = targetStream.str();
 	sendTargetIndex = 0;
-	LOG4CXX_INFO(logger, "Start to update t arget, written target stream length " << targetStr.length());
+	LOG4CXX_DEBUG(logger, "Start to update target, written target stream length " << targetStr.length());
 
 //	uint64_t* cmdPtr = (uint64_t*)(targetSndBuf.data());
 //	cmdPtr[0] = A3CTCPConfig::StartTarget;
@@ -283,7 +293,7 @@ void A3CTCPServerHandle<NetType, OptType>::updateTarget(void* dataPtr, std::size
 				LOG4CXX_INFO(logger, "End of target sync");
 		} else {
 			uint64_t sndLen = std::min(targetStr.length() - index, A3CTCPConfig::BufCap - sizeof(TargetSyncRspHd));
-			LOG4CXX_INFO(logger, "update target from " << index << " with " << sndLen);
+			LOG4CXX_DEBUG(logger, "update target from " << index << " with " << sndLen);
 //			boost::array<char, A3CTCPConfig::BufCap> sndBuf;
 //			uint64_t* sndCmdPtr = (uint64_t*)(targetSndBuf.data());
 //			sndCmdPtr[0] = A3CTCPConfig::TargetSending;
@@ -316,7 +326,7 @@ void A3CTCPServerHandle<NetType, OptType>::rcvTest(void* data, std::size_t len) 
 
 template<typename NetType, typename OptType>
 void A3CTCPServerHandle<NetType, OptType>::processRcv(void* bufPtr, std::size_t bufLen) {
-	LOG4CXX_INFO(logger, "server received buf " << bufLen);
+	LOG4CXX_DEBUG(logger, "server received buf " << bufLen);
 	std::size_t bufIndex = 0;
 
 	while (bufIndex < bufLen) {
@@ -329,7 +339,7 @@ void A3CTCPServerHandle<NetType, OptType>::processRcv(void* bufPtr, std::size_t 
 
 		bufIndex += len;
 
-	LOG4CXX_INFO(logger, "server received cmd " << cmd);
+	LOG4CXX_DEBUG(logger, "server received cmd " << cmd);
 
 	switch(cmd) {
 	case A3CTCPConfig::StartGrad:

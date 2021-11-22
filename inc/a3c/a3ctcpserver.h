@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <atomic>
 
 #include <torch/torch.h>
 
@@ -36,10 +37,12 @@ public:
 
 	static std::shared_ptr<A3CTCPServer> Create(boost::asio::io_service& iio, std::shared_ptr<A3CTCPHandleFactory> iFactory);
 
-	void startAccept();
+	void start();
 //	void handleAccept(std::shared_ptr<A3CTCPServerConn> conn, const boost::system::error_code& error);
 	void handleAccept(std::shared_ptr<A3CTCPServerHandleInterface> conn, const boost::system::error_code& error);
 
+	uint64_t getUpdateNum();
+	void setPollMinute(int minute);
 private:
 	A3CTCPServer(boost::asio::io_service& iio, std::shared_ptr<A3CTCPHandleFactory> iFactory);
 
@@ -50,6 +53,16 @@ private:
 	boost::asio::io_service& ioService;
 
 	std::vector<std::shared_ptr<A3CTCPServerHandleInterface> > clients;
+
+	volatile uint64_t updateNum;
+	int pollMinute = 10;
+	boost::asio::deadline_timer pollTimer;
+
+	void startAccept();
+
+
+	void handlePoll(const boost::system::error_code& error);
+	void pollConns();
 };
 
 
