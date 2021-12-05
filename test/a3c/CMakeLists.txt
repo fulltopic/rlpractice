@@ -20,18 +20,25 @@ include_directories(${ZMPHPP_INC_PATH})
 set(MSGPACK_INC_PATH /home/zf/workspaces/workspace_cpp/pytorch-cpp-rl/example/lib/msgpack-c/include)
 include_directories(${MSGPACK_INC_PATH})
 
+############################ Tensorboard ##################################
+set(TENSORBOARD_PATH /home/zf/workspaces/workspace_cpp/tensorboard_logger/)
+set(TENSORBOARD_INC_PATH ${TENSORBOARD_PATH}/include)
+set(tensorboard_libs ${TENSORBOARD_PATH}/build/libtensorboard_logger.a)
+include_directories(${TENSORBOARD_INC_PATH})
+include_directories(${TENSORBOARD_PATH}/build/)
+
 add_executable(testclientconn testclientconn.cpp $<TARGET_OBJECTS:a3c>  $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:airnets>)
 target_compile_features(testclientconn PUBLIC cxx_range_for)
-target_link_libraries(testclientconn ${shared_libs} ${pytorch_cpp_rl_lib})
+target_link_libraries(testclientconn ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
 
 add_executable(testserverconn testserverconn.cpp $<TARGET_OBJECTS:a3c>  $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:airnets>)
 target_compile_features(testserverconn PUBLIC cxx_range_for)
-target_link_libraries(testserverconn ${shared_libs} ${pytorch_cpp_rl_lib})
+target_link_libraries(testserverconn ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
 
 add_executable(testclienthandle testclienthandle.cpp $<TARGET_OBJECTS:a3c>  $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:airnets>)
 target_compile_features(testclienthandle PUBLIC cxx_range_for)
-target_link_libraries(testclienthandle ${shared_libs} ${pytorch_cpp_rl_lib})
+target_link_libraries(testclienthandle ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
 
 add_executable(testserverhandle testserverhandle.cpp $<TARGET_OBJECTS:a3c>  $<TARGET_OBJECTS:lunarnets> $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:airnets>)
 target_compile_features(testserverhandle PUBLIC cxx_range_for)
-target_link_libraries(testserverhandle ${shared_libs} ${pytorch_cpp_rl_lib})
+target_link_libraries(testserverhandle ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})

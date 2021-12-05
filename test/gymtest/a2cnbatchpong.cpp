@@ -1026,6 +1026,8 @@ void test17(const int batchSize, const int epochNum) {
     option.rewardMax = 1;
     option.loadModel = false;
     option.loadOptimizer = false;
+    option.tensorboardLogPath = "./logs/a2c_pong17/tfevents.pb";
+    option.logInterval = 100;
 //    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/ponga2cnbatch_test9";
 
 

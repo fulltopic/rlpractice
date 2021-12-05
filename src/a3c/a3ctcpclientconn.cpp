@@ -49,13 +49,13 @@ void A3CTCPClientConn::peekRcv() {
 }
 
 void A3CTCPClientConn::handlePeekRcv(const boost::system::error_code& error, std::size_t len) {
-	LOG4CXX_INFO(logger, "peek cmd hd " << len);
+	LOG4CXX_DEBUG(logger, "peek cmd hd " << len);
 
 	A3CTCPCmdHd* hd = (A3CTCPCmdHd*)(rcvBuf.data());
 	uint64_t expSize = hd->expSize;
 
 	if (expSize <= A3CTCPConfig::BufCap) {
-		LOG4CXX_INFO(logger, "expect to receive msg with size " << expSize);
+		LOG4CXX_DEBUG(logger, "expect to receive msg with size " << expSize);
 		sock.async_receive( boost::asio::buffer(rcvBuf.data(), expSize),
 				boost::bind(&A3CTCPClientConn::handleRcv, this->shared_from_this(),
 						boost::asio::placeholders::error,

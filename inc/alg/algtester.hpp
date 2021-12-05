@@ -33,6 +33,14 @@ private:
 
 	int testEpCount = 0;
 
+	std::vector<float> statRewards; //(dqnOption.testBatch, 0);
+	std::vector<float> statLens; //(dqnOption.testBatch, 0);
+	std::vector<float> sumRewards; //(dqnOption.testBatch, 0);
+	std::vector<float> sumLens; //(dqnOption.testBatch, 0);
+	std::vector<int> liveCounts; //(dqnOption.testBatch, 0);
+	std::vector<int> noReward; //(dqnOption.testBatch, 0);
+	std::vector<int> randomStep; //(dqnOption.testBatch, 0);
+
 public:
 	AlgTester(NetType& iNet, EnvType& iEnv, PolicyType& iPolicy, const DqnOption& option);
 	~AlgTester() = default;
@@ -50,7 +58,13 @@ AlgTester<NetType, EnvType, PolicyType>::AlgTester(NetType& iNet, EnvType& iEnv,
 	dqnOption(option),
 	tLogger(option.tensorboardLogPath.c_str())
 {
-
+	statRewards = std::vector<float>(dqnOption.testBatch, 0);
+	statLens = std::vector<float>(dqnOption.testBatch, 0);
+	sumRewards = std::vector<float>(dqnOption.testBatch, 0);
+	sumLens = std::vector<float>(dqnOption.testBatch, 0);
+	liveCounts = std::vector<int>(dqnOption.testBatch, 0);
+	noReward = std::vector<int>(dqnOption.testBatch, 0);
+	randomStep = std::vector<int>(dqnOption.testBatch, 0);
 }
 
 template<typename NetType, typename EnvType, typename PolicyType>
@@ -61,13 +75,6 @@ void AlgTester<NetType, EnvType, PolicyType>::test() {
 	}
 
 	int epCount = 0;
-	std::vector<float> statRewards(dqnOption.testBatch, 0);
-	std::vector<float> statLens(dqnOption.testBatch, 0);
-	std::vector<float> sumRewards(dqnOption.testBatch, 0);
-	std::vector<float> sumLens(dqnOption.testBatch, 0);
-	std::vector<int> liveCounts(dqnOption.testBatch, 0);
-	std::vector<int> noReward(dqnOption.testBatch, 0);
-	std::vector<int> randomStep(dqnOption.testBatch, 0);
 
 	torch::NoGradGuard guard;
 	std::vector<float> states = testEnv.reset();

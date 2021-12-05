@@ -1,12 +1,14 @@
 /*
- * a3ctcpclienthanle.hpp
+ * a3ctcpcqhdl.hpp
  *
- *  Created on: Nov 10, 2021
+ *  Created on: Dec 2, 2021
  *      Author: zf
  */
 
-#ifndef INC_A3C_A3CTCPCLIENTHANLE_HPP_
-#define INC_A3C_A3CTCPCLIENTHANLE_HPP_
+#ifndef INC_A3C_A3CTCPCQHDL_HPP_
+#define INC_A3C_A3CTCPCQHDL_HPP_
+
+
 
 //#define BOOST_ASIO_ENABLE_HANDLER_TRACKING
 #include <boost/array.hpp>
@@ -33,10 +35,11 @@
 #include "a3c/a3ctcpmsghds.h"
 #include "a3c/dummyfuncs.h"
 
+//TODO: Deprecated, to prepare multiple grad buffer to sending.
 template<typename NetType>
-class A3CTCPClientHandle : public std::enable_shared_from_this<A3CTCPClientHandle<NetType>> {
+class A3CTCPQClientHandle : public std::enable_shared_from_this<A3CTCPQClientHandle<NetType>> {
 private:
-	A3CTCPClientHandle(boost::asio::io_service& iio, NetType& iNet);
+	A3CTCPQClientHandle(boost::asio::io_service& iio, NetType& iNet);
 
 	NetType& net;
 	std::shared_ptr<A3CTCPClientConn> conn;
@@ -65,12 +68,12 @@ private:
 	volatile bool gradUpdating = false;
 
 public:
-	~A3CTCPClientHandle();
-	A3CTCPClientHandle(const A3CTCPClientHandle&) = delete;
+	~A3CTCPQClientHandle();
+	A3CTCPQClientHandle(const A3CTCPQClientHandle&) = delete;
 
 	void start();
 
-	static std::shared_ptr<A3CTCPClientHandle<NetType>> Create(boost::asio::io_service& iio, NetType& iNet);
+	static std::shared_ptr<A3CTCPQClientHandle<NetType>> Create(boost::asio::io_service& iio, NetType& iNet);
 
 	void addGrad(std::vector<torch::Tensor>& delta);
 	void sendGrad();
@@ -89,7 +92,7 @@ public:
 };
 
 template<typename NetType>
-A3CTCPClientHandle<NetType>::A3CTCPClientHandle(boost::asio::io_service& iio, NetType& iNet):
+A3CTCPQClientHandle<NetType>::A3CTCPQClientHandle(boost::asio::io_service& iio, NetType& iNet):
 	net(iNet)
 {
 	conn = A3CTCPClientConn::Create(iio);
@@ -103,18 +106,18 @@ A3CTCPClientHandle<NetType>::A3CTCPClientHandle(boost::asio::io_service& iio, Ne
 	//gradds set in add
 }
  template<typename NetType>
- A3CTCPClientHandle<NetType>::~A3CTCPClientHandle() {
+ A3CTCPQClientHandle<NetType>::~A3CTCPQClientHandle() {
 	 //TODO:
  }
 
  template<typename NetType>
- std::shared_ptr<A3CTCPClientHandle<NetType>> A3CTCPClientHandle<NetType>::Create(boost::asio::io_service& iio, NetType& iNet) {
-	 return std::shared_ptr<A3CTCPClientHandle<NetType>>(new A3CTCPClientHandle<NetType>(iio, iNet));
+ std::shared_ptr<A3CTCPQClientHandle<NetType>> A3CTCPQClientHandle<NetType>::Create(boost::asio::io_service& iio, NetType& iNet) {
+	 return std::shared_ptr<A3CTCPQClientHandle<NetType>>(new A3CTCPQClientHandle<NetType>(iio, iNet));
  }
 
  template<typename NetType>
- void A3CTCPClientHandle<NetType>::start() {
-	 std::function<void(void*, std::size_t len)> func = std::bind(&A3CTCPClientHandle<NetType>::processRcv, this,
+ void A3CTCPQClientHandle<NetType>::start() {
+	 std::function<void(void*, std::size_t len)> func = std::bind(&A3CTCPQClientHandle<NetType>::processRcv, this,
 			 std::placeholders::_1,
 			 std::placeholders::_2);
 
@@ -124,7 +127,7 @@ A3CTCPClientHandle<NetType>::A3CTCPClientHandle(boost::asio::io_service& iio, Ne
  }
 
 template<typename NetType>
-void  A3CTCPClientHandle<NetType>::addGrad(std::vector<torch::Tensor>& delta) {
+void  A3CTCPQClientHandle<NetType>::addGrad(std::vector<torch::Tensor>& delta) {
 //	LOG4CXX_INFO(logger, "add delta to grad sum");
 	 if (grads.size() == 0) {
 		 for (const auto& d: delta) {
@@ -142,7 +145,7 @@ void  A3CTCPClientHandle<NetType>::addGrad(std::vector<torch::Tensor>& delta) {
 }
 
 template<typename NetType>
-void A3CTCPClientHandle<NetType>::sendGrad() {
+void A3CTCPQClientHandle<NetType>::sendGrad() {
 	std::unique_lock<std::mutex> lock(gradMutex);
 	if (gradUpdating) {
 		LOG4CXX_ERROR(logger, "grad updating in process");
@@ -158,9 +161,7 @@ void A3CTCPClientHandle<NetType>::sendGrad() {
 
 
 	GradSyncReq* req = A3CTCPCmdFactory::CreateGradSyncReq(gradSndBuf.data());
-//	uint64_t cmd = A3CTCPConfig::StartGrad;
-//	uint64_t* cmdPtr = (uint64_t*)(gradSndBuf.data());
-//	cmdPtr[0] = cmd;
+
 	void* bufPtr = static_cast<void*>(gradSndBuf.data());
 
 	LOG4CXX_INFO(logger, "Send start grad sending");
@@ -173,7 +174,7 @@ void A3CTCPClientHandle<NetType>::sendGrad() {
 }
 
 template<typename NetType>
-void  A3CTCPClientHandle<NetType>::sendingGrad(void* dataPtr, std::size_t len) {
+void  A3CTCPQClientHandle<NetType>::sendingGrad(void* dataPtr, std::size_t len) {
 	GradUpdateReq* req = (GradUpdateReq*)(dataPtr);
 	uint64_t index = req->index;
 //	uint64_t* cmdPtr = static_cast<uint64_t*>(dataPtr);
@@ -220,7 +221,7 @@ void  A3CTCPClientHandle<NetType>::sendingGrad(void* dataPtr, std::size_t len) {
 }
 
 template<typename NetType>
-void A3CTCPClientHandle<NetType>::completeGrad() {
+void A3CTCPQClientHandle<NetType>::completeGrad() {
 	for (auto& g: grads) {
 		g.fill_(0);
 	}
@@ -234,7 +235,7 @@ void A3CTCPClientHandle<NetType>::completeGrad() {
 
 //TODO: sync target at very beginning
 template<typename NetType>
-void A3CTCPClientHandle<NetType>::syncTarget() {
+void A3CTCPQClientHandle<NetType>::syncTarget() {
 	std::unique_lock<std::mutex> lock(targetMutex);
 	if (targetUpdating) {
 		LOG4CXX_ERROR(logger, "target updating in process");
@@ -259,7 +260,7 @@ void A3CTCPClientHandle<NetType>::syncTarget() {
 }
 
 template<typename NetType>
-void A3CTCPClientHandle<NetType>::startUpdateTarget() {
+void A3CTCPQClientHandle<NetType>::startUpdateTarget() {
 	LOG4CXX_DEBUG(logger, "Server agreed to update target updating");
 
 //	uint64_t* cmdPtr = (uint64_t*)(targetSndBuf.data());
@@ -272,7 +273,7 @@ void A3CTCPClientHandle<NetType>::startUpdateTarget() {
 
 //TODO: conn->send failure
 template<typename NetType>
-void A3CTCPClientHandle<NetType>::updateTarget(void* data, std::size_t len) {
+void A3CTCPQClientHandle<NetType>::updateTarget(void* data, std::size_t len) {
 //	uint64_t* cmdPtr = static_cast<uint64_t*>(data);
 //	uint64_t index = cmdPtr[1];
 //	uint64_t dataLen = cmdPtr[2];
@@ -306,7 +307,7 @@ void A3CTCPClientHandle<NetType>::updateTarget(void* data, std::size_t len) {
 }
 
 template<typename NetType>
-void A3CTCPClientHandle<NetType>::completeTarget() {
+void A3CTCPQClientHandle<NetType>::completeTarget() {
 	LOG4CXX_INFO(logger, "Target transfer completed expected = " << getTargetIndex << " actual = " << targetStream.str().length());
 
 	std::vector<torch::Tensor> ts;
@@ -351,7 +352,7 @@ void A3CTCPClientHandle<NetType>::completeTarget() {
 
 
 template<typename NetType>
-void A3CTCPClientHandle<NetType>::sendTest() {
+void A3CTCPQClientHandle<NetType>::sendTest() {
 //	uint64_t* cmdPtr = (uint64_t*)(targetSndBuf.data());
 //	cmdPtr[0] = A3CTCPConfig::Test;
 	TestMsg* msg = A3CTCPCmdFactory::CreateTest(targetSndBuf.data());
@@ -361,7 +362,7 @@ void A3CTCPClientHandle<NetType>::sendTest() {
 }
 
 template<typename NetType>
-void A3CTCPClientHandle<NetType>::rcvTest(void* data, size_t len) {
+void A3CTCPQClientHandle<NetType>::rcvTest(void* data, size_t len) {
 //	uint64_t* cmdPtr = (uint64_t*)data;
 	TestMsg* msg = (TestMsg*)(data);
 	LOG4CXX_INFO(logger, "Received server test response: " << msg->cmd);
@@ -369,7 +370,7 @@ void A3CTCPClientHandle<NetType>::rcvTest(void* data, size_t len) {
 
 
 template<typename NetType>
-void A3CTCPClientHandle<NetType>::processRcv(void* bufPtr, size_t totalLen) {
+void A3CTCPQClientHandle<NetType>::processRcv(void* bufPtr, size_t totalLen) {
 	LOG4CXX_DEBUG(logger, "Received buffer " << totalLen);
 	int bufIndex = 0;
 
@@ -422,4 +423,5 @@ void A3CTCPClientHandle<NetType>::processRcv(void* bufPtr, size_t totalLen) {
 
 	}
 }
-#endif /* INC_A3C_A3CTCPCLIENTHANLE_HPP_ */
+
+#endif /* INC_A3C_A3CTCPCQHDL_HPP_ */
