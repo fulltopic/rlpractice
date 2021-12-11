@@ -45,7 +45,7 @@ void A3CNetUpdater<NetType, OptType>::processGrad() {
 	while (true) {
 		std::vector<torch::Tensor> ts = q.pop();
 
-		opt.zero_grad();
+		opt.zero_grad(); //TODO: necessary?
 		std::vector<torch::Tensor> params = net.parameters();
 		for (int i = 0; i < params.size(); i ++) {
 			if (ts[i].numel() == 0) {
@@ -56,6 +56,7 @@ void A3CNetUpdater<NetType, OptType>::processGrad() {
 			params[i].mutable_grad() = ts[i].to(params[i].device());
 		}
 
+		torch::nn::utils::clip_grad_norm_(net.parameters(), 0.1);
 		opt.step();
 	}
 }

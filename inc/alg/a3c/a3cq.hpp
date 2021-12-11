@@ -24,7 +24,7 @@
 #include "gymtest/utils/stats.h"
 #include "gymtest/utils/lossstats.h"
 #include "gymtest/utils/a2cnstore.h"
-#include "dqnoption.h"
+#include "alg/dqnoption.h"
 
 #include "a3c/a3ctcpclienthanle.hpp"
 
@@ -450,6 +450,8 @@ void A3CQNStep<NetType, EnvType, PolicyType>::trainBatch(const int epNum) {
 
 			stateVec = nextStateVec;
 		}
+
+		bModel.zero_grad();
 
 		torch::Tensor lastStateTensor = torch::from_blob(stateVec.data(), inputShape).div(dqnOption.inputScale).to(deviceType);
 //		LOG4CXX_INFO(logger, "stateTensor in last: " << lastStateTensor.max() << lastStateTensor.mean());

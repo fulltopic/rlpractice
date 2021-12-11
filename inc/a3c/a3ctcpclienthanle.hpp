@@ -141,6 +141,7 @@ void  A3CTCPClientHandle<NetType>::addGrad(std::vector<torch::Tensor>& delta) {
 //	 LOG4CXX_INFO(logger, "grad updated");
 }
 
+//TODO: try future and task
 template<typename NetType>
 void A3CTCPClientHandle<NetType>::sendGrad() {
 	std::unique_lock<std::mutex> lock(gradMutex);

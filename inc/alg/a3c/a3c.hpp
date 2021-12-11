@@ -1,12 +1,13 @@
 /*
- * a3ctest.hpp
+ * a3c.hpp
  *
- *  Created on: Nov 20, 2021
+ *  Created on: Nov 15, 2021
  *      Author: zf
  */
 
-#ifndef INC_ALG_A3CTEST_HPP_
-#define INC_ALG_A3CTEST_HPP_
+#ifndef INC_ALG_A3C_HPP_
+#define INC_ALG_A3C_HPP_
+
 
 
 
@@ -25,28 +26,26 @@
 #include "gymtest/utils/stats.h"
 #include "gymtest/utils/lossstats.h"
 #include "gymtest/utils/a2cnstore.h"
-#include "dqnoption.h"
+#include "alg/dqnoption.h"
 
 #include "a3c/a3ctcpclienthanle.hpp"
 
 #include "gymtest/utils/inputnorm.h"
 
-template<typename NetType, typename OptimizerType, typename EnvType, typename PolicyType>
-class A3CNStepTest {
+template<typename NetType, typename EnvType, typename PolicyType>
+class A3CNStep {
 private:
 	NetType& bModel;
-	NetType& tModel;
-
+//	NetType& tModel;
 	EnvType& env;
 	EnvType& testEnv;
 	PolicyType& policy;
-	OptimizerType& optimizer;
+//	OptimizerType& optimizer;
 	const torch::Device deviceType;
 	const at::IntArrayRef inputShape;
 
 	const DqnOption dqnOption;
 	TensorBoardLogger tLogger;
-
 
 	const int batchSize;
 	int offset = 0;
@@ -60,12 +59,12 @@ private:
 
 	const float entropyCoef;
 
-	log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("a3ctest");
+	log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("a2c1stepq");
 	torch::TensorOptions longOpt = torch::TensorOptions().dtype(torch::kLong);
 	torch::nn::HuberLoss huberLossComputer = torch::nn::HuberLoss();
 	torch::nn::MSELoss mseLossComputer = torch::nn::MSELoss();
 
-//	std::shared_ptr<A3CTCPClientHandle<NetType>> client;
+	std::shared_ptr<A3CTCPClientHandle<NetType>> client;
 
 	InputNorm rewardNorm;
 
@@ -74,19 +73,18 @@ private:
 
 	void save();
 	void saveByReward(float reward);
-	void syncFromTarget();
 
 	void trainStep(const int epNum); //no batched
 	void trainBatch(const int epNum); //batched
-//	void testTrain(torch::Tensor input);
 
 public:
 	const float gamma;
 	const int testEp = 16;
 
-	A3CNStepTest(NetType& behaviorModel, NetType& targetModel, OptimizerType& opt, EnvType& iEnv, EnvType& tEnv, PolicyType& iPolicy, int stepSize, DqnOption option);
-	~A3CNStepTest() = default;
-	A3CNStepTest(const A3CNStepTest& ) = delete;
+	A3CNStep(NetType& behaviorModel, EnvType& iEnv, EnvType& tEnv, PolicyType& iPolicy, int stepSize,
+				DqnOption option, std::shared_ptr<A3CTCPClientHandle<NetType>> iClient);
+	~A3CNStep() = default;
+	A3CNStep(const A3CNStep& ) = delete;
 
 	void train(const int epNum, bool batched = false);
 
@@ -94,15 +92,15 @@ public:
 	void load();
 };
 
-template<typename NetType, typename OptimizerType, typename EnvType, typename PolicyType>
-A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::A3CNStepTest(NetType& behaviorModel, NetType& targetModel, OptimizerType& opt, EnvType& iEnv, EnvType& tEnv, PolicyType& iPolicy,
-		int stepSize, const DqnOption iOption):
+template<typename NetType, typename EnvType, typename PolicyType>
+A3CNStep<NetType, EnvType, PolicyType>::A3CNStep(NetType& behaviorModel, EnvType& iEnv, EnvType& tEnv, PolicyType& iPolicy,
+		int stepSize, const DqnOption iOption, std::shared_ptr<A3CTCPClientHandle<NetType>> iClient):
 	bModel(behaviorModel),
-	tModel(targetModel),
+//	tModel(trainModel),
 	env(iEnv),
 	testEnv(tEnv),
 	policy(iPolicy),
-	optimizer(opt),
+//	optimizer(iOptimizer),
 	dqnOption(iOption),
 	deviceType(iOption.deviceType),
 	inputShape(iOption.inputShape),
@@ -115,17 +113,17 @@ A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::A3CNStepTest(NetType&
 	entropyCoef(iOption.entropyCoef),
 	rewardNorm(iOption.deviceType),
 	maxAveReward(iOption.saveThreshold),
-	maxSumReward(iOption.sumSaveThreshold)
-//	client(iClient)
-{
+	maxSumReward(iOption.sumSaveThreshold),
+	client(iClient)
+	{
 	offset = 1;
 	for (int i = 1; i < inputShape.size(); i ++) {
 		offset *= inputShape[i];
 	}
 }
 
-template<typename NetType, typename OptimizerType, typename EnvType, typename PolicyType>
-void A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::test(const int batchSize, const int epochNum) {
+template<typename NetType, typename EnvType, typename PolicyType>
+void A3CNStep<NetType, EnvType, PolicyType>::test(const int batchSize, const int epochNum) {
 	LOG4CXX_INFO(logger, "To test " << epochNum << "episodes");
 	if (!dqnOption.toTest) {
 		return;
@@ -154,19 +152,7 @@ void A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::test(const int b
 		//TODO: To replace by getActions
 
 		std::vector<int64_t> actions = policy.getTestActions(actionProbs);
-		if (dqnOption.randomHang) {
-			for (int i = 0; i < batchSize; i ++) {
-				if (noReward[i] >= dqnOption.hangNumTh) {
-					actions[i] = torch::rand({1}).item<float>() * dqnOption.testOutput;
-					LOG4CXX_INFO(logger, "random action for " << i << ": " << actions[i]);
-					randomStep[i] ++;
-					if (randomStep[i] > dqnOption.randomStep) {
-						randomStep[i] = 0;
-						noReward[i] = 0;
-					}
-				}
-			}
-		}
+
 		auto stepResult = testEnv.step(actions, true);
 		auto nextStateVec = std::get<0>(stepResult);
 		auto rewardVec = std::get<1>(stepResult);
@@ -219,8 +205,8 @@ void A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::test(const int b
 	}
 }
 
-template<typename NetType, typename OptimizerType, typename EnvType, typename PolicyType>
-void A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::train(const int epNum, bool batched) {
+template<typename NetType, typename EnvType, typename PolicyType>
+void A3CNStep<NetType, EnvType, PolicyType>::train(const int epNum, bool batched) {
 	LOG4CXX_INFO(logger, "batched " << batched);
 
 	if (batched) {
@@ -230,8 +216,8 @@ void A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::train(const int 
 	}
 }
 
-template<typename NetType, typename OptimizerType, typename EnvType, typename PolicyType>
-void A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::trainStep(const int epNum) {
+template<typename NetType, typename EnvType, typename PolicyType>
+void A3CNStep<NetType, EnvType, PolicyType>::trainStep(const int epNum) {
 	LOG4CXX_INFO(logger, "------------------------------> No batch");
 
 	load();
@@ -276,8 +262,8 @@ void A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::trainStep(const 
 				epCount ++;
 
 				LOG4CXX_INFO(logger, "update ep " << i << " = " << statLens[i] << ", " << statRewards[i]);
-				tLogger.add_scalar("train/len", epCount, statLens[i]);
-				tLogger.add_scalar("train/reward", epCount, statRewards[i]);
+				tLogger.add_scalar("train/len", updateNum, statLens[i]);
+				tLogger.add_scalar("train/reward", updateNum, statRewards[i]);
 				LOG4CXX_INFO(logger, "" << updateNum << ": " << statLens[i] << ", " << statRewards[i]);
 //				stater.update(statLens[i], statRewards[i]);
 				statLens[i] = 0;
@@ -317,24 +303,14 @@ void A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::trainStep(const 
 					grads.push_back(params[i].grad());
 				}
 			}
-//			client->addGrad(grads);
-			std::vector<torch::Tensor> tParams = tModel.parameters();
-			for (int i = 0; i < params.size(); i ++) {
-				if (grads[i].numel() == 0) {
-					LOG4CXX_INFO(logger, "No grad of layer " << i);
-					continue;
-				}
-
-				tParams[i].mutable_grad() = grads[i]; //TODO: grad valid?
-			}
-
-			optimizer.zero_grad();
-			torch::nn::utils::clip_grad_norm_(tModel.parameters(), 0.1);
-			optimizer.step();
-			syncFromTarget();
+			client->addGrad(grads);
 
 		    rollout.reset();
 
+//		    if (updateNum % dqnOption.testGapEp == 0) {
+//		    	test(dqnOption.testBatch, 8);
+//		    	updateNum = 0;
+//		    }
 		    if ((updateNum % dqnOption.logInterval) == 0) {
 		    	tLogger.add_scalar("loss/loss", updateNum, loss.item<float>());
 		    	tLogger.add_scalar("loss/actLoss", updateNum, actLoss.item<float>());
@@ -342,13 +318,13 @@ void A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::trainStep(const 
 		    	tLogger.add_scalar("loss/entropy", updateNum, entropy.item<float>());
 		    }
 
-//		    if ((updateNum % dqnOption.gradSyncStep) == 0) {
-//		    	client->sendGrad();
-//		    }
-//
-//		    if ((updateNum % dqnOption.targetUpdateStep) == 0) {
-//				client->syncTarget();
-//			}
+		    if ((updateNum % dqnOption.gradSyncStep) == 0) {
+		    	client->sendGrad();
+		    }
+
+		    if ((updateNum % dqnOption.targetUpdateStep) == 0) {
+				client->syncTarget();
+			}
 
 //		    updateNum ++;
 		}
@@ -361,11 +337,10 @@ void A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::trainStep(const 
 
 
 
-template<typename NetType, typename OptimizerType, typename EnvType, typename PolicyType>
-void A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::trainBatch(const int epNum) {
+template<typename NetType, typename EnvType, typename PolicyType>
+void A3CNStep<NetType, EnvType, PolicyType>::trainBatch(const int epNum) {
 	LOG4CXX_INFO(logger, "----------------------> batch");
 	load();
-	syncFromTarget();
 
 	int step = 0;
 	int epCount = 0;
@@ -446,9 +421,9 @@ void A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::trainBatch(const
 					sumRewards[i] += statRewards[i];
 					sumLens[i] += statLens[i];
 
-					tLogger.add_scalar("train/len", epCount, statLens[i]);
-					tLogger.add_scalar("train/reward", epCount, statRewards[i]);
-					LOG4CXX_INFO(logger, "" << epCount << ": " << statLens[i] << ", " << statRewards[i]);
+					tLogger.add_scalar("train/len", updateNum, statLens[i]);
+					tLogger.add_scalar("train/reward", updateNum, statRewards[i]);
+					LOG4CXX_INFO(logger, "" << updateNum << ": " << statLens[i] << ", " << statRewards[i]);
 					statLens[i] = 0;
 					statRewards[i] = 0;
 
@@ -534,11 +509,21 @@ void A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::trainBatch(const
 		torch::Tensor entropyLoss = - (actionProbTensor * actionLogTensor).sum(-1).mean();
 
 		auto advTensor = returnTensor - valueTensor;
+//		LOG4CXX_INFO(logger, "returnTensor: " << returnTensor);
+//		LOG4CXX_INFO(logger, "valueTensor: " << valueTensor);
+//		torch::Tensor valueLoss = advTensor.pow(2).mean();
+//		torch::nn::SmoothL1Loss lossComputer = torch::nn::SmoothL1Loss();
+		//TODO: What huberLossComputer(x, y) did? Should it be huberLossComputer->forward(x, y)?
+//		torch::Tensor valueLoss = huberLossComputer(valueTensor, returnTensor);
 		torch::Tensor valueLoss = torch::nn::functional::huber_loss(valueTensor, returnTensor);
 
 //		LOG4CXX_INFO(logger, "actionLogTensor: " << actionLogTensor.sizes());
 //		LOG4CXX_INFO(logger, "actionTensor: " << actionTensor.sizes());
 		auto actPiTensor = actionLogTensor.gather(-1, actionTensor).squeeze(-1);
+//		LOG4CXX_INFO(logger, "actionLogTensor: " << actionLogTensor);
+//		LOG4CXX_INFO(logger, "actPiTensor: " << actPiTensor);
+//		LOG4CXX_INFO(logger, "actionTensor: " << actionTensor);
+//		LOG4CXX_INFO(logger, "advTensor: " << advTensor);
 		torch::Tensor actLoss = - (actPiTensor * advTensor.detach()).mean();
 
 		torch::Tensor loss = dqnOption.valueCoef * valueLoss + actLoss - dqnOption.entropyCoef * entropyLoss;
@@ -548,36 +533,23 @@ void A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::trainBatch(const
 		auto vLossV = valueLoss.item<float>();
 		auto entropyV = entropyLoss.item<float>();
 
-		optimizer.zero_grad();
 		loss.backward();
+//		torch::nn::utils::clip_grad_value_(bModel.parameters(), 1);
 		torch::nn::utils::clip_grad_norm_(bModel.parameters(), dqnOption.maxGradNormClip);
 //		optimizer.step();
 
 		auto params = bModel.parameters();
+		std::vector<torch::Tensor> grads;
+		for (int i = 0; i < params.size(); i ++) {
+			if (params[i].grad().numel() == 0) {
+				grads.push_back(torch::zeros({0}));
+			} else {
+				grads.push_back(params[i].grad());
+			}
 
-		/////////////////////////////////////////////////////////////
-
-//		auto bParamDict = bModel.named_parameters();
-//		for (auto& bParamItem: bParamDict) {
-//			auto& bParam = bParamItem.value();
-//			LOG4CXX_INFO(logger, "bParam \n" << bParam);
-//			LOG4CXX_INFO(logger, "bParam  grad \n" << bParam.grad());
-//		}
-		auto bParams = bModel.parameters();
-		auto tParams = tModel.parameters();
-		for (int pIndex = 0; pIndex < bParams.size(); pIndex ++) {
-			tParams[pIndex].mutable_grad() = bParams[pIndex].grad();
+//			LOG4CXX_INFO(logger, "New grad \n" << grads[grads.size() - 1]);
 		}
-//		for (auto& param: tModel.parameters()) {
-//			LOG4CXX_INFO(logger, "tModel grad: \n" << param.grad());
-//		}
-
-//		torch::nn::utils::clip_grad_norm_(tModel.parameters(), 0.1);
-		optimizer.step();
-
-		syncFromTarget();
-
-//		client->addGrad(grads);
+		client->addGrad(grads);
 
 		LOG4CXX_INFO(logger, "loss" << updateNum << ": " << lossV
 			<< ", " << vLossV << ", " << aLossV << ", " << entropyV);
@@ -587,21 +559,21 @@ void A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::trainBatch(const
 			tLogger.add_scalar("loss/aLoss", updateNum, aLossV);
 			tLogger.add_scalar("loss/entropy", updateNum, entropyV);
 		}
-//
-//		if ((updateNum % dqnOption.gradSyncStep) == 0) {
-//			client->sendGrad();
-//		}
-//		if ((updateNum % dqnOption.targetUpdateStep) == 0) {
-//			client->syncTarget();
-//		}
+
+		if ((updateNum % dqnOption.gradSyncStep) == 0) {
+			client->sendGrad();
+		}
+		if ((updateNum % dqnOption.targetUpdateStep) == 0) {
+			client->syncTarget();
+		}
 
 	}
 
 	save();
 }
 
-template<typename NetType, typename OptimizerType, typename EnvType, typename PolicyType>
-void A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::save() {
+template<typename NetType, typename EnvType, typename PolicyType>
+void A3CNStep<NetType, EnvType, PolicyType>::save() {
 	if (!dqnOption.saveModel) {
 		return;
 	}
@@ -619,8 +591,8 @@ void A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::save() {
 	LOG4CXX_INFO(logger, "Save reward optimizer into " << optPath);
 }
 
-template<typename NetType, typename OptimizerType, typename EnvType, typename PolicyType>
-void A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::saveByReward(float reward) {
+template<typename NetType, typename EnvType, typename PolicyType>
+void A3CNStep<NetType, EnvType, PolicyType>::saveByReward(float reward) {
 	if (!dqnOption.saveModel) {
 		return;
 	}
@@ -638,8 +610,8 @@ void A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::saveByReward(flo
 	LOG4CXX_INFO(logger, "Save optimizer into " << optPath);
 }
 
-template<typename NetType, typename OptimizerType, typename EnvType, typename PolicyType>
-void A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::load() {
+template<typename NetType, typename EnvType, typename PolicyType>
+void A3CNStep<NetType, EnvType, PolicyType>::load() {
 	if (!dqnOption.loadModel) {
 		return;
 	}
@@ -663,35 +635,5 @@ void A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::load() {
 }
 
 
-template<typename NetType, typename OptimizerType, typename EnvType, typename PolicyType>
-void A3CNStepTest<NetType, OptimizerType, EnvType, PolicyType>::syncFromTarget() {
-	torch::NoGradGuard guard;
 
-	auto paramDict = bModel.named_parameters();
-	auto buffDict = bModel.named_buffers();
-	auto targetParamDict = tModel.named_parameters();
-	auto targetBuffDict = tModel.named_buffers();
-
-	for (const auto& item: targetParamDict) {
-		const auto& key = item.key();
-		const auto param = item.value();
-		auto& origParam = paramDict[key];
-
-		origParam.mul_(1 - dqnOption.tau);
-		origParam.add_(param, dqnOption.tau);
-	}
-
-	for (const auto& item: targetBuffDict) {
-		const auto& key = item.key();
-		const auto& buff = item.value();
-		auto& origBuff = buffDict[key];
-
-		origBuff.mul_(1 - dqnOption.tau);
-		origBuff.add_(buff, dqnOption.tau);
-	}
-	LOG4CXX_INFO(logger, "target network synched");
-}
-
-
-
-#endif /* INC_ALG_A3CTEST_HPP_ */
+#endif /* INC_ALG_A3C_HPP_ */

@@ -7,12 +7,13 @@
 
 
 
-#include "alg/a3c.hpp"
-#include "alg/a3ctest.hpp"
+#include "alg/a3c/a3c.hpp"
+#include "alg/a3c/a3ctest.hpp"
 #include "alg/a2cnstep.hpp"
-#include "alg/algtester.hpp"
+#include "alg/utils/algtester.hpp"
 #include "alg/a2cnstepgae.hpp"
-#include "alg/a3cq.hpp"
+#include "alg/a3c/a3cq.hpp"
+#include "alg/a3c/a3cgradshared.hpp"
 
 #include "a3c/a3ctcpserverhandle.hpp"
 #include "a3c/a3ctcpserverconn.h"
@@ -582,7 +583,7 @@ void testServer3(const int batchSize, const int epNum, std::string logPath) {
 
 	AirACHONet net(outputNum);
 	net.to(deviceType);
-    torch::optim::Adam optimizer(net.parameters(), torch::optim::AdamOptions(0.001).eps(5e-4));
+    torch::optim::Adam optimizer(net.parameters(), torch::optim::AdamOptions(0.0001));
 
     SoftmaxPolicy policy(outputNum);
 
@@ -600,7 +601,7 @@ void testServer3(const int batchSize, const int epNum, std::string logPath) {
 	server->start();
 
 
-	const int tNum = 2;
+	const int tNum = 1; //No concurrent update
 	std::vector<std::unique_ptr<std::thread>> ts;
 
 	for (int i = 0; i < tNum; i ++) {
@@ -700,8 +701,8 @@ void test3(const int batchSize, const int epochNum, const float entropyCoef, std
 //    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/boa2cnbatch_test17";
 //    option.tensorboardLogPath = "./logs/a3c_testpong0/tfevents.pb";
     option.tensorboardLogPath = logPath;
-    option.gradSyncStep = maxStep * 2;
-    option.targetUpdateStep = maxStep * 2;
+    option.gradSyncStep = maxStep * 4;
+    option.targetUpdateStep = maxStep * 8;
 
     SoftmaxPolicy policy(outputNum);
 
@@ -711,7 +712,7 @@ void test3(const int batchSize, const int epochNum, const float entropyCoef, std
 	auto client = A3CTCPClientHandle<AirACHONet>::Create(iio, model);
 	client->start();
 
-	const int tNum = 1;
+	const int tNum = 2; //No concurrent update
 	std::vector<std::unique_ptr<std::thread>> ts;
 
 	for (int i = 0; i < tNum; i ++) {
@@ -747,7 +748,8 @@ void testServer4(const int batchSize, const int epNum, std::string logPath, std:
 
 	AirACHONet net(outputNum);
 	net.to(deviceType);
-    torch::optim::Adam optimizer(net.parameters(), torch::optim::AdamOptions(0.001).eps(5e-4));
+	//TODO: change lr on time
+    torch::optim::Adam optimizer(net.parameters(), torch::optim::AdamOptions(0.0001));
 
     SoftmaxPolicy policy(outputNum);
 
@@ -828,7 +830,6 @@ void testServer4(const int batchSize, const int epNum, std::string logPath, std:
 
 }
 
-//TODO: decrease sync gap
 void test4(const int batchSize, const int epochNum, const float entropyCoef, std::string serverAddr, std::string logPath) {
 	const int outputNum = 6;
 	const std::string envName = "PongNoFrameskip-v4";
@@ -920,7 +921,7 @@ void testServer5(const int batchSize, const int epNum, std::string logPath) {
 
 	AirACHONet net(outputNum);
 	net.to(deviceType);
-    torch::optim::Adam optimizer(net.parameters(), torch::optim::AdamOptions(0.0002).eps(5e-4));
+    torch::optim::Adam optimizer(net.parameters(), torch::optim::AdamOptions(0.0001).eps(5e-4));
 
     SoftmaxPolicy policy(outputNum);
 
@@ -1167,7 +1168,6 @@ void testServer6(const int batchSize, const int epNum, std::string logPath, std:
 
 }
 
-//TODO: decrease sync gap
 void test6(const int batchSize, const int epochNum, const float entropyCoef, std::string serverAddr, std::string logPath) {
 	const int outputNum = 6;
 	const std::string envName = "PongNoFrameskip-v4";
@@ -1213,7 +1213,7 @@ void test6(const int batchSize, const int epochNum, const float entropyCoef, std
 //    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/boa2cnbatch_test17";
 //    option.tensorboardLogPath = "./logs/a3c_testpong0/tfevents.pb";
     option.tensorboardLogPath = logPath;
-    option.gradSyncStep = maxStep; //useless
+    option.gradSyncStep = maxStep;
     option.targetUpdateStep = maxStep * 4;
 
     SoftmaxPolicy policy(outputNum);
@@ -1245,7 +1245,509 @@ void test6(const int batchSize, const int epochNum, const float entropyCoef, std
 //    dqn.save();
 }
 
+void testServer7(const int batchSize, const int epNum, std::string logPath) {
+	/////////////////////////////////////////////// Env
+	const int outputNum = 6;
 
+	const std::string envName = "PongNoFrameskip-v4";
+
+	std::string serverAddr = "tcp://127.0.0.1:10210";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, batchSize);
+	env.init();
+	LOG4CXX_INFO(logger, "test env inited");
+
+	AirACHONet net(outputNum);
+	net.to(deviceType);
+    torch::optim::Adam optimizer(net.parameters(), torch::optim::AdamOptions(0.001));
+
+    SoftmaxPolicy policy(outputNum);
+
+
+
+    ///////////////////////////////////////////////// Network
+	boost::asio::io_service iio;
+
+	std::shared_ptr<A3CTCPHandleFactory> factory
+		= std::shared_ptr<A3CTCPHandleFactory>(
+				new A3CTCPServerHdFacImpl<AirACHONet, torch::optim::Adam>(iio, net, optimizer)
+			);
+
+	std::shared_ptr<A3CTCPServer> server = A3CTCPServer::Create(iio,factory);
+	server->start();
+
+
+	const int tNum = 1; //No concurrent update
+	std::vector<std::unique_ptr<std::thread>> ts;
+
+	for (int i = 0; i < tNum; i ++) {
+		ts.push_back(std::make_unique<std::thread>(
+			static_cast<std::size_t (boost::asio::io_context::*)()>(&boost::asio::io_context::run), &iio));
+	}
+
+
+    ////////////////////////////////////////////// Test
+    at::IntArrayRef inputShape{batchSize, 4, 84, 84};
+    DqnOption option(inputShape, deviceType);
+
+    option.isAtari = true;
+    option.donePerEp = 1;
+    option.multiLifes = false;
+//    option.entropyCoef = 0; //0.01
+//    option.valueCoef = 0.5;
+    option.maxGradNormClip = 0.1;
+//    option.gamma = 0.99;
+
+    option.toTest = true;
+    option.inputScale = 255;
+    option.testGapEp = 100;
+    option.testBatch = batchSize;
+    option.testEp = epNum;
+    option.tensorboardLogPath = logPath;
+
+    option.saveModel = false;
+
+
+	AlgTester<AirACHONet, AirEnv, SoftmaxPolicy> tester(net, env, policy, option);
+	uint64_t lastUpdateNum = server->getUpdateNum();
+
+    const int pollMinute = 5;
+    server->setPollMinute(pollMinute);
+
+    while (true) {
+    	sleep(pollMinute);
+
+    	auto updateNum = server->getUpdateNum();
+    	if (updateNum - lastUpdateNum > option.testGapEp) {
+    		tester.test();
+    		lastUpdateNum = updateNum;
+    	}
+    }
+
+    ///////////////////////////////////////////// Join
+    for (int i = 0; i < tNum; i ++) {
+    	ts[i]->join();
+    }
+
+}
+
+//TODO: decrease sync gap
+void test7(const int batchSize, const int epochNum, const float entropyCoef, std::string serverAddr, std::string logPath) {
+	const int outputNum = 6;
+	const std::string envName = "PongNoFrameskip-v4";
+	const int num = batchSize;
+    const int maxStep = 5;
+
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, batchSize);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	AirACHONet model(outputNum);
+	model.to(deviceType);
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{batchSize, 4, 84, 84};
+    DqnOption option(inputShape, deviceType);
+
+    option.isAtari = true;
+    option.donePerEp = 1;
+    option.multiLifes = false;
+    option.statCap = batchSize * 2;
+    option.entropyCoef = entropyCoef;
+    option.valueCoef = 0.5;
+    option.maxGradNormClip = 0.1;
+    option.ppoLambda = 0.95;
+    option.gamma = 0.99;
+//    option.statPathPrefix = "./a3c_pong0";
+//    option.saveModel = false;
+    option.savePathPrefix = "./a3c_pong1";
+
+    option.toTest = false;
+    option.inputScale = 255;
+    option.batchSize = batchSize;
+    option.rewardScale = 1;
+    option.rewardMin = -1;
+    option.rewardMax = 1;
+    option.valueClip = false;
+    option.normReward = false;
+    option.loadModel = false;
+    option.loadOptimizer = false;
+    option.saveModel = false;
+//    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/boa2cnbatch_test17";
+//    option.tensorboardLogPath = "./logs/a3c_testpong0/tfevents.pb";
+    option.tensorboardLogPath = logPath;
+    option.gradSyncStep = maxStep * 4;
+    option.targetUpdateStep = maxStep * 8;
+
+    SoftmaxPolicy policy(outputNum);
+
+    /////////////////////////////////////// A3C
+	boost::asio::io_service iio;
+
+	auto client = A3CTCPClientHandle<AirACHONet>::Create(iio, model);
+	client->start();
+
+	const int tNum = 2; //No concurrent update
+	std::vector<std::unique_ptr<std::thread>> ts;
+
+	for (int i = 0; i < tNum; i ++) {
+	ts.push_back(std::make_unique<std::thread>(
+			static_cast<std::size_t (boost::asio::io_context::*)()>(&boost::asio::io_context::run), &iio));
+	}
+
+	client->syncTarget();
+
+    A3CNStep<AirACHONet, AirEnv, SoftmaxPolicy> a3c(model, env, env, policy, maxStep, option, client);
+    a3c.train(epochNum, true);
+
+    LOG4CXX_INFO(logger, "End of train");
+
+    for (int i = 0; i < tNum; i ++) {
+    	ts[i]->join();
+    }
+//    dqn.save();
+}
+
+void test8(const int batchSize, const int epochNum, const float entropyCoef, std::string serverAddr, std::string logPath) {
+	const int outputNum = 6;
+	const std::string envName = "PongNoFrameskip-v4";
+	const int num = batchSize;
+    const int maxStep = 5;
+
+    at::IntArrayRef inputShape{batchSize, 4, 84, 84};
+    DqnOption option(inputShape, deviceType);
+
+    option.isAtari = true;
+    option.donePerEp = 1;
+    option.multiLifes = false;
+    option.statCap = batchSize * 2;
+    option.entropyCoef = entropyCoef;
+    option.valueCoef = 0.5;
+    option.maxGradNormClip = 0.1;
+    option.ppoLambda = 0.95;
+    option.gamma = 0.99;
+//    option.statPathPrefix = "./a3c_pong0";
+//    option.saveModel = false;
+    option.savePathPrefix = "./a3c_pong8";
+
+    option.toTest = false;
+    option.inputScale = 255;
+    option.batchSize = batchSize;
+    option.rewardScale = 1;
+    option.rewardMin = -1;
+    option.rewardMax = 1;
+    option.valueClip = false;
+    option.normReward = false;
+    option.loadModel = false;
+    option.loadOptimizer = false;
+    option.saveModel = false;
+//    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/boa2cnbatch_test17";
+//    option.tensorboardLogPath = "./logs/a3c_testpong0/tfevents.pb";
+    option.tensorboardLogPath = logPath;
+//    option.gradSyncStep = maxStep * 4;
+//    option.targetUpdateStep = maxStep * 8;
+
+
+
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, batchSize);
+	env.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	AirACHONet model(outputNum);
+	model.to(deviceType);
+    LOG4CXX_INFO(logger, "Model ready");
+
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(0.0003));
+
+
+    SoftmaxPolicy policy(outputNum);
+    std::mutex updateMutex;
+    /////////////////////////////////////// A3C
+	A3CGradShared<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam> a3c(
+			model, env, policy, optimizer, updateMutex, maxStep, option);
+//    a3c.train(epochNum, true);
+
+	const int tNum = 1; //No concurrent update
+	std::vector<std::unique_ptr<std::thread>> ts;
+
+	for (int i = 0; i < tNum; i ++) {
+	ts.push_back(std::make_unique<std::thread>(
+			&A3CGradShared<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam>::train, &a3c, epochNum));
+	}
+
+    LOG4CXX_INFO(logger, "End of train");
+
+    for (int i = 0; i < tNum; i ++) {
+    	ts[i]->join();
+    }
+//    dqn.save();
+}
+
+
+void test9(const int batchSize, const int epochNum) {
+    const int pollMinute = 3;
+    const int testBatchSize = 6;
+	const int outputNum = 6;
+	const std::string envName = "PongNoFrameskip-v4";
+	at::IntArrayRef inputShape{batchSize, 4, 84, 84};
+
+	const int num = batchSize;
+    const int maxStep = 5;
+    const int workerNum = 4;
+    std::vector<float> entropyCoefs {0.01, 0.01, 0.005, 0.02, 0,02};
+    assert(workerNum < entropyCoefs.size());
+
+    const int basePort = 10205;
+    const int testPort = 10210;
+    const std::string addrBase = "tcp://127.0.0.1:";
+    const std::string logBase = "./logs/a3c_testpong9/";
+    const std::string logFileName = "tfevents.pb";
+
+
+	AirACHONet model(outputNum);
+	model.to(deviceType);
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(0.0003));
+    LOG4CXX_INFO(logger, "Model ready");
+    SoftmaxPolicy policy(outputNum);
+    std::mutex updateMutex;
+
+	std::string testAddr = addrBase + std::to_string(testPort);
+	AirEnv testEnv(testAddr, envName, testBatchSize);
+	testEnv.init();
+	LOG4CXX_INFO(logger, "test env ready: " << testAddr);
+
+    std::vector<AirEnv*> envs;
+    std::vector<A3CGradShared<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam>*> workers;
+//    std::vector<DqnOption> options;
+
+    for(int i = 0; i < workerNum; i ++) {
+    	DqnOption option(inputShape, deviceType);
+
+    	option.isAtari = true;
+    	option.donePerEp = 1;
+    	option.multiLifes = false;
+    	option.entropyCoef = entropyCoefs[i];
+    	option.valueCoef = 0.25;
+    	option.maxGradNormClip = 0.1;
+    	option.gamma = 0.99;
+    	option.savePathPrefix = "./a3c_pong9";
+
+    	option.toTest = false;
+    	option.inputScale = 255;
+    	option.batchSize = batchSize;
+    	option.rewardScale = 1;
+    	option.rewardMin = -1;
+    	option.rewardMax = 1;
+    	option.valueClip = false;
+    	option.saveModel = false;
+//    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/boa2cnbatch_test17";
+//    option.tensorboardLogPath = "./logs/a3c_testpong0/tfevents.pb";
+    	option.tensorboardLogPath = logBase + std::to_string(i) + "/" + logFileName;
+    	LOG4CXX_INFO(logger, "To put log in" << option.tensorboardLogPath);
+
+//    	options.push_back(option);
+
+    	std::string serverAddr = addrBase + std::to_string(basePort + i);
+    	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+    	AirEnv* env = new AirEnv(serverAddr, envName, batchSize);
+    	env->init();
+    	envs.push_back(env);
+    	LOG4CXX_INFO(logger, "Env " << envName << " " << i << " ready");
+
+    	A3CGradShared<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam>* worker =
+    			new A3CGradShared<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam> (
+    					model,
+						*env,
+						policy,
+						optimizer,
+						updateMutex,
+						maxStep,
+						option
+    					);
+    	workers.push_back(worker);
+    }
+
+
+    /////////////////////////////////////// A3C
+	std::vector<std::unique_ptr<std::thread>> ts;
+
+	for (int i = 0; i < workerNum; i ++) {
+		ts.push_back(std::make_unique<std::thread>(
+			&A3CGradShared<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam>::train, &(*workers[i]), epochNum));
+	}
+
+	////////////////////////////////////// Test
+	DqnOption testOption(inputShape, deviceType);
+	testOption.isAtari = true;
+	testOption.donePerEp = 1;
+	testOption.multiLifes = false;
+	testOption.valueCoef = 0.25;
+//	testOption.maxGradNormClip = 0.1;
+//	testOption.gamma = 0.99;
+	testOption.savePathPrefix = "./a3c_pong9";
+
+	testOption.toTest = true;
+	testOption.inputScale = 255;
+	testOption.batchSize = testBatchSize;
+	testOption.testEp = testBatchSize;
+	testOption.rewardScale = 1;
+	testOption.rewardMin = -1;
+	testOption.rewardMax = 1;
+	testOption.valueClip = false;
+	testOption.saveModel = false;
+//    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/boa2cnbatch_test17";
+//    option.tensorboardLogPath = "./logs/a3c_testpong0/tfevents.pb";
+	testOption.tensorboardLogPath = logBase + "test" + "/" + logFileName;
+
+	AlgTester<AirACHONet, AirEnv, SoftmaxPolicy> tester(model, testEnv, policy, testOption);
+
+    while (true) {
+    	sleep(pollMinute);
+
+    	tester.test();
+    }
+
+    for (int i = 0; i < workerNum; i ++) {
+    	ts[i]->join();
+    }
+    LOG4CXX_INFO(logger, "End of train");
+}
+
+
+void test10(const int batchSize, const int epochNum) {
+    const int pollMinute = 3;
+    const int testBatchSize = 1;
+	const int outputNum = 4;
+	const std::string envName = "BreakoutNoFrameskip-v4";
+	at::IntArrayRef inputShape{batchSize, 4, 84, 84};
+
+	const int num = batchSize;
+    const int maxStep = 5;
+    const int workerNum = 5;
+    std::vector<float> entropyCoefs {0.01, 0.01, 0.005, 0.02, 0,02};
+    assert(workerNum < entropyCoefs.size());
+
+    const int basePort = 10205;
+    const int testPort = 10210;
+    const std::string addrBase = "tcp://127.0.0.1:";
+    const std::string logBase = "./logs/a3c_testbr10/";
+    const std::string logFileName = "tfevents.pb";
+
+
+	AirACHONet model(outputNum);
+	model.to(deviceType);
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(0.0003));
+    LOG4CXX_INFO(logger, "Model ready");
+    SoftmaxPolicy policy(outputNum);
+    std::mutex updateMutex;
+
+	std::string testAddr = addrBase + std::to_string(testPort);
+	AirEnv testEnv(testAddr, envName, testBatchSize);
+	testEnv.init();
+	LOG4CXX_INFO(logger, "test env ready: " << testAddr);
+
+    std::vector<AirEnv*> envs;
+    std::vector<A3CGradShared<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam>*> workers;
+//    std::vector<DqnOption> options;
+
+    for(int i = 0; i < workerNum; i ++) {
+    	DqnOption option(inputShape, deviceType);
+
+    	option.isAtari = true;
+    	option.donePerEp = 1;
+    	option.multiLifes = false;
+    	option.entropyCoef = entropyCoefs[i];
+    	option.valueCoef = 0.25;
+    	option.maxGradNormClip = 0.1;
+    	option.gamma = 0.99;
+    	option.savePathPrefix = "./a3c_br10";
+
+    	option.toTest = false;
+    	option.inputScale = 255;
+    	option.batchSize = batchSize;
+    	option.rewardScale = 1;
+    	option.rewardMin = -1;
+    	option.rewardMax = 1;
+    	option.multiLifes = true;
+    	option.donePerEp = 5;
+    	option.valueClip = false;
+    	option.saveModel = false;
+//    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/boa2cnbatch_test17";
+//    option.tensorboardLogPath = "./logs/a3c_testpong0/tfevents.pb";
+    	option.tensorboardLogPath = logBase + std::to_string(i) + "/" + logFileName;
+    	LOG4CXX_INFO(logger, "To put log in" << option.tensorboardLogPath);
+
+//    	options.push_back(option);
+
+    	std::string serverAddr = addrBase + std::to_string(basePort + i);
+    	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+    	AirEnv* env = new AirEnv(serverAddr, envName, batchSize);
+    	env->init();
+    	envs.push_back(env);
+    	LOG4CXX_INFO(logger, "Env " << envName << " " << i << " ready");
+
+    	A3CGradShared<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam>* worker =
+    			new A3CGradShared<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam> (
+    					model,
+						*env,
+						policy,
+						optimizer,
+						updateMutex,
+						maxStep,
+						option
+    					);
+    	workers.push_back(worker);
+    }
+
+
+    /////////////////////////////////////// A3C
+	std::vector<std::unique_ptr<std::thread>> ts;
+
+	for (int i = 0; i < workerNum; i ++) {
+		ts.push_back(std::make_unique<std::thread>(
+			&A3CGradShared<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam>::train, &(*workers[i]), epochNum));
+	}
+
+	////////////////////////////////////// Test
+	DqnOption testOption(inputShape, deviceType);
+	testOption.isAtari = true;
+	testOption.donePerEp = 1;
+	testOption.multiLifes = false;
+	testOption.valueCoef = 0.25;
+//	testOption.maxGradNormClip = 0.1;
+//	testOption.gamma = 0.99;
+	testOption.savePathPrefix = "./a3c_pong9";
+
+	testOption.toTest = true;
+	testOption.inputScale = 255;
+	testOption.batchSize = testBatchSize;
+	testOption.testEp = testBatchSize;
+	testOption.rewardScale = 1;
+	testOption.rewardMin = -1;
+	testOption.rewardMax = 1;
+	testOption.multiLifes = true;
+	testOption.donePerEp = 5;
+	testOption.valueClip = false;
+	testOption.saveModel = false;
+//    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/boa2cnbatch_test17";
+//    option.tensorboardLogPath = "./logs/a3c_testpong0/tfevents.pb";
+	testOption.tensorboardLogPath = logBase + "test" + "/" + logFileName;
+
+	AlgTester<AirACHONet, AirEnv, SoftmaxPolicy> tester(model, testEnv, policy, testOption);
+
+    while (true) {
+    	sleep(pollMinute);
+
+    	tester.test();
+    }
+
+    for (int i = 0; i < workerNum; i ++) {
+    	ts[i]->join();
+    }
+    LOG4CXX_INFO(logger, "End of train");
+}
 
 void testasync(const int updateNum) {
 	const int inputNum = 4;
@@ -1572,6 +2074,14 @@ void testa2cgaepong(int updateNum) {
     A2CNStepGae<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam> a2c(model, env, testEnv, policy, optimizer, maxStep, option);
     a2c.train(updateNum);
 }
+//
+//void testShared() {
+//	CartACFcNet model(4, 2);
+//	model.share_memory();
+//
+//	torch::Tensor test = torch::zeros({1});
+//	test.share_memory_();
+//}
 }
 
 namespace {
@@ -1595,24 +2105,24 @@ void logConfigure(bool err) {
 int main(int argc, char** argv) {
 	logConfigure(false);
 
-	if (atoi(argv[1]) == 1) {
-		int batchSize = atoi(argv[2]);
-		int epNum = atoi(argv[3]);
-		std::string logPath(argv[4]);
-		std::string qLogPath(argv[5]);
-		LOG4CXX_INFO(logger, "Start server");
-//		testServer5(batchSize, epNum, logPath);
-		testServer6(batchSize, epNum, logPath, qLogPath);
-	} else {
-		int batchSize = atoi(argv[2]);
-		int epochNum = atoi(argv[3]);
-		float entropyCoef = atof(argv[4]);
-		std::string serverAddr(argv[5]);
-		std::string logPath(argv[6]);
-		LOG4CXX_INFO(logger, "Start client: " << batchSize << ", " << epochNum << ", " << entropyCoef << " to " << serverAddr);
-
-		test6(batchSize, epochNum, entropyCoef, serverAddr, logPath);
-	}
+//	if (atoi(argv[1]) == 1) {
+//		int batchSize = atoi(argv[2]);
+//		int epNum = atoi(argv[3]);
+//		std::string logPath(argv[4]);
+//		std::string qLogPath(argv[5]);
+//		LOG4CXX_INFO(logger, "Start server");
+//		testServer7(batchSize, epNum, logPath);
+////		testServer4(batchSize, epNum, logPath, qLogPath);
+//	} else {
+//		int batchSize = atoi(argv[2]);
+//		int epochNum = atoi(argv[3]);
+//		float entropyCoef = atof(argv[4]);
+//		std::string serverAddr(argv[5]);
+//		std::string logPath(argv[6]);
+//		LOG4CXX_INFO(logger, "Start client: " << batchSize << ", " << epochNum << ", " << entropyCoef << " to " << serverAddr);
+//
+//		test7(batchSize, epochNum, entropyCoef, serverAddr, logPath);
+//	}
 
 //	testasync(atoi(argv[1]));
 //	testa2c(atoi(argv[1]));
@@ -1620,6 +2130,22 @@ int main(int argc, char** argv) {
 //	testa2cgaepong(atoi(argv[1]));
 //	testasyncpong(atoi(argv[1]));
 
+//	testShared();
+
+//	{
+//		int batchSize = atoi(argv[2]);
+//		int epochNum = atoi(argv[3]);
+//		float entropyCoef = atof(argv[4]);
+//		std::string serverAddr(argv[5]);
+//		std::string logPath(argv[6]);
+//		test8(batchSize, epochNum, entropyCoef, serverAddr, logPath);
+//	}
+
+	{
+		int batchSize = atoi(argv[1]);
+		int epochNum = atoi(argv[2]);
+		test10(batchSize, epochNum);
+	}
 	return 0;
 }
 
