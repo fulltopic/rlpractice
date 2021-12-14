@@ -79,11 +79,10 @@ void AlgTester<NetType, EnvType, PolicyType>::test() {
 	torch::NoGradGuard guard;
 	std::vector<float> states = testEnv.reset();
 	while (epCount < dqnOption.testEp) {
-//		torch::Tensor stateTensor = torch::from_blob(states.data(), inputShape).to(deviceType);
 		torch::Tensor stateTensor = torch::from_blob(states.data(), dqnOption.inputShape).div(dqnOption.inputScale).to(dqnOption.deviceType);
 
 		std::vector<torch::Tensor> rc = net.forward(stateTensor);
-		auto actionOutput = rc[0]; //TODO: detach?
+		auto actionOutput = rc[0];
 		auto valueOutput = rc[1];
 		auto actionProbs = torch::softmax(actionOutput, -1);
 		//TODO: To replace by getActions
@@ -132,7 +131,7 @@ void AlgTester<NetType, EnvType, PolicyType>::test() {
 
 				liveCounts[i] ++;
 				if (liveCounts[i] >= dqnOption.donePerEp) {
-					LOG4CXX_INFO(logger, "Wrapper episode " << i << " ----------------------------> " << sumRewards[i]);
+					LOG4CXX_INFO(logger, "TEST Wrapper episode " << i << " ----------------------------> " << sumRewards[i]);
 //					sumStater.update(sumLens[i], sumRewards[i]);
 					tLogger.add_scalar("test/sumlen", testEpCount, sumLens[i]);
 					tLogger.add_scalar("test/sumreward", testEpCount, sumRewards[i]);

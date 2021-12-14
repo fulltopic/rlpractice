@@ -1615,9 +1615,14 @@ void test9(const int batchSize, const int epochNum) {
     LOG4CXX_INFO(logger, "End of train");
 }
 
-
+/*
+ * TODO:
+ * 1. The shape of loss curve
+ * 2. More test batches to avoid hang
+ * 3. When game terminated by hang timeout, the lives per espisode may less than 5.
+ */
 void test10(const int batchSize, const int epochNum) {
-    const int pollMinute = 3;
+    const int pollMinute = 3; // TODO: * 60 seconds / minute
     const int testBatchSize = 1;
 	const int outputNum = 4;
 	const std::string envName = "BreakoutNoFrameskip-v4";
