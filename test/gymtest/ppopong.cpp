@@ -86,7 +86,8 @@ void test0(const int updateNum) {
 
     SoftmaxPolicy policy(outputNum);
     //TODO: testenv
-    PPOSharedTest<CartACFcNet, LunarEnv, SoftmaxPolicy, torch::optim::Adam> ppo(model, env, env, policy, optimizer, option, outputNum);
+//    PPOSharedTest<CartACFcNet, LunarEnv, SoftmaxPolicy, torch::optim::Adam> ppo(model, env, env, policy, optimizer, option, outputNum);
+    PPORandom<CartACFcNet, LunarEnv, SoftmaxPolicy, torch::optim::Adam> ppo(model, env, env, policy, optimizer, option, outputNum);
     ppo.train(updateNum);
 }
 
@@ -829,9 +830,9 @@ void test10(const int updateNum) {
     option.entropyCoef = 0.01;
     option.valueCoef = 0.25;
     option.maxGradNormClip = 0.5;
-    option.statPathPrefix = "./pposharedpong_test10";
+    option.statPathPrefix = "./pposharedpong_testdetach";
     option.saveModel = true;
-    option.savePathPrefix = "./pposharedpong_test10";
+    option.savePathPrefix = "./pposharedpong_testdetach";
     option.toTest = false;
     option.inputScale = 256;
     option.batchSize = 32;
@@ -1137,7 +1138,7 @@ void logConfigure(bool err) {
 int main(int argc, char** argv) {
 	logConfigure(false);
 
-	test13(atoi(argv[1]));
+	test10(atoi(argv[1]));
 //	test1(atoi(argv[1]));
 //	test4(atoi(argv[1]));
 //	test3(atoi(argv[1]), atoi(argv[2]));

@@ -101,6 +101,9 @@ public:
 	float maxValueDelta = 1.0;
 	bool tdValue = true;
 
+	//appo
+	int appoRoundNum = 1;
+
 	//breakout
 	bool multiLifes = false;
 	int donePerEp = 1;
