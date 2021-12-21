@@ -2,6 +2,10 @@
 
 ## Ref
 * [an A3C demo](https://github.com/ikostrikov/pytorch-a3c)
+* [an A3C demo](https://github.com/wisnunugroho21/asynchronous_impala_PPO)
+* [an APPO demo](https://github.com/ray-project/ray/blob/master/rllib/agents/ppo/appo.py)
+* [an APPO demo](https://github.com/ikostrikov/pytorch-a2c-ppo-acktr-gail)
+* Original paper
 
 ## Test Cases
 ### Asynchronized by grad parameters
@@ -233,7 +237,7 @@ Difference from previous cases:
 
 ![a3cpong9_train](./images/a3cpong9_train.jpg)
 
-![a3cpong9_test](./images/a3cpong7_train.jpg)
+![a3cpong9_test](./images/a3cpong9_test.jpg)
 
 Compared to that of __testpong3__, performance of this case is much better. 
 The number of steps taken to reach maximum is about half.
@@ -273,8 +277,113 @@ The case followed the same architecture of __testpong9__.
 * Anyway, the test case got reward of 400 in about 120k training steps. Not bad performance.
 
 ### Asynchronized by trajectories
+Multiple workers, one updater. Worker interacts with Gym and sends trajectories to updater.
+Network is shared between workers and updater. PPO algorithm adopted.
+#### testpong2
+Worker
+
+|name|value|
+|----|-----|
+|gamma|0.99|
+|lambda|0.95|
+|inputScale|255|
+|reward|[-1, 1]|
+|batchSize|50|
+|maxStep|32|
+|#worker|4|
+
+Updater
+
+|name|value|
+|----|-----|
+|Optimizer|Adam|
+|lr|3e-4|
+|valueCoef|0.25|
+|entropyCoef|0.01|
+|epsilon|0.1|
+|maxGradNormClip|0.1|
+|batchSize|32 * 4|
+|updateThread|1|
+
+![appopong2_loss](./images/appopong2_loss.jpg)
+
+![appopong2_train](./images/appopong2_train.jpg)
+
+![appopon2_train](./images/appopong2_test.jpg)
+
+It was taken about 5k steps to get the maximum reward. It is very fast.
+It is much faster than __testpong9__
+
+#### testbr3
+Worker
+
+|name|value|
+|----|-----|
+|gamma|0.99|
+|lambda|0.95|
+|inputScale|255|
+|reward|[-1, 1]|
+|batchSize|50|
+|maxStep|32|
+|#worker|4|
+
+Updater
+
+|name|value|
+|----|-----|
+|Optimizer|Adam|
+|lr|3e-4|
+|valueCoef|0.25|
+|entropyCoef|0.01|
+|epsilon|0.1|
+|maxGradNormClip|0.1|
+|batchSize|32 * 4|
+|updateThread|1|
+
+![appobr3_loss](./images/appobr3_loss.jpg)
+
+![appobr3_train](./images/appobr3_train.jpg)
+
+![appobr3_test](./images/appobr3_test.jpg)
+
+It failed to learn. Another case with *worker.maxStep* = 16 also failed. To try smaller learning rate. 
+
+#### testqb4
+Test APPO on Qbert
+
+Worker
+
+|name|value|
+|----|-----|
+|gamma|0.99|
+|lambda|0.95|
+|inputScale|255|
+|reward|[-1, 1]|
+|batchSize|50|
+|maxStep|16|
+|#worker|5|
+
+Updater
+
+|name|value|
+|----|-----|
+|Optimizer|Adam|
+|lr|3e-4|
+|valueCoef|0.25|
+|entropyCoef|0.01|
+|epsilon|0.1|
+|maxGradNormClip|0.1|
+|batchSize|32 * 5|
+|updateThread|1|
+
+![appoqb4_loss](./images/appoqb4_loss.jpg)
+
+![appoqb4_train](./images/appoqb4_train.jpg)
+
+![appoqb4_test](./images/appoqb4_test.jpg)
+
+The system took less than 30k steps to get reward above 15,000, but failed to push forward.
 
 ## Conclusion
-* lr
-* cost
-* TODO: shared network
+* Learning rate: 0.001 is too large to all above a3c cases. As [this paper](https://openreview.net/pdf?id=nIAxjsniDzg) recommended, 3e-4 is a good choice in most cases. To try less learning rate for APPO Breakout case.  
+* TODO: shared network. The python version of A3C implementation always has network/model shared. Seemed there is such operation provided in pytorch-cpp. So, is that possible for network/model of pytorch-cpp being updated concurrently?

@@ -99,7 +99,7 @@ template<typename NetType, typename EnvType, typename PolicyType>
 void APPOWorker<NetType, EnvType, PolicyType>::train(const int updateNum) {
 	torch::NoGradGuard guard;
 
-	LOG4CXX_INFO(logger, "training ");
+	LOG4CXX_INFO(logger, "training: is multi " << dqnOption.multiLifes << " lives " << dqnOption.donePerEp);
 	load();
 
 	int updateIndex = 0;
@@ -174,6 +174,7 @@ void APPOWorker<NetType, EnvType, PolicyType>::train(const int updateNum) {
 
 							sumLens[i] = 0;
 							sumRewards[i] = 0;
+							liveCounts[i] = 0;
 						}
 					}
 					statLens[i] = 0;

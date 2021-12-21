@@ -684,7 +684,7 @@ void testpong2(const int clientNum, const int roundNum, const int maxStep, const
 //./testappo 50 4 32 16 10000000
 void testbr3(const int clientNum, const int roundNum, const int maxStep, const int epochNum, const int updateNum) {
 	//Env Config
-	const int outputNum = 6;
+	const int outputNum = 4;
 	const std::string envName = "BreakoutNoFrameskip-v4";
 
 
@@ -696,7 +696,7 @@ void testbr3(const int clientNum, const int roundNum, const int maxStep, const i
     const int basePort = 10205;
     const int testPort = 10210;
     const std::string addrBase = "tcp://127.0.0.1:";
-    const std::string logBase = "./logs/appo_testbr3/";
+    const std::string logBase = "./logs/appo_testbr4/";
     const std::string logFileName = "tfevents.pb";
 
     //Net
@@ -705,7 +705,7 @@ void testbr3(const int clientNum, const int roundNum, const int maxStep, const i
     torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(0.0003));
     LOG4CXX_INFO(logger, "Model ready");
     SoftmaxPolicy policy(outputNum);
-    std::mutex updateMutex;
+//    std::mutex updateMutex;
 
 	//Queue
 	AsyncPPODataQ q(32);
@@ -719,8 +719,6 @@ void testbr3(const int clientNum, const int roundNum, const int maxStep, const i
     	DqnOption option(inputShape, deviceType);
 
     	option.isAtari = true;
-    	option.donePerEp = 1;
-    	option.multiLifes = false;
     	option.gamma = 0.99;
     	option.ppoLambda = 0.95;
     	option.inputScale = 255;
@@ -840,6 +838,164 @@ void testbr3(const int clientNum, const int roundNum, const int maxStep, const i
 
     LOG4CXX_INFO(logger, "End of train");
 }
+
+//./testappo 50 5 32 20 10000000
+void testqb4(const int clientNum, const int roundNum, const int maxStep, const int epochNum, const int updateNum) {
+	//Env Config
+	const int outputNum = 6;
+	const std::string envName = "QbertNoFrameskip-v4";
+
+
+	//Training Config
+    const int workerNum = roundNum;
+//    std::vector<float> entropyCoefs {0.01, 0.01, 0.005, 0.02, 0,02};
+//    assert(workerNum <= entropyCoefs.size());
+
+    const int basePort = 10205;
+    const int testPort = 10210;
+    const std::string addrBase = "tcp://127.0.0.1:";
+    const std::string logBase = "./logs/appo_testqb4/";
+    const std::string logFileName = "tfevents.pb";
+
+    //Net
+    AirACHONet model(outputNum);
+	model.to(deviceType);
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(0.0003));
+    LOG4CXX_INFO(logger, "Model ready");
+    SoftmaxPolicy policy(outputNum);
+//    std::mutex updateMutex;
+
+	//Queue
+	AsyncPPODataQ q(32);
+
+	//Workers
+	at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+
+    std::vector<AirEnv*> envs;
+    std::vector<APPOWorker<AirACHONet, AirEnv, SoftmaxPolicy>*> workers;
+    for(int i = 0; i < workerNum; i ++) {
+    	DqnOption option(inputShape, deviceType);
+
+    	option.isAtari = true;
+    	option.gamma = 0.99;
+    	option.ppoLambda = 0.95;
+    	option.inputScale = 255;
+//    	option.batchSize = batchSize;
+    	option.envNum = clientNum;
+    	option.trajStepNum = maxStep;
+    	option.rewardScale = 1;
+    	option.rewardMin = -1;
+    	option.rewardMax = 1;
+    	option.multiLifes = true;
+    	option.donePerEp = 4;
+    	option.tensorboardLogPath = logBase + std::to_string(i) + "/" + logFileName;
+    	LOG4CXX_INFO(logger, "To put log in" << option.tensorboardLogPath);
+
+//    	options.push_back(option);
+
+    	std::string serverAddr = addrBase + std::to_string(basePort + i);
+    	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+    	AirEnv* env = new AirEnv(serverAddr, envName, clientNum);
+    	env->init();
+    	envs.push_back(env);
+    	LOG4CXX_INFO(logger, "Env " << envName << " " << i << " ready");
+
+    	APPOWorker<AirACHONet, AirEnv, SoftmaxPolicy>* worker =
+    			new APPOWorker<AirACHONet, AirEnv, SoftmaxPolicy> (
+    					model,
+						*env,
+						policy,
+						option,
+						q,
+						outputNum
+    					);
+    	workers.push_back(worker);
+    }
+
+	std::vector<std::unique_ptr<std::thread>> ts;
+
+	for (int i = 0; i < workerNum; i ++) {
+		ts.push_back(std::make_unique<std::thread>(
+			&APPOWorker<AirACHONet, AirEnv, SoftmaxPolicy>::train, &(*workers[i]), updateNum));
+	}
+
+	////////////////////////////////////// Updater ////////////////////////////////////////
+	at::IntArrayRef updateInputShape{clientNum, 4, 85, 84};
+
+	DqnOption updateOption(updateInputShape, deviceType);
+	updateOption.isAtari = true;
+	updateOption.valueCoef = 0.5;
+	updateOption.maxGradNormClip = 0.1;
+	updateOption.gamma = 0.99;
+	updateOption.ppoLambda = 0.95;
+	updateOption.ppoEpsilon = 0.1;
+	updateOption.appoRoundNum = roundNum;
+	updateOption.epochNum = epochNum;
+	updateOption.trajStepNum = maxStep * clientNum * roundNum;
+	updateOption.entropyCoef = 0.01;
+//	updateOption.inputScale = 255;
+//	updateOption.rewardScale = 1;
+//	updateOption.rewardMin = -1;
+//	updateOption.rewardMax = 1;
+	updateOption.logInterval = 4;
+	updateOption.tensorboardLogPath = logBase + "update" + "/" + logFileName;
+
+	APPOUpdater<AirACHONet, torch::optim::Adam> updater (
+			model,
+			optimizer,
+			updateOption,
+			q,
+			outputNum
+			);
+
+	auto updateThread = std::make_unique<std::thread>(
+			&APPOUpdater<AirACHONet, torch::optim::Adam>::train, &updater, updateNum);
+
+
+	////////////////////////////////////// Test/////////////////////////////////////////
+    const int pollMinute = 4 * 60;
+    const int testBatchSize = 4;
+    const int testClientNum = 4;
+    //Test Env
+	std::string testAddr = addrBase + std::to_string(testPort);
+	AirEnv testEnv(testAddr, envName, testClientNum);
+	testEnv.init();
+	LOG4CXX_INFO(logger, "test env ready: " << testAddr);
+
+	at::IntArrayRef testInputShape{testClientNum, 4, 84, 84};
+
+	DqnOption testOption(testInputShape, deviceType);
+	testOption.donePerEp = 1;
+	testOption.multiLifes = false;
+//	testOption.valueCoef = 0.25;
+
+	testOption.toTest = true;
+	testOption.inputScale = 255;
+	testOption.batchSize = testBatchSize;
+	testOption.testEp = testBatchSize;
+	testOption.rewardScale = 1;
+	testOption.rewardMin = -1;
+	testOption.rewardMax = 1;
+	testOption.multiLifes = true;
+	testOption.donePerEp = 4;
+	testOption.tensorboardLogPath = logBase + "test" + "/" + logFileName;
+
+	AlgTester<AirACHONet, AirEnv, SoftmaxPolicy> tester(model, testEnv, policy, testOption);
+
+    while (true) {
+    	sleep(pollMinute);
+
+    	tester.test();
+    }
+
+    //Never reach
+    for (int i = 0; i < workerNum; i ++) {
+    	ts[i]->join();
+    }
+    updateThread->join();
+
+    LOG4CXX_INFO(logger, "End of train");
+}
 }
 
 namespace {
@@ -869,7 +1025,7 @@ int main(int argc, char** argv) {
 		int maxStep = atoi(argv[3]);
 		int epochNum = atoi(argv[4]);
 		int updateNum = atoi(argv[5]);
-		testbr3(clienNum, roundNum, maxStep, epochNum, updateNum);
+		testqb4(clienNum, roundNum, maxStep, epochNum, updateNum);
 	}
 	return 0;
 }

@@ -168,6 +168,7 @@ void APPOUpdater<NetType, OptimizerType>::train(const int updateNum) {
 				auto actionPiTensor = torch::softmax(actionOutput, -1);
 				auto actionPi = actionPiTensor.gather(-1, oldActionPiece);
 				torch::Tensor ratio = actionPi / oldPiPiece;
+				auto kl = ratio.mean().to(torch::kCPU).item<float>();
 
 				auto sur0 = ratio * gaePiece.detach();
 				auto sur1 = torch::clamp(ratio, 1 - dqnOption.ppoEpsilon, 1 + dqnOption.ppoEpsilon) * gaePiece.detach();
@@ -185,7 +186,6 @@ void APPOUpdater<NetType, OptimizerType>::train(const int updateNum) {
 					auto vLossV = valueLossTensor.item<float>();
 					auto aLossV = actLossTensor.item<float>();
 					auto eLossV = entropyTensor.item<float>();
-					auto kl = ratio.mean().to(torch::kCPU).item<float>();
 					auto gaeValue = gaePiece.detach().mean().item<float>();
 					/*
 					 *                 with th.no_grad():
@@ -200,10 +200,10 @@ void APPOUpdater<NetType, OptimizerType>::train(const int updateNum) {
 					tLogger.add_scalar("train/entropy", trainStepIndex, eLossV);
 					tLogger.add_scalar("train/kl", trainStepIndex, kl);
 					tLogger.add_scalar("train/gae", trainStepIndex, gaeValue);
+				}
 
-					if ((kl > (1 + dqnOption.ppoEpsilon)) || (kl < (1 - dqnOption.ppoEpsilon))) {
-						moreEpoch = false;
-					}
+				if ((kl > (1 + dqnOption.ppoEpsilon)) || (kl < (1 - dqnOption.ppoEpsilon))) {
+					moreEpoch = false;
 				}
 
 				optimizer.zero_grad();
