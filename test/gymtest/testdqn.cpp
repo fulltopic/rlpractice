@@ -1864,7 +1864,8 @@ void logConfigure(bool err) {
 int main(int argc, char** argv) {
 	logConfigure(false);
 
-	test201(atoi(argv[1]));
+	test0(atoi(argv[1]));
+//	test201(atoi(argv[1]));
 //	test124(atoi(argv[1]));
 //	testPong(atoi(argv[1]));
 //	testBreakout(atoi(argv[1]));

@@ -64,7 +64,7 @@ void LmdbRb::put(std::vector<float> state, std::vector<float> nextState,
 		char* doneChars = reinterpret_cast<char*>(&isDone);
 		value += std::string(doneChars, sizeof(int));
 
-		trans->Put(key, value);
+		trans->Put(key, std::move(value));
 	}
 
 	trans->Commit();
