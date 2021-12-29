@@ -33,6 +33,7 @@ private:
 
 	int testEpCount = 0;
 
+	//Gym server failed to reset by reset()
 	std::vector<float> statRewards; //(dqnOption.testBatch, 0);
 	std::vector<float> statLens; //(dqnOption.testBatch, 0);
 	std::vector<float> sumRewards; //(dqnOption.testBatch, 0);
@@ -43,11 +44,14 @@ private:
 
 public:
 	AlgTester(NetType& iNet, EnvType& iEnv, PolicyType& iPolicy, const DqnOption& option);
+	AlgTester(NetType& iNet, EnvType& iEnv, PolicyType& iPolicy, const DqnOption& option, TensorBoardLogger& tensorLogger);
 	~AlgTester() = default;
 	AlgTester(const AlgTester&) = delete;
 	AlgTester operator=(const AlgTester&) = delete;
 
 	void test();
+
+	void testPlain();
 };
 
 template<typename NetType, typename EnvType, typename PolicyType>
@@ -57,6 +61,23 @@ AlgTester<NetType, EnvType, PolicyType>::AlgTester(NetType& iNet, EnvType& iEnv,
 	policy(iPolicy),
 	dqnOption(option),
 	tLogger(option.tensorboardLogPath.c_str())
+{
+	statRewards = std::vector<float>(dqnOption.testBatch, 0);
+	statLens = std::vector<float>(dqnOption.testBatch, 0);
+	sumRewards = std::vector<float>(dqnOption.testBatch, 0);
+	sumLens = std::vector<float>(dqnOption.testBatch, 0);
+	liveCounts = std::vector<int>(dqnOption.testBatch, 0);
+	noReward = std::vector<int>(dqnOption.testBatch, 0);
+	randomStep = std::vector<int>(dqnOption.testBatch, 0);
+}
+
+template<typename NetType, typename EnvType, typename PolicyType>
+AlgTester<NetType, EnvType, PolicyType>::AlgTester(NetType& iNet, EnvType& iEnv, PolicyType& iPolicy, const DqnOption& option, TensorBoardLogger& tensorLogger):
+	net(iNet),
+	testEnv(iEnv),
+	policy(iPolicy),
+	dqnOption(option),
+	tLogger(tensorLogger)
 {
 	statRewards = std::vector<float>(dqnOption.testBatch, 0);
 	statLens = std::vector<float>(dqnOption.testBatch, 0);
@@ -79,7 +100,7 @@ void AlgTester<NetType, EnvType, PolicyType>::test() {
 	torch::NoGradGuard guard;
 	std::vector<float> states = testEnv.reset();
 	while (epCount < dqnOption.testEp) {
-		torch::Tensor stateTensor = torch::from_blob(states.data(), dqnOption.inputShape).div(dqnOption.inputScale).to(dqnOption.deviceType);
+		torch::Tensor stateTensor = torch::from_blob(states.data(), dqnOption.testInputShape).div(dqnOption.inputScale).to(dqnOption.deviceType);
 
 		std::vector<torch::Tensor> rc = net.forward(stateTensor);
 		auto actionOutput = rc[0];
@@ -153,5 +174,82 @@ void AlgTester<NetType, EnvType, PolicyType>::test() {
 	}
 }
 
+//TODO: summarize them by template condition
+template<typename NetType, typename EnvType, typename PolicyType>
+void AlgTester<NetType, EnvType, PolicyType>::testPlain() {
+	int epCount = 0;
 
+	torch::NoGradGuard guard;
+	std::vector<float> states = testEnv.reset();
+	while (epCount < dqnOption.testEp) {
+		torch::Tensor stateTensor = torch::from_blob(states.data(), dqnOption.testInputShape).div(dqnOption.inputScale).to(dqnOption.deviceType);
+
+		torch::Tensor actionOutput = net.forward(stateTensor);
+		std::vector<int64_t> actions = policy.getTestActions(actionOutput);
+
+		if (dqnOption.randomHang) {
+			for (int i = 0; i < dqnOption.testBatch; i ++) {
+				if (noReward[i] >= dqnOption.hangNumTh) {
+					actions[i] = torch::rand({1}).item<float>() * dqnOption.testOutput;
+					LOG4CXX_INFO(logger, "random action for " << i << ": " << actions[i]);
+					randomStep[i] ++;
+					if (randomStep[i] > dqnOption.randomStep) {
+						randomStep[i] = 0;
+						noReward[i] = 0;
+					}
+				}
+			}
+		}
+		auto stepResult = testEnv.step(actions, false);
+		auto nextStateVec = std::get<0>(stepResult);
+		auto rewardVec = std::get<1>(stepResult);
+		auto doneVec = std::get<2>(stepResult);
+
+		Stats::UpdateReward(statRewards, rewardVec);
+		Stats::UpdateLen(statLens);
+
+		for (int i = 0; i < dqnOption.testBatch; i ++) {
+			if (doneVec[i]) {
+				LOG4CXX_DEBUG(logger, "testEnv " << i << "done");
+//				auto resetResult = env.reset(i);
+				//udpate nextstatevec, target mask
+//				std::copy(resetResult.begin(), resetResult.end(), nextStateVec.begin() + (offset * i));
+				epCount ++;
+				testEpCount ++;
+
+				sumRewards[i] += statRewards[i];
+				sumLens[i] += statLens[i];
+
+				LOG4CXX_INFO(logger, "test -----------> "<< i << " " << statLens[i] << ", " << statRewards[i]);
+				tLogger.add_scalar("test/len", testEpCount, statLens[i]);
+				tLogger.add_scalar("test/reward", testEpCount, statRewards[i]);
+//				testStater.update(statLens[i], statRewards[i]);
+				statLens[i] = 0;
+				statRewards[i] = 0;
+//				stater.printCurStat();
+
+				liveCounts[i] ++;
+				if (liveCounts[i] >= dqnOption.donePerEp) {
+					LOG4CXX_INFO(logger, "TEST Wrapper episode " << i << " ----------------------------> " << sumRewards[i]);
+//					sumStater.update(sumLens[i], sumRewards[i]);
+					tLogger.add_scalar("test/sumlen", testEpCount, sumLens[i]);
+					tLogger.add_scalar("test/sumreward", testEpCount, sumRewards[i]);
+					liveCounts[i] = 0;
+					sumRewards[i] = 0;
+					sumLens[i] = 0;
+				}
+
+			}
+
+			if (dqnOption.randomHang) {
+			//Good action should have reward
+				if (rewardVec[i] < dqnOption.hangRewardTh) { //for float compare
+					noReward[i] ++;
+				}
+			}
+		}
+		states = nextStateVec;
+	}
+
+}
 #endif /* INC_ALG_ALGTESTER_HPP_ */

@@ -87,7 +87,7 @@ target_link_libraries(testdqn ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard
 
 add_executable(testdoubledqn testdoubledqn.cpp ${COMMON_TRAIN_OBJS} $<TARGET_OBJECTS:probeenvs>)
 target_compile_features(testdoubledqn PUBLIC cxx_range_for)
-target_link_libraries(testdoubledqn ${shared_libs} ${pytorch_cpp_rl_lib})
+target_link_libraries(testdoubledqn ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
 
 add_executable(testdueldqn testdueldqn.cpp ${COMMON_TRAIN_OBJS} $<TARGET_OBJECTS:probeenvs>)
 target_compile_features(testdueldqn PUBLIC cxx_range_for)
@@ -127,6 +127,6 @@ add_executable(testa3c testa3c.cpp ${COMMON_TRAIN_OBJS} $<TARGET_OBJECTS:probeen
 target_compile_features(testa3c PUBLIC cxx_range_for)
 target_link_libraries(testa3c ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
 
-add_executable(testappo testappo.cpp ${COMMON_TRAIN_OBJS} $<TARGET_OBJECTS:probeenvs> $<TARGET_OBJECTS:a3c> $<TARGET_OBJECTS:algappo>)
+add_executable(testappo testappo.cpp ${COMMON_TRAIN_OBJS} $<TARGET_OBJECTS:probeenvs> $<TARGET_OBJECTS:a3c> )
 target_compile_features(testappo PUBLIC cxx_range_for)
 target_link_libraries(testappo ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})

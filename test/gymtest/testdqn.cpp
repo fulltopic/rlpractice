@@ -169,14 +169,15 @@ void testPong(const int epochNum) {
 	const std::string envName = "PongNoFrameskip-v4";
 	const int outputNum = 6;
 	const int clientNum = 1;
+	const int testClientNum = 4;
 	std::string serverAddr = "tcp://127.0.0.1:10201";
 	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
 	AirEnv env(serverAddr, envName, clientNum);
 	env.init();
 	std::string targetServerAddr = "tcp://127.0.0.1:10202";
 	LOG4CXX_DEBUG(logger, "To connect to " << targetServerAddr);
-	AirEnv targetEnv(targetServerAddr, envName, clientNum);
-	targetEnv.init();
+	AirEnv testEnv(targetServerAddr, envName, testClientNum);
+	testEnv.init();
 	LOG4CXX_INFO(logger, "Env " << envName << " ready");
 
 	AirCnnNet model(outputNum);
@@ -218,7 +219,8 @@ void testPong(const int epochNum) {
     //test
     option.toTest =  true;
     option.testGapEp = 10000;
-    option.testBatch = 4;
+    option.testBatch = testClientNum;
+    option.testEp = testClientNum;
     //model
     option.saveModel = false;
     option.savePathPrefix = "./dqn_test1";
@@ -228,7 +230,7 @@ void testPong(const int epochNum) {
 
     RawPolicy policy(option.exploreBegin, outputNum);
 
-    DqnZip<AirCnnNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, targetEnv, policy, optimizer, option);
+    DqnZip<AirCnnNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
 
     dqn.train(epochNum);
 }
@@ -388,9 +390,9 @@ void logConfigure(bool err) {
 int main(int argc, char** argv) {
 	logConfigure(false);
 
-//	testPong(atoi(argv[1]));
+	testPong(atoi(argv[1]));
 //	testBreakout(atoi(argv[1]));
-	testProbe(atoi(argv[1]));
+//	testProbe(atoi(argv[1]));
 
 
 

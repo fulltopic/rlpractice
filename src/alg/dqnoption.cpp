@@ -11,6 +11,7 @@
 
 DqnOption::DqnOption(at::IntArrayRef iShape, torch::Device dType, int cap, float gm, std::string path, int tUpdate):
 	inputShape(iShape),
+	testInputShape(inputShape), //TODO
 	deviceType(dType),
 	rbCap(cap),
 	gamma(gm),
@@ -22,3 +23,10 @@ DqnOption::DqnOption(at::IntArrayRef iShape, torch::Device dType, int cap, float
 	}
 }
 
+DqnOption::DqnOption(at::IntArrayRef iShape, at::IntArrayRef tShape, torch::Device dType):
+		inputShape(iShape),
+		testInputShape(tShape), //TODO
+		deviceType(dType)
+{
+
+}

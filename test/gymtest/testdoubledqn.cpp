@@ -42,10 +42,16 @@ void testCart(const int epochNum) {
 	const int clientNum = 1; //8
 	const int outputNum = 2;
 	const int inputNum = 4;
-	std::string serverAddr = "tcp://127.0.0.1:10207";
+	const int testClientNum = 4;
+
+	std::string serverAddr = "tcp://127.0.0.1:10201";
 	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
 	LunarEnv env(serverAddr, envName, clientNum);
 	env.init();
+	std::string testServerAddr = "tcp://127.0.0.1:10202";
+	LOG4CXX_DEBUG(logger, "To connect to " << testServerAddr);
+	LunarEnv testEnv(testServerAddr, envName, testClientNum);
+	testEnv.init();
 	LOG4CXX_INFO(logger, "Env " << envName << " ready");
 
 	CartFcQNet model(inputNum, outputNum);
@@ -59,7 +65,9 @@ void testCart(const int epochNum) {
     LOG4CXX_INFO(logger, "Model ready");
 
     at::IntArrayRef inputShape{clientNum, 4};
-    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    at::IntArrayRef testInputShape {testClientNum, 4};
+
+    DqnOption option(inputShape, testInputShape, deviceType);
     option.envNum = clientNum;
     //target model
     option.targetUpdateStep = 10000;
@@ -81,8 +89,13 @@ void testCart(const int epochNum) {
     option.startStep = 1000;
     option.maxGradNormClip = 1;
     //log
-    option.statCap = 128;
-    option.statPathPrefix = "./dqn_testcart";
+    option.logInterval = 100;
+    option.tensorboardLogPath = "./logs/doubledqn_testcart/tfevents.pb";
+    //test
+    option.toTest = true;
+    option.testGapEp = 1000;
+    option.testBatch = testClientNum;
+    option.testEp = testClientNum;
     //model
     option.saveModel = false;
     option.savePathPrefix = "./dqn_testcart";
@@ -92,7 +105,7 @@ void testCart(const int epochNum) {
 
     RawPolicy policy(option.exploreBegin, outputNum);
 
-    DoubleDqn<CartFcQNet, LunarEnv, RawPolicy, torch::optim::RMSprop> dqn(model, targetModel, env, env, policy, optimizer, option);
+    DoubleDqn<CartFcQNet, LunarEnv, RawPolicy, torch::optim::RMSprop> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
 
     dqn.train(epochNum);
 }
@@ -217,14 +230,20 @@ void testProbe(const int epochNum) {
     dqn.train(epochNum);
 }
 
-void testPong0(const int epochNum) {
+void testPong(const int epochNum) {
 	const std::string envName = "PongNoFrameskip-v4";
 	const int outputNum = 6;
 	const int clientNum = 1;
-	std::string serverAddr = "tcp://127.0.0.1:10205";
+	const int testClientNum = 4;
+
+	std::string serverAddr = "tcp://127.0.0.1:10201";
 	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
 	AirEnv env(serverAddr, envName, clientNum);
 	env.init();
+	std::string testServerAddr = "tcp://127.0.0.1:10202";
+	LOG4CXX_DEBUG(logger, "To connect to " << testServerAddr);
+	AirEnv testEnv(testServerAddr, envName, testClientNum);
+	testEnv.init();
 	LOG4CXX_INFO(logger, "Env " << envName << " ready");
 
 	AirCnnNet model(outputNum);
@@ -234,40 +253,47 @@ void testPong0(const int epochNum) {
 
 //    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-3)); //rmsprop: 0.00025
 //    torch::optim::RMSprop optimizer(model.parameters(), torch::optim::RMSpropOptions(0.0001).eps(0.01).alpha(0.95));
-    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-3));
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(3e-4));
 //	torch::optim::RMSprop optimizer(model.parameters());
     LOG4CXX_INFO(logger, "Model ready");
 
     at::IntArrayRef inputShape{clientNum, 4, 84, 84};
-    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    at::IntArrayRef testInputShape{testClientNum, 4, 84, 84};
+    DqnOption option(inputShape, testInputShape, deviceType);
     option.envNum = clientNum;
     //target model
-    option.targetUpdateStep = 1000;
+    option.targetUpdateStep = 2000;
     option.tau = 1;
     //buffer
-    option.rbCap = 10240;
+    option.rbCap = 300000;
     //explore
-    option.exploreBegin = 1;
+    option.exploreBegin = 0.5;
     option.exploreEnd = 0.01;
     option.explorePart = 0.8;
     //input
-    option.inputScale = 256;
+    option.inputScale = 255;
     option.rewardScale = 1;
     option.rewardMin = -1; //TODO: reward may not require clip
     option.rewardMax = 1;
     option.gamma = 0.99;
+    //output
+    option.multiLifes = false;
     //grad
     option.batchSize = 32;
     option.startStep = 1000;
     option.maxGradNormClip = 1;
     //log
-    option.logInterval = 1000;
-    option.statCap = 128;
-    option.statPathPrefix = "./doubledqn_testpong0";
+    option.logInterval = 100;
+    option.tensorboardLogPath = "./logs/doubledqn_testpong/tfevents.pb";
+    //test
+    option.toTest = true;
+    option.testGapEp = 5000;
+    option.testBatch = testClientNum;
+    option.testEp = testClientNum;
     //model
     option.saveThreshold = -20;
     option.saveStep = 1;
-    option.saveModel = true;
+    option.saveModel = false;
     option.savePathPrefix = "./doubledqn_testpong0";
     option.loadModel = false;
     option.loadOptimizer = false;
@@ -275,7 +301,7 @@ void testPong0(const int epochNum) {
 
     RawPolicy policy(option.exploreBegin, outputNum);
 
-    DoubleDqn<AirCnnNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, env, policy, optimizer, option);
+    DoubleDqn<AirCnnNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
 
     dqn.train(epochNum);
 }
@@ -945,14 +971,14 @@ int main(int argc, char** argv) {
 
 //	testtestCart(atoi(argv[1]));
 //	test103(atoi(argv[1]));
-//	testPong(atoi(argv[1]));
+	testPong(atoi(argv[1]));
 //	testBreakout(atoi(argv[1]));
 
 //	testCart(atoi(argv[1]));
 //	testProbe(atoi(argv[1]));
 //	testPong9(atoi(argv[1]));
 
-	testtestPong(atoi(argv[1]));
+//	testtestPong(atoi(argv[1]));
 
 	LOG4CXX_INFO(logger, "End of test");
 }

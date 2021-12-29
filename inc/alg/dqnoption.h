@@ -14,6 +14,8 @@
 class DqnOption {
 public:
 	const at::IntArrayRef inputShape;
+	const at::IntArrayRef testInputShape;
+
 	float gamma;
 	torch::Device deviceType;
 	int totalStep = 128;
@@ -139,6 +141,7 @@ public:
 	int epochPerUpdate = 1;
 
 	DqnOption(at::IntArrayRef iShape, torch::Device dType = torch::kCPU, int cap = 128, float gm = 0.99, std::string path = "./stat.txt", int tUpdate = 128);
+	DqnOption(at::IntArrayRef iShape, at::IntArrayRef tShape, torch::Device dType = torch::kCPU);
 	~DqnOption() = default;
 };
 

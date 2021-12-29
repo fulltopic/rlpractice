@@ -22,10 +22,10 @@
 
 #include "gymtest/env/envutils.h"
 #include "gymtest/utils/stats.h"
-#include "gymtest/utils/lossstats.h"
 #include "dqnoption.h"
 
 #include "utils/utils.hpp"
+#include "utils/replaybuffer.h"
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
 class DqnZip {
@@ -44,11 +44,13 @@ private:
 	uint32_t updateNum = 0;
 	float maxTestReward = -1000;
 
-	std::vector<float> statRewards = std::vector<float>(dqnOption.testBatch, 0);
-	std::vector<float> statLens = std::vector<float>(dqnOption.testBatch, 0);
-	std::vector<float> statEpRewards = std::vector<float>(dqnOption.testBatch, 0);
-	std::vector<float> statEpLens = std::vector<float>(dqnOption.testBatch, 0);
-	std::vector<int> livePerEp = std::vector<int>(dqnOption.testBatch, 0);
+	//Gym server failed to reset by reset()
+	std::vector<float> testRewards;
+	std::vector<float> testLens;
+	std::vector<float> testEpRewards;
+	std::vector<float> testEpLens;
+	std::vector<int> testLivePerEp;
+
 	int totalTestLive = 0;
 	int totalTestEp = 0;
 
@@ -56,33 +58,6 @@ private:
 	log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("dqn");
 
 	TensorBoardLogger tLogger;
-
-
-	class ReplayBuffer {
-	private:
-		int curIndex = 0;
-		int curSize = 0;
-		const int cap;
-
-		const torch::TensorOptions longOpt = torch::TensorOptions().dtype(torch::kLong);
-		const torch::TensorOptions byteOpt = torch::TensorOptions().dtype(torch::kByte);
-		const torch::TensorOptions charOpt = torch::TensorOptions().dtype(torch::kChar);
-
-		log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("dqn");
-
-	public:
-		ReplayBuffer (const int iCap, const at::IntArrayRef& inputShape);
-		~ReplayBuffer() = default;
-		ReplayBuffer(const ReplayBuffer&) = delete;
-
-		torch::Tensor states;
-		torch::Tensor actions;
-		torch::Tensor rewards;
-		torch::Tensor donesMask;
-
-		void add(torch::Tensor state, torch::Tensor nextState, int action, float reward, float done);
-		torch::Tensor getSampleIndex(int batchSize);
-	};
 
 	ReplayBuffer buffer; //buffer has to be defined after dqnOption so ReplayBuffer can get all parameters of dqnOption.
 
@@ -102,56 +77,6 @@ public:
 };
 
 
-
-template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-DqnZip<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::ReplayBuffer(const int iCap, const at::IntArrayRef& inputShape): cap(iCap) {
-	std::vector<int64_t> stateInputShape;
-	stateInputShape.push_back(cap);
-	//input state shape = {1, 4, 84, 84};
-	for (int i = 1; i < inputShape.size(); i ++) {
-		stateInputShape.push_back(inputShape[i]);
-	}
-	at::IntArrayRef outputShape{ReplayBuffer::cap, 1};
-
-	states = torch::zeros(stateInputShape, byteOpt);
-	actions = torch::zeros(outputShape, byteOpt);
-	rewards = torch::zeros(outputShape);
-	donesMask = torch::zeros(outputShape, byteOpt);
-
-	LOG4CXX_DEBUG(logger, "Replay buffer ready");
-}
-
-template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::add(
-		torch::Tensor state, torch::Tensor nextState, int action, float reward, float done) {
-		int nextIndex = (curIndex + 1) % cap;
-
-		torch::Tensor inputState = state.to(torch::kByte);
-		torch::Tensor inputNextState = nextState.to(torch::kByte);
-
-		states[curIndex].copy_(inputState.squeeze());
-		states[nextIndex].copy_(inputNextState.squeeze()); //TODO: Optimize
-		actions[curIndex][0] = action;
-		rewards[curIndex][0] = reward;
-		donesMask[curIndex][0] = done;
-		LOG4CXX_DEBUG(logger, "states after copy: " << states[curIndex]);
-
-		curIndex = nextIndex;
-		if (curSize < cap) {
-			curSize ++;
-		}
-}
-
-template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-torch::Tensor DqnZip<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::getSampleIndex(int batchSize) {
-	torch::Tensor indices = torch::randint(0, curSize - 1, {batchSize}, longOpt);
-
-	indices = (indices + (curIndex + 1)) % curSize; //No curIndex involved as its next not match
-
-	return indices;
-}
-
-
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
 DqnZip<NetType, EnvType, PolicyType, OptimizerType>::DqnZip(NetType& iModel, NetType& iTModel,
 		EnvType& iEnv, EnvType& tEnv, PolicyType& iPolicy, OptimizerType& iOptimizer,
@@ -169,6 +94,12 @@ DqnZip<NetType, EnvType, PolicyType, OptimizerType>::DqnZip(NetType& iModel, Net
 	tLogger(iOption.tensorboardLogPath.c_str())
 {
 	maxTestReward = iOption.saveThreshold;
+
+	testRewards = std::vector<float>(dqnOption.testBatch, 0);
+	testLens = std::vector<float>(dqnOption.testBatch, 0);
+	testEpRewards = std::vector<float>(dqnOption.testBatch, 0);
+	testEpLens = std::vector<float>(dqnOption.testBatch, 0);
+	testLivePerEp = std::vector<int>(dqnOption.testBatch, 0);
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
@@ -212,7 +143,7 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::train(const int epochN
 
 			torch::Tensor nextInputTensor = torch::from_blob(nextInputVec.data(), inputShape); //.div(dqnOption.inputScale);
 			float reward = std::max(std::min((rewardVec[0] * dqnOption.rewardScale), dqnOption.rewardMax), dqnOption.rewardMin);
-			buffer.add(cpuinputTensor, nextInputTensor, actions[0], rewardVec[0], doneMask);
+			buffer.add(cpuinputTensor, nextInputTensor, actions[0], reward, doneMask);
 
 			//Update
 			stateVec = nextInputVec;
@@ -301,32 +232,6 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::updateModel(bool force
 	}
 
 	AlgUtils::SyncNet(bModel, tModel, dqnOption.tau);
-
-//	torch::NoGradGuard guard;
-//
-//	auto paramDict = bModel.named_parameters();
-//	auto buffDict = bModel.named_buffers();
-//	auto targetParamDict = tModel.named_parameters();
-//	auto targetBuffDict = tModel.named_buffers();
-//
-//	for (const auto& item: paramDict) {
-//		const auto& key = item.key();
-//		const auto param = item.value();
-//		auto& targetParam = targetParamDict[key];
-//
-//		targetParam.mul_(1 - dqnOption.tau);
-//		targetParam.add_(param, dqnOption.tau);
-//	}
-//
-//	for (const auto& item: buffDict) {
-//		const auto& key = item.key();
-//		const auto& buff = item.value();
-//		auto& targetBuff = targetBuffDict[key];
-//
-//		targetBuff.mul_(1 - dqnOption.tau);
-//		targetBuff.add_(buff, dqnOption.tau);
-//	}
-//	LOG4CXX_INFO(logger, "target network synched");
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
@@ -346,7 +251,7 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::test(const int epochNu
 		load();
 		updateModel();
 	}
-	tModel.eval();
+	torch::NoGradGuard guard;
 
 
 	std::vector<long> testShapeData;
@@ -373,36 +278,36 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::test(const int epochNu
 		auto doneVec = std::get<2>(stepResult);
 		LOG4CXX_DEBUG(logger, "rewardVec: " << rewardVec);
 
-		Stats::UpdateReward(statRewards, rewardVec);
-		Stats::UpdateLen(statLens);
-		Stats::UpdateReward(statEpRewards, rewardVec);
-		Stats::UpdateLen(statEpLens);
+		Stats::UpdateReward(testRewards, rewardVec);
+		Stats::UpdateLen(testLens);
+		Stats::UpdateReward(testEpRewards, rewardVec);
+		Stats::UpdateLen(testEpLens);
 
 		for (int i = 0; i < dqnOption.testBatch; i ++) {
 			if (doneVec[i]) {
 
 				totalTestLive ++;
-				LOG4CXX_INFO(logger, "ep" << totalTestLive << ": " << statRewards[i] << ", " << statLens[i]);
-				tLogger.add_scalar("test/len", totalTestLive, statLens[i]);
-				tLogger.add_scalar("test/reward", totalTestLive, statRewards[i]);
-				statRewards[i] = 0;
-				statLens[i] = 0;
+				LOG4CXX_INFO(logger, "ep" << totalTestLive << ": " << testRewards[i] << ", " << testLens[i]);
+				tLogger.add_scalar("test/len", totalTestLive, testLens[i]);
+				tLogger.add_scalar("test/reward", totalTestLive, testRewards[i]);
+				testRewards[i] = 0;
+				testLens[i] = 0;
 
 //				epUpdate ++;
-				livePerEp[i] ++;
+				testLivePerEp[i] ++;
 				if (dqnOption.multiLifes) {
-					if (livePerEp[i] == dqnOption.livePerEpisode) {
+					if (testLivePerEp[i] == dqnOption.livePerEpisode) {
 						epUpdate ++;
 						totalTestEp ++;
-						totalLen += statEpLens[i];
-						totalReward += statEpRewards[i];
+						totalLen += testEpLens[i];
+						totalReward += testEpRewards[i];
 
-						tLogger.add_scalar("test/totalreward", totalTestEp, statEpRewards[i]);
-						tLogger.add_scalar("test/totallen", totalTestEp, statEpLens[i]);
+						tLogger.add_scalar("test/totalreward", totalTestEp, testEpRewards[i]);
+						tLogger.add_scalar("test/totallen", totalTestEp, testEpLens[i]);
 
-						statEpRewards[i] = 0;
-						statEpLens[i] = 0;
-						livePerEp[i] = 0;
+						testEpRewards[i] = 0;
+						testEpLens[i] = 0;
+						testLivePerEp[i] = 0;
 					}
 				} else {
 					epUpdate ++;
@@ -433,18 +338,6 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::save() {
 	}
 
 	AlgUtils::SaveModel(bModel, optimizer, dqnOption.savePathPrefix, logger);
-
-//	std::string modelPath = dqnOption.savePathPrefix + "_model.pt";
-//	torch::serialize::OutputArchive outputArchive;
-//	bModel.save(outputArchive);
-//	outputArchive.save_to(modelPath);
-//	LOG4CXX_INFO(logger, "Save model into " << modelPath);
-//
-//	std::string optPath = dqnOption.savePathPrefix + "_optimizer.pt";
-//	torch::serialize::OutputArchive optimizerArchive;
-//	optimizer.save(optimizerArchive);
-//	optimizerArchive.save_to(optPath);
-//	LOG4CXX_INFO(logger, "Save optimizer into " << optPath);
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
@@ -455,19 +348,6 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::saveTModel(float rewar
 
 	std::string path = dqnOption.savePathPrefix + "_" + std::to_string(reward);
 	AlgUtils::SaveModel(tModel, optimizer, path, logger);
-
-//
-//	std::string modelPath = dqnOption.savePathPrefix + "_" + std::to_string(reward) + "_model" + ".pt";
-//	torch::serialize::OutputArchive outputArchive;
-//	tModel.save(outputArchive);
-//	outputArchive.save_to(modelPath);
-//	LOG4CXX_INFO(logger, "Save model into " << modelPath);
-//
-//	std::string optPath = dqnOption.savePathPrefix + "_" + std::to_string(reward) + "_optimizer" + ".pt";
-//	torch::serialize::OutputArchive optimizerArchive;
-//	optimizer.save(optimizerArchive);
-//	optimizerArchive.save_to(optPath);
-//	LOG4CXX_INFO(logger, "Save optimizer into " << optPath);
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
@@ -477,22 +357,6 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::load() {
 	}
 
 	AlgUtils::LoadModel(bModel, optimizer, dqnOption.loadOptimizer, dqnOption.loadPathPrefix, logger);
-
-//	std::string modelPath = dqnOption.loadPathPrefix + "_model.pt";
-//	torch::serialize::InputArchive inChive;
-//	inChive.load_from(modelPath);
-//	bModel.load(inChive);
-//	LOG4CXX_INFO(logger, "Load model from " << modelPath);
-//
-//
-//	if (dqnOption.loadOptimizer) {
-//		std::string optPath = dqnOption.loadPathPrefix + "_optimizer.pt";
-//		torch::serialize::InputArchive opInChive;
-//		opInChive.load_from(optPath);
-//		optimizer.load(opInChive);
-//		LOG4CXX_INFO(logger, "Load optimizer from " << optPath);
-//	}
-
 }
 
 

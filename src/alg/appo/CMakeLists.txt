@@ -1,3 +1,3 @@
-add_library(algappo OBJECT 
-								appodataq.cpp
-							)
+#add_library(algappo OBJECT 
+#								appodataq.cpp
+#							)
