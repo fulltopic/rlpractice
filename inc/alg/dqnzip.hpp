@@ -25,6 +25,8 @@
 #include "gymtest/utils/lossstats.h"
 #include "dqnoption.h"
 
+#include "utils/utils.hpp"
+
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
 class DqnZip {
 private:
@@ -50,15 +52,9 @@ private:
 	int totalTestLive = 0;
 	int totalTestEp = 0;
 
-//	const int actionNum;
-//	std::vector<int64_t> indice;
-
 	const torch::TensorOptions longOpt = torch::TensorOptions().dtype(torch::kLong);
 	log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("dqn");
 
-//	Stats stater;
-//	Stats testStater;
-//	LossStats lossStater;
 	TensorBoardLogger tLogger;
 
 
@@ -84,7 +80,6 @@ private:
 		torch::Tensor rewards;
 		torch::Tensor donesMask;
 
-		//Store states and rewards after normalization
 		void add(torch::Tensor state, torch::Tensor nextState, int action, float reward, float done);
 		torch::Tensor getSampleIndex(int batchSize);
 	};
@@ -119,7 +114,6 @@ DqnZip<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::ReplayBuffer(
 	at::IntArrayRef outputShape{ReplayBuffer::cap, 1};
 
 	states = torch::zeros(stateInputShape, byteOpt);
-//	states = torch::zeros(stateInputShape);
 	actions = torch::zeros(outputShape, byteOpt);
 	rewards = torch::zeros(outputShape);
 	donesMask = torch::zeros(outputShape, byteOpt);
@@ -134,20 +128,6 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::ReplayBuffer::add(
 
 		torch::Tensor inputState = state.to(torch::kByte);
 		torch::Tensor inputNextState = nextState.to(torch::kByte);
-	//	auto inputState = state;
-	//	auto inputNextState = nextState;
-
-//		{
-//			//For log
-//			inputState = inputState.reshape_as(states[curIndex]);
-//			bool isSame = states[curIndex].equal(inputState);
-//			LOG4CXX_DEBUG(logger, curIndex << ": The state same? " << isSame);
-//			if (!isSame) {
-//				LOG4CXX_ERROR(logger, "curState: " << states[curIndex]);
-//				LOG4CXX_ERROR(logger, "inputState: " << inputState);
-//				LOG4CXX_ERROR(logger, "nextState: " << inputNextState);
-//			}
-//		}
 
 		states[curIndex].copy_(inputState.squeeze());
 		states[nextIndex].copy_(inputNextState.squeeze()); //TODO: Optimize
@@ -186,9 +166,6 @@ DqnZip<NetType, EnvType, PolicyType, OptimizerType>::DqnZip(NetType& iModel, Net
 	deviceType(iOption.deviceType),
 	inputShape(iOption.inputShape),
 	buffer(iOption.rbCap, iOption.inputShape),
-//	stater(iOption.statPathPrefix + "_stat.txt", iOption.statCap),
-//	testStater(iOption.statPathPrefix + "_test.txt", iOption.testEp),
-//	lossStater(iOption.statPathPrefix + "_loss.txt")
 	tLogger(iOption.tensorboardLogPath.c_str())
 {
 	maxTestReward = iOption.saveThreshold;
@@ -213,7 +190,7 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::train(const int epochN
 			torch::Tensor cpuinputTensor = torch::from_blob(stateVec.data(), inputShape);
 			torch::Tensor inputTensor = cpuinputTensor.to(deviceType).div(dqnOption.inputScale);
 
-			torch::Tensor outputTensor = bModel.forward(inputTensor); //TODO: bModel or tModel?
+			torch::Tensor outputTensor = bModel.forward(inputTensor);
 			std::vector<int64_t> actions = policy.getActions(outputTensor);
 
 			auto stepResult = env.step(actions);
@@ -228,7 +205,6 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::train(const int epochN
 				tLogger.add_scalar("train/reward", updateNum, statRewards[0]);
 				tLogger.add_scalar("train/len", updateNum, statLens[0]);
 				LOG4CXX_INFO(logger, "" << policy.getEpsilon() << "--" << updateNum << ": " << statLens[0] << ", " << statRewards[0]);
-//				stater.update(statLens[0], statRewards[0]);
 				doneMask = 0;
 				statRewards[0] = 0;
 				statLens[0] = 0;
@@ -280,7 +256,7 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::train(const int epochN
 			torch::Tensor nextOutput = tModel.forward(nextStateTensor).detach();
 			LOG4CXX_DEBUG(logger, "nextOutput: " << nextOutput);
 			auto maxOutput = nextOutput.max(-1);
-			torch::Tensor nextQ = std::get<0>(maxOutput); //TODO: pay attention to shape
+			torch::Tensor nextQ = std::get<0>(maxOutput); //pay attention to shape
 			nextQ = nextQ.unsqueeze(1);
 			LOG4CXX_DEBUG(logger, "nextQ: " << nextQ);
 			LOG4CXX_DEBUG(logger, "rewardTensor: " << rewardTensor);
@@ -292,7 +268,7 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::train(const int epochN
 
 		torch::Tensor curOutput = bModel.forward(curStateTensor);
 		LOG4CXX_DEBUG(logger, "curOutput: " << curOutput);
-		torch::Tensor curQ = curOutput.gather(-1, actionTensor); //TODO: shape of actionTensor and curQ
+		torch::Tensor curQ = curOutput.gather(-1, actionTensor); //shape of actionTensor and curQ
 		LOG4CXX_DEBUG(logger, "curQ: " << curQ);
 
 		auto loss = torch::nn::functional::smooth_l1_loss(curQ, targetQ);
@@ -305,8 +281,6 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::train(const int epochN
 			tLogger.add_scalar("loss/loss", updateNum, lossValue);
 			tLogger.add_scalar("loss/qValue", updateNum, qValue);
 			tLogger.add_scalar("loss/epsilon", updateNum, policy.getEpsilon());
-//			auto curStat = stater.getCurState();
-//			lossStater.update({(float)updateNum, lossValue, curStat[0], curStat[1]});
 		}
 
 		optimizer.zero_grad();
@@ -326,32 +300,33 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::updateModel(bool force
 		}
 	}
 
-	torch::NoGradGuard guard;
+	AlgUtils::SyncNet(bModel, tModel, dqnOption.tau);
 
-	auto paramDict = bModel.named_parameters();
-	auto buffDict = bModel.named_buffers();
-	auto targetParamDict = tModel.named_parameters();
-	auto targetBuffDict = tModel.named_buffers();
-
-	for (const auto& item: paramDict) {
-		const auto& key = item.key();
-		const auto param = item.value();
-		auto& targetParam = targetParamDict[key];
-
-		targetParam.mul_(1 - dqnOption.tau);
-		targetParam.add_(param, dqnOption.tau);
-	}
-
-	for (const auto& item: buffDict) {
-		const auto& key = item.key();
-		const auto& buff = item.value();
-		auto& targetBuff = targetBuffDict[key];
-
-		//TODO: should mul_ instead of mul?
-		targetBuff.mul(1 - dqnOption.tau);
-		targetBuff.add_(buff, dqnOption.tau);
-	}
-	LOG4CXX_INFO(logger, "target network synched");
+//	torch::NoGradGuard guard;
+//
+//	auto paramDict = bModel.named_parameters();
+//	auto buffDict = bModel.named_buffers();
+//	auto targetParamDict = tModel.named_parameters();
+//	auto targetBuffDict = tModel.named_buffers();
+//
+//	for (const auto& item: paramDict) {
+//		const auto& key = item.key();
+//		const auto param = item.value();
+//		auto& targetParam = targetParamDict[key];
+//
+//		targetParam.mul_(1 - dqnOption.tau);
+//		targetParam.add_(param, dqnOption.tau);
+//	}
+//
+//	for (const auto& item: buffDict) {
+//		const auto& key = item.key();
+//		const auto& buff = item.value();
+//		auto& targetBuff = targetBuffDict[key];
+//
+//		targetBuff.mul_(1 - dqnOption.tau);
+//		targetBuff.add_(buff, dqnOption.tau);
+//	}
+//	LOG4CXX_INFO(logger, "target network synched");
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
@@ -384,22 +359,19 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::test(const int epochNu
 	int epUpdate = 0;
 	float totalLen = 0;
 	float totalReward = 0;
-//	std::vector<float> statRewards(dqnOption.testBatch, 0);
-//	std::vector<float> statLens(dqnOption.testBatch, 0);
-
 
 	std::vector<float> stateVec = testEnv.reset();
 	while (epUpdate < dqnOption.testEp) {
 		torch::Tensor inputTensor = torch::from_blob(stateVec.data(), testInputShape).div(dqnOption.inputScale).to(deviceType);
 		torch::Tensor outputTensor = tModel.forward(inputTensor);
 		std::vector<int64_t> actions = policy.getTestActions(outputTensor);
-//		LOG4CXX_INFO(logger, "actions: " << actions);
+		LOG4CXX_DEBUG(logger, "actions: " << actions);
 
 		auto stepResult = testEnv.step(actions, render);
 		auto nextInputVec = std::get<0>(stepResult);
 		auto rewardVec = std::get<1>(stepResult);
 		auto doneVec = std::get<2>(stepResult);
-//		LOG4CXX_INFO(logger, "rewardVec: " << rewardVec);
+		LOG4CXX_DEBUG(logger, "rewardVec: " << rewardVec);
 
 		Stats::UpdateReward(statRewards, rewardVec);
 		Stats::UpdateLen(statLens);
@@ -408,27 +380,32 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::test(const int epochNu
 
 		for (int i = 0; i < dqnOption.testBatch; i ++) {
 			if (doneVec[i]) {
-//				testStater.update(statLens[i], statRewards[i]);
 
 				totalTestLive ++;
 				LOG4CXX_INFO(logger, "ep" << totalTestLive << ": " << statRewards[i] << ", " << statLens[i]);
+				tLogger.add_scalar("test/len", totalTestLive, statLens[i]);
+				tLogger.add_scalar("test/reward", totalTestLive, statRewards[i]);
 				statRewards[i] = 0;
 				statLens[i] = 0;
 
 //				epUpdate ++;
 				livePerEp[i] ++;
-				if (livePerEp[i] == dqnOption.livePerEpisode) {
+				if (dqnOption.multiLifes) {
+					if (livePerEp[i] == dqnOption.livePerEpisode) {
+						epUpdate ++;
+						totalTestEp ++;
+						totalLen += statEpLens[i];
+						totalReward += statEpRewards[i];
+
+						tLogger.add_scalar("test/totalreward", totalTestEp, statEpRewards[i]);
+						tLogger.add_scalar("test/totallen", totalTestEp, statEpLens[i]);
+
+						statEpRewards[i] = 0;
+						statEpLens[i] = 0;
+						livePerEp[i] = 0;
+					}
+				} else {
 					epUpdate ++;
-					totalTestEp ++;
-					totalLen += statEpLens[i];
-					totalReward += statEpRewards[i];
-
-					tLogger.add_scalar("test/reward", totalTestEp, statEpRewards[i]);
-					tLogger.add_scalar("test/len", totalTestEp, statEpLens[i]);
-
-					statEpRewards[i] = 0;
-					statEpLens[i] = 0;
-					livePerEp[i] = 0;
 				}
 			}
 		}
@@ -436,12 +413,12 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::test(const int epochNu
 		stateVec = nextInputVec;
 	}
 
-	float aveLen = totalLen / (float)dqnOption.testEp;
-	float aveReward = totalReward / (float)dqnOption.testEp;
-	tLogger.add_scalar("test/ave_reward", updateNum, aveReward);
-	tLogger.add_scalar("test/ave_len", updateNum, aveLen);
+//	float aveLen = totalLen / (float)dqnOption.testEp;
+//	tLogger.add_scalar("test/ave_reward", updateNum, aveReward);
+//	tLogger.add_scalar("test/ave_len", updateNum, aveLen);
 
 	if (dqnOption.saveModel) {
+		float aveReward = totalReward / (float)dqnOption.testEp;
 		if (aveReward > maxTestReward) {
 			maxTestReward = aveReward + dqnOption.saveStep;
 			saveTModel(aveReward);
@@ -455,17 +432,19 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::save() {
 		return;
 	}
 
-	std::string modelPath = dqnOption.savePathPrefix + "_model.pt";
-	torch::serialize::OutputArchive outputArchive;
-	bModel.save(outputArchive);
-	outputArchive.save_to(modelPath);
-	LOG4CXX_INFO(logger, "Save model into " << modelPath);
+	AlgUtils::SaveModel(bModel, optimizer, dqnOption.savePathPrefix, logger);
 
-	std::string optPath = dqnOption.savePathPrefix + "_optimizer.pt";
-	torch::serialize::OutputArchive optimizerArchive;
-	optimizer.save(optimizerArchive);
-	optimizerArchive.save_to(optPath);
-	LOG4CXX_INFO(logger, "Save optimizer into " << optPath);
+//	std::string modelPath = dqnOption.savePathPrefix + "_model.pt";
+//	torch::serialize::OutputArchive outputArchive;
+//	bModel.save(outputArchive);
+//	outputArchive.save_to(modelPath);
+//	LOG4CXX_INFO(logger, "Save model into " << modelPath);
+//
+//	std::string optPath = dqnOption.savePathPrefix + "_optimizer.pt";
+//	torch::serialize::OutputArchive optimizerArchive;
+//	optimizer.save(optimizerArchive);
+//	optimizerArchive.save_to(optPath);
+//	LOG4CXX_INFO(logger, "Save optimizer into " << optPath);
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
@@ -474,17 +453,21 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::saveTModel(float rewar
 		return;
 	}
 
-	std::string modelPath = dqnOption.savePathPrefix + "_" + std::to_string(reward) + "_model" + ".pt";
-	torch::serialize::OutputArchive outputArchive;
-	tModel.save(outputArchive);
-	outputArchive.save_to(modelPath);
-	LOG4CXX_INFO(logger, "Save model into " << modelPath);
+	std::string path = dqnOption.savePathPrefix + "_" + std::to_string(reward);
+	AlgUtils::SaveModel(tModel, optimizer, path, logger);
 
-	std::string optPath = dqnOption.savePathPrefix + "_" + std::to_string(reward) + "_optimizer" + ".pt";
-	torch::serialize::OutputArchive optimizerArchive;
-	optimizer.save(optimizerArchive);
-	optimizerArchive.save_to(optPath);
-	LOG4CXX_INFO(logger, "Save optimizer into " << optPath);
+//
+//	std::string modelPath = dqnOption.savePathPrefix + "_" + std::to_string(reward) + "_model" + ".pt";
+//	torch::serialize::OutputArchive outputArchive;
+//	tModel.save(outputArchive);
+//	outputArchive.save_to(modelPath);
+//	LOG4CXX_INFO(logger, "Save model into " << modelPath);
+//
+//	std::string optPath = dqnOption.savePathPrefix + "_" + std::to_string(reward) + "_optimizer" + ".pt";
+//	torch::serialize::OutputArchive optimizerArchive;
+//	optimizer.save(optimizerArchive);
+//	optimizerArchive.save_to(optPath);
+//	LOG4CXX_INFO(logger, "Save optimizer into " << optPath);
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
@@ -493,21 +476,22 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::load() {
 		return;
 	}
 
-	std::string modelPath = dqnOption.loadPathPrefix + "_model.pt";
-	torch::serialize::InputArchive inChive;
-	inChive.load_from(modelPath);
-	bModel.load(inChive);
-	LOG4CXX_INFO(logger, "Load model from " << modelPath);
+	AlgUtils::LoadModel(bModel, optimizer, dqnOption.loadOptimizer, dqnOption.loadPathPrefix, logger);
 
-//	updateTarget();
-
-	if (dqnOption.loadOptimizer) {
-		std::string optPath = dqnOption.loadPathPrefix + "_optimizer.pt";
-		torch::serialize::InputArchive opInChive;
-		opInChive.load_from(optPath);
-		optimizer.load(opInChive);
-		LOG4CXX_INFO(logger, "Load optimizer from " << optPath);
-	}
+//	std::string modelPath = dqnOption.loadPathPrefix + "_model.pt";
+//	torch::serialize::InputArchive inChive;
+//	inChive.load_from(modelPath);
+//	bModel.load(inChive);
+//	LOG4CXX_INFO(logger, "Load model from " << modelPath);
+//
+//
+//	if (dqnOption.loadOptimizer) {
+//		std::string optPath = dqnOption.loadPathPrefix + "_optimizer.pt";
+//		torch::serialize::InputArchive opInChive;
+//		opInChive.load_from(optPath);
+//		optimizer.load(opInChive);
+//		LOG4CXX_INFO(logger, "Load optimizer from " << optPath);
+//	}
 
 }
 

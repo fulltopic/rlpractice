@@ -8,7 +8,7 @@
 
 
 #include "alg/dqndouble.hpp"
-#include "alg/dqn.hpp"
+#include "alg/dqnzip.hpp"
 
 #include "gymtest/env/airenv.h"
 #include "gymtest/env/lunarenv.h"
@@ -165,7 +165,7 @@ void testCart(const int epochNum) {
 
     RawPolicy policy(option.exploreBegin, outputNum);
 
-    Dqn<CartDuelFcNet, LunarEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
+    DqnZip<CartDuelFcNet, LunarEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
 
     dqn.train(epochNum);
 }
@@ -228,7 +228,7 @@ void testPong(const int epochNum) {
 
     RawPolicy policy(option.exploreBegin, outputNum);
 
-    Dqn<AirCnnDuelNet, AirEnv, RawPolicy, torch::optim::RMSprop> dqn(model, targetModel, env, env, policy, optimizer, option);
+    DqnZip<AirCnnDuelNet, AirEnv, RawPolicy, torch::optim::RMSprop> dqn(model, targetModel, env, env, policy, optimizer, option);
 
     dqn.train(epochNum);
 }
@@ -575,7 +575,7 @@ void testPong5(const int epochNum) {
 
     RawPolicy policy(option.exploreBegin, outputNum);
 
-    Dqn<AirCnnDuelNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
+    DqnZip<AirCnnDuelNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
 
     dqn.train(epochNum);
 }
@@ -650,7 +650,7 @@ void testPong6(const int epochNum) {
 
     RawPolicy policy(option.exploreBegin, outputNum);
 
-    Dqn<AirCnnDuelNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
+    DqnZip<AirCnnDuelNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
 
     dqn.train(epochNum);
 }
@@ -725,7 +725,7 @@ void testPong7(const int epochNum) {
 
     RawPolicy policy(option.exploreBegin, outputNum);
 
-    Dqn<AirCnnDuelNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
+    DqnZip<AirCnnDuelNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
 
     dqn.train(epochNum);
 }
@@ -800,7 +800,7 @@ void testPongLog(const int epochNum) {
 
     RawPolicy policy(option.exploreBegin, outputNum);
 
-    Dqn<AirCnnDuelNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
+    DqnZip<AirCnnDuelNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
 
     dqn.train(epochNum);
 }
@@ -873,7 +873,7 @@ void testtestPong(const int epochNum) {
 
     RawPolicy policy(option.exploreBegin, outputNum);
 
-    Dqn<AirCnnDuelNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
+    DqnZip<AirCnnDuelNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
 
     dqn.test(epochNum, false, true);
 }
@@ -944,7 +944,7 @@ void testtestCart(const int epochNum) {
 
     RawPolicy policy(option.exploreBegin, outputNum);
 
-    Dqn<CartDuelFcNet, LunarEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
+    DqnZip<CartDuelFcNet, LunarEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
 
     dqn.test(epochNum, false, true);
 }
