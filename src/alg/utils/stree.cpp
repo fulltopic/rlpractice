@@ -6,7 +6,7 @@
  */
 
 
-#include "gymtest/utils/stree.h"
+#include "alg/utils/stree.h"
 #include <cmath>
 #include <iostream>
 #include <assert.h>
@@ -62,9 +62,10 @@ void SegTree::update(int index, float prio) {
 	int dataIndex = getDataIndex(index);
 	float diff = prio - datas[dataIndex];
 	datas[dataIndex] = prio;
-
+//	std::cout << "after single update: \n" << *this << std::endl;
 	adjust(dataIndex, diff);
 
+//	std::cout << "after update: \n" << *this << std::endl;
 //	printDatas("after update: ", datas);
 //	check();
 }
@@ -73,6 +74,7 @@ void SegTree::update(std::vector<int> indices, std::vector<float> prios) {
 	for (int i = 0; i < indices.size(); i ++) {
 		update(indices[i], prios[i]);
 	}
+//	printDatas("after update: ", datas);
 }
 
 std::pair<std::vector<int>, std::vector<float>> SegTree::sample(int batchSize) {
@@ -100,6 +102,7 @@ std::pair<std::vector<int>, std::vector<float>> SegTree::sample(int batchSize) {
 		prios[i] = datas[dataIndex];
 	}
 
+//	std::cout << "after samples \n" << *this << std::endl;
 	return {indice, prios};
 }
 
@@ -158,11 +161,13 @@ void SegTree::check() {
 //		}
 //	}
 
+//	std::cout << "before check \n" << *this << std::endl;
 	for (int i = cap - 1; i > 0; i --) {
 		datas[i] = datas[i * 2] + datas[i * 2 + 1];
 
 //		std::cout << "datas[" << i << "] = " << "datas[" << i * 2 << "] + datas[" << i * 2 + 1 << "] , " << datas[i] << " = " << datas[i * 2] << " + " << datas[i * 2 + 1] << std::endl;
 	}
+//	std::cout << "after check \n" << *this << std::endl;
 }
 
 std::ostream& operator<< (std::ostream& os, const SegTree& st) {

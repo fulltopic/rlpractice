@@ -95,7 +95,7 @@ target_link_libraries(testdueldqn ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorb
 
 add_executable(testpriodqn testpriodqn.cpp ${COMMON_TRAIN_OBJS} $<TARGET_OBJECTS:probeenvs>)
 target_compile_features(testpriodqn PUBLIC cxx_range_for)
-target_link_libraries(testpriodqn ${shared_libs} ${pytorch_cpp_rl_lib})
+target_link_libraries(testpriodqn ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
 
 add_executable(testnoisydqn testnoisydqn.cpp ${COMMON_TRAIN_OBJS} $<TARGET_OBJECTS:probeenvs> $<TARGET_OBJECTS:noisynets>)
 target_compile_features(testnoisydqn PUBLIC cxx_range_for)

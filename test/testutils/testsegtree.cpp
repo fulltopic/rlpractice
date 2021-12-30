@@ -7,7 +7,7 @@
 
 
 
-#include "gymtest/utils/stree.h"
+#include "alg/utils/stree.h"
 #include <iostream>
 #include <string>
 #include <utility>

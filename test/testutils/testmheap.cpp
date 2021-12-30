@@ -6,7 +6,7 @@
  */
 
 
-#include "gymtest/utils/mheap.hpp"
+#include "alg/utils/mheap.hpp"
 
 
 #include <iostream>

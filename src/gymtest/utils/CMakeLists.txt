@@ -6,5 +6,4 @@ add_library(gymutils OBJECT replaybuffer.cpp
 							netinitutils.cpp
 							inputnorm.cpp
 							priorb.cpp
-							stree.cpp
 							)

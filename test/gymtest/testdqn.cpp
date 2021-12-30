@@ -189,7 +189,8 @@ void testPong(const int epochNum) {
     LOG4CXX_INFO(logger, "Model ready");
 
     at::IntArrayRef inputShape{clientNum, 4, 84, 84};
-    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    at::IntArrayRef testInputShape{testClientNum, 4, 84, 84};
+    DqnOption option(inputShape, testInputShape, deviceType);
     option.envNum = clientNum;
     //target model
     option.targetUpdate = 4000;
@@ -298,7 +299,7 @@ void testBreakout(const int epochNum) {
 	const std::string envName = "BreakoutNoFrameskip-v4";
 	const int outputNum = 4;
 	const int clientNum = 1;
-	const int testClienNum = 4;
+	const int testClientNum = 4;
 
 	std::string serverAddr = "tcp://127.0.0.1:10201";
 	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
@@ -306,7 +307,7 @@ void testBreakout(const int epochNum) {
 	env.init();
 	std::string targetServerAddr = "tcp://127.0.0.1:10202";
 	LOG4CXX_DEBUG(logger, "To connect to " << targetServerAddr);
-	AirEnv targetEnv(targetServerAddr, envName, testClienNum);
+	AirEnv targetEnv(targetServerAddr, envName, testClientNum);
 	targetEnv.init();
 	LOG4CXX_INFO(logger, "Env " << envName << " ready");
 
@@ -322,8 +323,12 @@ void testBreakout(const int epochNum) {
     LOG4CXX_INFO(logger, "Model ready");
 
     at::IntArrayRef inputShape{clientNum, 4, 84, 84};
-    DqnOption option(inputShape, deviceType, 4096, 0.99);
+    at::IntArrayRef testInputShape{testClientNum, 4, 84, 84};
+    DqnOption option(inputShape, testInputShape, deviceType);
+    //env
     option.envNum = clientNum;
+    option.multiLifes = true;
+    option.livePerEpisode = 5;
     //target model
     option.targetUpdateStep = 5000;
     option.tau = 1;
@@ -339,9 +344,6 @@ void testBreakout(const int epochNum) {
     option.rewardMin = -1; //TODO: reward may not require clip
     option.rewardMax = 1;
     option.gamma = 0.99;
-    //output
-    option.multiLifes = true;
-    option.livePerEpisode = 5;
     //grad
     option.batchSize = 64;
     option.startStep = 10000;
@@ -349,8 +351,8 @@ void testBreakout(const int epochNum) {
     //test
     option.toTest = true;
     option.testGapEp = 10000;
-    option.testBatch = testClienNum;
-    option.testEp = testClienNum;
+    option.testBatch = testClientNum;
+    option.testEp = testClientNum;
     //log
     option.logInterval = 400;
     option.tensorboardLogPath = "./logs/dqn_testbr/tfevents.pb";

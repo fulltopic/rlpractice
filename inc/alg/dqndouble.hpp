@@ -104,66 +104,84 @@ DoubleDqn<NetType, EnvType, PolicyType, OptimizerType>::DoubleDqn(NetType& iMode
 	tester(iTModel, tEnv, iPolicy, iOption, tLogger)
 {
 	maxAveReward = iOption.saveThreshold;
-
-//	testRewards = std::vector<float>(dqnOption.testBatch, 0);
-//	testLens = std::vector<float>(dqnOption.testBatch, 0);
-//	testEpRewards = std::vector<float>(dqnOption.testBatch, 0);
-//	testEpLens = std::vector<float>(dqnOption.testBatch, 0);
-//	testLivePerEp = std::vector<int>(dqnOption.testBatch, 0);
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
 void DoubleDqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epochNum) {
 	load();
 	updateModel(true); //model assignment
-	tModel.eval();
+//	tModel.eval();
 
 	std::vector<float> stateVec = env.reset();
 
 	//only one env
 	std::vector<float> statRewards(dqnOption.envNum, 0);
 	std::vector<float> statLens(dqnOption.envNum, 0);
+	std::vector<float> statSumRewards(dqnOption.envNum, 0);
+	std::vector<float> statSumLens(dqnOption.envNum, 0);
+	std::vector<int> livePerEp(dqnOption.envNum, 0);
+	int epNum = 0;
 
 	while (updateNum < epochNum) {
-		updateNum ++;
-		//Run step
-		torch::Tensor cpuinputTensor = torch::from_blob(stateVec.data(), inputShape);
-		torch::Tensor inputTensor = cpuinputTensor.to(deviceType).div(dqnOption.inputScale);
+		for (int k = 0; k < dqnOption.envStep; k ++) {
+			updateNum ++;
 
-		torch::Tensor outputTensor = bModel.forward(inputTensor); //TODO: bModel or tModel?
-		LOG4CXX_DEBUG(logger, "inputTensor: " << inputTensor);
-		LOG4CXX_DEBUG(logger, "outputTensor: " << outputTensor);
-		std::vector<int64_t> actions = policy.getActions(outputTensor);
-		LOG4CXX_DEBUG(logger, "actions: " << actions);
+			//Run step
+			torch::Tensor cpuinputTensor = torch::from_blob(stateVec.data(), inputShape);
+			torch::Tensor inputTensor = cpuinputTensor.to(deviceType).div(dqnOption.inputScale);
 
-		auto stepResult = env.step(actions);
-		auto nextInputVec = std::get<0>(stepResult);
-		auto rewardVec = std::get<1>(stepResult);
-		auto doneVec = std::get<2>(stepResult);
-		LOG4CXX_DEBUG(logger, "reward: " << rewardVec);
+			torch::Tensor outputTensor = bModel.forward(inputTensor); //TODO: bModel or tModel?
+			LOG4CXX_DEBUG(logger, "inputTensor: " << inputTensor);
+			LOG4CXX_DEBUG(logger, "outputTensor: " << outputTensor);
+			std::vector<int64_t> actions = policy.getActions(outputTensor);
+			LOG4CXX_DEBUG(logger, "actions: " << actions);
 
-		Stats::UpdateReward(statRewards, rewardVec);
-		Stats::UpdateLen(statLens);
-		float doneMask = 1;
-		if (doneVec[0]) {
-			doneMask = 0;
+			auto stepResult = env.step(actions);
+			auto nextInputVec = std::get<0>(stepResult);
+			auto rewardVec = std::get<1>(stepResult);
+			auto doneVec = std::get<2>(stepResult);
+			LOG4CXX_DEBUG(logger, "reward: " << rewardVec);
 
-			tLogger.add_scalar("train/len", updateNum, statLens[0]);
-			tLogger.add_scalar("train/reward", updateNum, statRewards[0]);
-			LOG4CXX_INFO(logger, "" << policy.getEpsilon() << "--" << updateNum << ", " << statLens[0] << ", " << statRewards[0]);
-			statRewards[0] = 0;
-			statLens[0] = 0;
+			Stats::UpdateReward(statRewards, rewardVec);
+			Stats::UpdateLen(statLens);
+			float doneMask = 1;
+			if (doneVec[0]) {
+				doneMask = 0;
 
-			//TODO: save in test
+				tLogger.add_scalar("train/len", updateNum, statLens[0]);
+				tLogger.add_scalar("train/reward", updateNum, statRewards[0]);
+				LOG4CXX_INFO(logger, "" << policy.getEpsilon() << "--" << updateNum << ", " << statLens[0] << ", " << statRewards[0]);
+
+				if (dqnOption.multiLifes) {
+					livePerEp[0] ++;
+					statSumRewards[0] += statRewards[0];
+					statSumLens[0] += statLens[0];
+
+					if (livePerEp[0] >= dqnOption.donePerEp) {
+						epNum ++;
+
+						tLogger.add_scalar("train/sumLen", epNum, statSumLens[0]);
+						tLogger.add_scalar("train/sumReward", epNum, statSumRewards[0]);
+
+						statSumLens[0] = 0;
+						statSumRewards[0] = 0;
+						livePerEp[0] = 0;
+					}
+				}
+
+				statRewards[0] = 0;
+				statLens[0] = 0;
+			}
+
+			torch::Tensor nextInputTensor = torch::from_blob(nextInputVec.data(), inputShape);
+			float reward = std::max(std::min((rewardVec[0] / dqnOption.rewardScale), dqnOption.rewardMax), dqnOption.rewardMin);
+			buffer.add(cpuinputTensor, nextInputTensor, actions[0], reward, doneMask);
+
+			//Update
+			stateVec = nextInputVec;
+			updateStep(epochNum);
 		}
 
-		torch::Tensor nextInputTensor = torch::from_blob(nextInputVec.data(), inputShape);
-		float reward = std::max(std::min((rewardVec[0] / dqnOption.rewardScale), dqnOption.rewardMax), dqnOption.rewardMin);
-		buffer.add(cpuinputTensor, nextInputTensor, actions[0], reward, doneMask);
-
-		//Update
-		stateVec = nextInputVec;
-		updateStep(epochNum);
 		//Learning
 		if (updateNum < dqnOption.startStep) {
 			continue;

@@ -32,6 +32,7 @@ private:
 	const DqnOption dqnOption;
 
 	int testEpCount = 0;
+	int testLifeCount = 0;
 
 	//Gym server failed to reset by reset()
 	std::vector<float> statRewards; //(dqnOption.testBatch, 0);
@@ -211,34 +212,38 @@ void AlgTester<NetType, EnvType, PolicyType>::testPlain() {
 		for (int i = 0; i < dqnOption.testBatch; i ++) {
 			if (doneVec[i]) {
 				LOG4CXX_DEBUG(logger, "testEnv " << i << "done");
-//				auto resetResult = env.reset(i);
-				//udpate nextstatevec, target mask
-//				std::copy(resetResult.begin(), resetResult.end(), nextStateVec.begin() + (offset * i));
-				epCount ++;
-				testEpCount ++;
-
-				sumRewards[i] += statRewards[i];
-				sumLens[i] += statLens[i];
+//				epCount ++;
+				testLifeCount ++;
 
 				LOG4CXX_INFO(logger, "test -----------> "<< i << " " << statLens[i] << ", " << statRewards[i]);
-				tLogger.add_scalar("test/len", testEpCount, statLens[i]);
-				tLogger.add_scalar("test/reward", testEpCount, statRewards[i]);
-//				testStater.update(statLens[i], statRewards[i]);
-				statLens[i] = 0;
-				statRewards[i] = 0;
-//				stater.printCurStat();
+				tLogger.add_scalar("test/len", testLifeCount, statLens[i]);
+				tLogger.add_scalar("test/reward", testLifeCount, statRewards[i]);
 
-				liveCounts[i] ++;
-				if (liveCounts[i] >= dqnOption.donePerEp) {
-					LOG4CXX_INFO(logger, "TEST Wrapper episode " << i << " ----------------------------> " << sumRewards[i]);
-//					sumStater.update(sumLens[i], sumRewards[i]);
-					tLogger.add_scalar("test/sumlen", testEpCount, sumLens[i]);
-					tLogger.add_scalar("test/sumreward", testEpCount, sumRewards[i]);
-					liveCounts[i] = 0;
-					sumRewards[i] = 0;
-					sumLens[i] = 0;
+
+				if (dqnOption.multiLifes) {
+					liveCounts[i] ++;
+					sumRewards[i] += statRewards[i];
+					sumLens[i] += statLens[i];
+
+					if (liveCounts[i] >= dqnOption.donePerEp) {
+						epCount ++;
+						testEpCount ++;
+
+						LOG4CXX_INFO(logger, "TEST Wrapper episode " << i << " ----------------------------> " << sumRewards[i]);
+
+						tLogger.add_scalar("test/sumlen", testEpCount, sumLens[i]);
+						tLogger.add_scalar("test/sumreward", testEpCount, sumRewards[i]);
+						liveCounts[i] = 0;
+						sumRewards[i] = 0;
+						sumLens[i] = 0;
+					}
+				} else {
+					epCount ++;
+					testEpCount ++;
 				}
 
+				statLens[i] = 0;
+				statRewards[i] = 0;
 			}
 
 			if (dqnOption.randomHang) {
