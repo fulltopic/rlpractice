@@ -225,8 +225,9 @@ void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epoch
 		LOG4CXX_DEBUG(logger, "Sum: " << buffer.sum());
 		LOG4CXX_DEBUG(logger, "probs: " << probs);
 		torch::Tensor weights = (buffer.size() * probs).pow(- beta);
-		weights = weights / weights.max();
-		torch::Tensor lossTensor = weights * ((targetQ - curQ).pow(2) / 2.0f);
+		weights = (weights / weights.max()).sqrt();
+//		torch::Tensor lossTensor = weights * ((targetQ - curQ).pow(2) / 2.0f);
+		torch::Tensor lossTensor = torch::nn::functional::mse_loss(weights * curQ, weights * targetQ);
 //		torch::Tensor loss = (weights * ((targetQ - curQ).pow(2) / 2.0f)).mean();
 		torch::Tensor loss = lossTensor.mean();
 		LOG4CXX_DEBUG(logger, "weights: " << weights);
@@ -239,6 +240,7 @@ void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epoch
 		torch::nn::utils::clip_grad_norm_(bModel.parameters(), dqnOption.maxGradNormClip);
 		optimizer.step();
 
+		//TODO: prios calculate and update
 		torch::Tensor newPrios = delta.pow(dqnOption.pbAlpha) + dqnOption.pbEpsilon;
 		LOG4CXX_DEBUG(logger, "delta: " << delta);
 //		LOG4CXX_INFO(logger, "newPrios: \n" << newPrios);

@@ -15,6 +15,7 @@ namespace
 log4cxx::LoggerPtr logger(log4cxx::Logger::getLogger("testgym"));
 }
 namespace {
+//BeamRider: 9
 void testGetInfo(std::string serverAddr) {
 	const int clientNum = 2;
 //	std::string serverAddr = "tcp://127.0.0.1:10201";
@@ -23,7 +24,7 @@ void testGetInfo(std::string serverAddr) {
 //	AirEnv env(serverAddr, "Pong-v0", clientNum);
 	//Qbert = 6
 	//Pacman = 9
-	AirEnv env(serverAddr, "QbertNoFrameskip-v4", clientNum);
+	AirEnv env(serverAddr, "BeamRiderNoFrameskip-v4", clientNum);
 
 	auto info = env.init();
 	auto actionSpace = std::get<1>(info);

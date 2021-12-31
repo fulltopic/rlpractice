@@ -56,6 +56,8 @@ public:
 	std::pair<torch::Tensor, torch::Tensor> getSampleIndex(int batchSize);
 	inline int size() { return curSize;}
 	inline float sum() { return segTree.getSum();}
+
+	void print();
 };
 
 

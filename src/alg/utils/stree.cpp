@@ -172,12 +172,18 @@ void SegTree::check() {
 
 std::ostream& operator<< (std::ostream& os, const SegTree& st) {
 //	os << "SegTree datas: " << std::endl;
-	for (int i = 0; i < st.datas.size(); i ++) {
+	for (int i = 0; i < st.datas.size() / 2; i ++) {
 		os << st.datas[i] << ", ";
 		if ((i + 1) % 16 == 0) {
 			os << std::endl;
 		}
 	}
-
+	std::cout << std::endl;
+	for (int i = st.datas.size() / 2; i < st.datas.size(); i ++) {
+		os << st.datas[i] << ", ";
+		if ((i + 1) % 16 == 0) {
+			os << std::endl;
+		}
+	}
 	return os;
 }

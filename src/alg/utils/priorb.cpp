@@ -26,6 +26,7 @@ PrioReplayBuffer::PrioReplayBuffer(const int iCap, const at::IntArrayRef& inputS
 	}
 	at::IntArrayRef outputShape{PrioReplayBuffer::cap, 1};
 
+//	LOG4CXX_INFO(logger, "stateInputShape " << stateInputShape);
 	//atari
 	states = torch::zeros(stateInputShape, byteOpt);
 	//non-atari
@@ -61,6 +62,7 @@ void PrioReplayBuffer::add(torch::Tensor state, torch::Tensor nextState, int act
 
 	int nextIndex = (curIndex + 1) % cap;
 
+	LOG4CXX_DEBUG(logger, "current shape " << states[curIndex].sizes());
 	states[curIndex].copy_(inputState.squeeze());
 	states[nextIndex].copy_(inputNextState.squeeze()); //TODO: Optimize
 	actions[curIndex][0] = action;
@@ -115,4 +117,9 @@ void PrioReplayBuffer::update(torch::Tensor indiceTensor, torch::Tensor prioTens
 
 		LOG4CXX_DEBUG(logger, "update " << indice[i] << " into " << prios[i]);
 	}
+}
+
+void PrioReplayBuffer::print() {
+	std::cout << "stree \n" << segTree << std::endl;
+	std::cout << "heap \n" << maxPrioHeap << std::endl;
 }

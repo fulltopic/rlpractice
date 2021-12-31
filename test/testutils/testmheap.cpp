@@ -18,7 +18,7 @@
 #include <vector>
 
 namespace {
-const int IntRange = 100;
+const int IntRange = 200;
 
 class IntMinPredFunc {
 public:
@@ -86,6 +86,7 @@ void test1() {
 		std::cout << "add " << datas[i] << std::endl;
 		std::cout << "max: " << heap.getM() << std::endl;
 	}
+	std::cout << "datas: " << std::endl << heap << std::endl;
 }
 
 void test2() {
@@ -105,8 +106,9 @@ void test2() {
 
 	std::cout << "--------------------> sorted " << std::endl;
 	for (int i = 0; i < num; i ++) {
-		std::cout << heap.getM() << ", " << std::endl;
-		heap.update(0, -1);
+//		std::cout << heap.getM() << ", " << std::endl;
+//		heap.update(0, -1);
+		std::cout << heap.replaceTop(-1) << std::endl;
 	}
 }
 }
