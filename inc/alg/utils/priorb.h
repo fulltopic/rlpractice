@@ -41,7 +41,7 @@ private:
 	log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("dqn");
 
 public:
-	PrioReplayBuffer (const int iCap, const at::IntArrayRef& inputShape, float iEpsilon);
+	PrioReplayBuffer (const int iCap, const at::IntArrayRef& inputShape, float iEpsilon, float iAlpha = 0.6);
 	~PrioReplayBuffer() = default;
 	PrioReplayBuffer(const PrioReplayBuffer&) = delete;
 
@@ -55,7 +55,8 @@ public:
 	void update(torch::Tensor indiceTensor, torch::Tensor prioTensor);
 	std::pair<torch::Tensor, torch::Tensor> getSampleIndex(int batchSize);
 	inline int size() { return curSize;}
-	inline float sum() { return segTree.getSum();}
+//	inline float sum() { return segTree.getSum();}
+	inline float sum() { return segTree.getAlphaSum(); }
 
 	void print();
 };

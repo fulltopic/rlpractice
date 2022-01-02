@@ -90,7 +90,7 @@ PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::PrioDqn(NetType& iModel, N
 	dqnOption(iOption),
 	deviceType(iOption.deviceType),
 	inputShape(iOption.inputShape),
-	buffer(iOption.rbCap, iOption.inputShape, iOption.pbEpsilon),
+	buffer(iOption.rbCap, iOption.inputShape, iOption.pbEpsilon, iOption.pbAlpha),
 	beta(iOption.pbBetaBegin),
 	maxAveReward(iOption.saveThreshold),
 	tLogger(iOption.tensorboardLogPath.c_str()),
@@ -178,7 +178,8 @@ void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epoch
 			continue;
 		}
 
-//		int sampleNum = buffer.size();
+		//TODO: initial prio before training start = 1
+		//TODO: store prio instead of prio ^ alpha, so as to sample by prio distribution instead of prio ^ alpha distribution
 		auto rc = buffer.getSampleIndex(dqnOption.batchSize);
 		torch::Tensor sampleIndice = std::get<0>(rc);
 		torch::Tensor samplePrios = std::get<1>(rc);
@@ -189,9 +190,9 @@ void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epoch
 		torch::Tensor actionTensor = buffer.actions.index_select(0, sampleIndice).to(deviceType).to(torch::kLong);
 		torch::Tensor rewardTensor = buffer.rewards.index_select(0, sampleIndice).to(deviceType).to(torch::kFloat);
 		torch::Tensor doneMaskTensor = buffer.donesMask.index_select(0, sampleIndice).to(deviceType).to(torch::kFloat);
-		LOG4CXX_DEBUG(logger, "sampleIndex before: " << sampleIndice);
 		torch::Tensor nextSampleIndice = (sampleIndice + 1) % dqnOption.rbCap;
 		torch::Tensor nextStateTensor = buffer.states.index_select(0, nextSampleIndice).to(deviceType).to(torch::kFloat).div(dqnOption.inputScale);
+		LOG4CXX_DEBUG(logger, "sampleIndex before: " << sampleIndice);
 		LOG4CXX_DEBUG(logger, "sampleIndice after: " << nextSampleIndice);
 		LOG4CXX_DEBUG(logger, "nextStateTensor: " << nextStateTensor.sizes());
 
@@ -204,8 +205,9 @@ void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epoch
 			torch::Tensor nextTOutput = tModel.forward(nextStateTensor).detach();
 			torch::Tensor maxActions = nextBOutput.argmax(-1).unsqueeze(-1);
 			torch::Tensor nextQ = nextTOutput.gather(-1, maxActions);
-			targetQ = rewardTensor + dqnOption.gamma * nextQ * doneMaskTensor;
-			targetQ = targetQ.detach();
+			targetQ = (rewardTensor + dqnOption.gamma * nextQ * doneMaskTensor).detach();
+//			targetQ = targetQ.detach();
+
 			LOG4CXX_DEBUG(logger, "nextBOutput: " << nextBOutput);
 			LOG4CXX_DEBUG(logger, "maxActions: " << maxActions);
 			LOG4CXX_DEBUG(logger, "nextTOutput: " << nextTOutput);
@@ -216,46 +218,55 @@ void PrioDqn<NetType, EnvType, PolicyType, OptimizerType>::train(const int epoch
 		}
 
 		torch::Tensor curOutput = bModel.forward(curStateTensor);
+		torch::Tensor curQ = curOutput.gather(-1, actionTensor); // shape of actionTensor and curQ
 		LOG4CXX_DEBUG(logger, "curOutput: " << curOutput);
-		torch::Tensor curQ = curOutput.gather(-1, actionTensor); //TODO: shape of actionTensor and curQ
 		LOG4CXX_DEBUG(logger, "curQ: " << curQ);
 
+//		torch::Tensor delta = (targetQ - curQ).abs().detach();
+
 		//PRIO
-		torch::Tensor probs = samplePrios.view({dqnOption.batchSize, 1}).to(deviceType) / buffer.sum();
+		torch::Tensor probs = samplePrios.pow(dqnOption.pbAlpha).view({dqnOption.batchSize, 1}).to(deviceType) / buffer.sum();
 		LOG4CXX_DEBUG(logger, "Sum: " << buffer.sum());
 		LOG4CXX_DEBUG(logger, "probs: " << probs);
 		torch::Tensor weights = (buffer.size() * probs).pow(- beta);
-		weights = (weights / weights.max()).sqrt();
+		weights.div_(weights.max().item<float>());
+//		weights.div_(weights.max()).sqrt_();
+//		weights = (weights / weights.max()).sqrt();
 //		torch::Tensor lossTensor = weights * ((targetQ - curQ).pow(2) / 2.0f);
-		torch::Tensor lossTensor = torch::nn::functional::mse_loss(weights * curQ, weights * targetQ);
+//		torch::Tensor loss = torch::nn::functional::mse_loss(weights * curQ, weights * targetQ);
 //		torch::Tensor loss = (weights * ((targetQ - curQ).pow(2) / 2.0f)).mean();
-		torch::Tensor loss = lossTensor.mean();
+//		torch::Tensor loss = lossTensor.mean();
+
+		torch::Tensor loss = (curQ - targetQ.detach()).pow(2) * weights;
+		torch::Tensor newPrios = loss + dqnOption.pbEpsilon;
+		loss = loss.mean();
+
 		LOG4CXX_DEBUG(logger, "weights: " << weights);
 		LOG4CXX_DEBUG(logger, "loss: " << loss);
 
-		torch::Tensor delta = (targetQ - curQ).abs().detach();
-
 		optimizer.zero_grad();
 		loss.backward();
+//		lossTensor.backward();
 		torch::nn::utils::clip_grad_norm_(bModel.parameters(), dqnOption.maxGradNormClip);
 		optimizer.step();
 
 		//TODO: prios calculate and update
-		torch::Tensor newPrios = delta.pow(dqnOption.pbAlpha) + dqnOption.pbEpsilon;
-		LOG4CXX_DEBUG(logger, "delta: " << delta);
+//		torch::Tensor newPrios = delta.pow(dqnOption.pbAlpha) + dqnOption.pbEpsilon;
+//		LOG4CXX_DEBUG(logger, "delta: " << delta);
 //		LOG4CXX_INFO(logger, "newPrios: \n" << newPrios);
 		buffer.update(sampleIndice, newPrios);
 
 		if ((updateNum % dqnOption.logInterval) == 0) {
-			float deltaValue = delta.mean().item<float>();
+//			float deltaValue = delta.mean().item<float>();
 			float weightValue = weights.mean().item<float>();
 			float lossValue = loss.item<float>();
+//			float lossValue = lossTensor.item<float>();
 			float curQValue = curQ.mean().item<float>();
 
 			tLogger.add_scalar("loss/loss", updateNum, lossValue);
 			tLogger.add_scalar("loss/q", updateNum, curQValue);
 			tLogger.add_scalar("loss/weight", updateNum, weightValue);
-			tLogger.add_scalar("loss/delta", updateNum, deltaValue);
+//			tLogger.add_scalar("loss/delta", updateNum, deltaValue);
 			tLogger.add_scalar("loss/beta", updateNum, beta);
 			tLogger.add_scalar("loss/epsilon", updateNum, policy.getEpsilon());
 		}

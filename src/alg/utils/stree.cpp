@@ -11,7 +11,7 @@
 #include <iostream>
 #include <assert.h>
 
-SegTree::SegTree(int iCap): cap(iCap), dataCap(iCap * 2), re(rd()), datas(iCap * 2, 0.0f) {
+SegTree::SegTree(int iCap, float iAlpha): alpha(iAlpha), cap(iCap), dataCap(iCap * 2), re(rd()), datas(iCap * 2, 0.0f) {
 	assert(cap > 0);
 
 	int tCap = cap;
@@ -38,6 +38,8 @@ void SegTree::add(float prio) {
 	int nextIndex = (curIndex + 1) % cap;
 
 	int curDataIndex = getDataIndex(curIndex);
+
+	float origValue = datas[curDataIndex];
 	float diff =  prio - datas[curDataIndex];
 	datas[curDataIndex] = prio;
 //	std::cout << "add " << curDataIndex << ", " << curIndex << std::endl;
@@ -47,7 +49,9 @@ void SegTree::add(float prio) {
 		len ++;
 	}
 
-	adjust(curDataIndex, diff);
+	//TODO: Check alphaSum
+//	adjust(curDataIndex, diff);
+	adjust(curDataIndex, origValue, prio);
 
 	//check not happen on first add
 	if (curIndex == 0) {
@@ -60,10 +64,12 @@ void SegTree::add(float prio) {
 void SegTree::update(int index, float prio) {
 	assert(index < len);
 	int dataIndex = getDataIndex(index);
+	float origValue = datas[dataIndex];
 	float diff = prio - datas[dataIndex];
 	datas[dataIndex] = prio;
 //	std::cout << "after single update: \n" << *this << std::endl;
-	adjust(dataIndex, diff);
+//	adjust(dataIndex, diff);
+	adjust(dataIndex, origValue, prio);
 
 //	std::cout << "after update: \n" << *this << std::endl;
 //	printDatas("after update: ", datas);
@@ -127,6 +133,14 @@ void SegTree::adjust(int dataIndex, float diff) {
 	}
 }
 
+void SegTree::adjust(const int dataIndex, const float origValue, const float curValue) {
+	float diff = curValue - origValue;
+
+//	alphaSum = alphaSum + curValue ^ alpha - origValue ^ alpha;
+	alphaSum = alphaSum + (float)std::pow(curValue, alpha) - (float)std::pow(origValue, alpha);
+	adjust(dataIndex, diff);
+}
+
 int SegTree::sample(const float expSum) {
 	int cIndex = 1;
 
@@ -162,9 +176,14 @@ void SegTree::check() {
 //	}
 
 //	std::cout << "before check \n" << *this << std::endl;
+	float newAlphaSum = 0;
+	for (int i = cap; i < dataCap; i ++) {
+		newAlphaSum += (float)std::pow(datas[i], alpha);
+	}
+	alphaSum = newAlphaSum;
+
 	for (int i = cap - 1; i > 0; i --) {
 		datas[i] = datas[i * 2] + datas[i * 2 + 1];
-
 //		std::cout << "datas[" << i << "] = " << "datas[" << i * 2 << "] + datas[" << i * 2 + 1 << "] , " << datas[i] << " = " << datas[i * 2] << " + " << datas[i * 2 + 1] << std::endl;
 	}
 //	std::cout << "after check \n" << *this << std::endl;

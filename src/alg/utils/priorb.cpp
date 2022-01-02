@@ -8,15 +8,17 @@
 
 #include "alg/utils/priorb.h"
 
+//#define NON_ATARI 1
+
 bool PrioRbFloatMaxPredFunc::operator()(const float a, const float b) {
 	return a > b;
 }
 
-PrioReplayBuffer::PrioReplayBuffer(const int iCap, const at::IntArrayRef& inputShape, float iEps)
+PrioReplayBuffer::PrioReplayBuffer(const int iCap, const at::IntArrayRef& inputShape, float iEps, float iAlpha)
 	: cap(iCap),
 	  epsilon(iEps),
 	  maxPrioHeap(iCap, maxPrioFunc),
-	  segTree(iCap)
+	  segTree(iCap, iAlpha)
 {
 	std::vector<int64_t> stateInputShape;
 	stateInputShape.push_back(cap);
@@ -27,10 +29,13 @@ PrioReplayBuffer::PrioReplayBuffer(const int iCap, const at::IntArrayRef& inputS
 	at::IntArrayRef outputShape{PrioReplayBuffer::cap, 1};
 
 //	LOG4CXX_INFO(logger, "stateInputShape " << stateInputShape);
+#ifdef NON_ATARI
+	//non-atari
+	states = torch::zeros(stateInputShape);
+#else
 	//atari
 	states = torch::zeros(stateInputShape, byteOpt);
-	//non-atari
-//	states = torch::zeros(stateInputShape);
+#endif
 
 	actions = torch::zeros(outputShape, byteOpt);
 	rewards = torch::zeros(outputShape);
@@ -42,12 +47,15 @@ PrioReplayBuffer::PrioReplayBuffer(const int iCap, const at::IntArrayRef& inputS
 
 void PrioReplayBuffer::add(torch::Tensor state, torch::Tensor nextState, int action, float reward, float done) {
 
+#ifdef NON_ATARI
+	//non atari
+	torch::Tensor inputState = state;
+	torch::Tensor inputNextState = nextState;
+#else
 	//atari
 	torch::Tensor inputState = state.to(torch::kByte);
 	torch::Tensor inputNextState = nextState.to(torch::kByte);
-	//non atari
-//	torch::Tensor inputState = state;
-//	torch::Tensor inputNextState = nextState;
+#endif
 
 	{
 		//For log
@@ -77,6 +85,7 @@ void PrioReplayBuffer::add(torch::Tensor state, torch::Tensor nextState, int act
 
 	float maxPrio = std::max(maxPrioHeap.getM(), epsilon);
 	LOG4CXX_DEBUG(logger, "add " << maxPrio);
+	//TODO: replace by update and add to ensure index synchronization
 	segTree.add(maxPrio);
 	maxPrioHeap.add(maxPrio);
 }

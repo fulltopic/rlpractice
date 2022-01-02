@@ -15,7 +15,7 @@
 
 class SegTree {
 public:
-	SegTree(int iCap);
+	SegTree(int iCap, float iAlpha = 0.6);
 	~SegTree() = default;
 	SegTree(const SegTree&) = delete;
 
@@ -32,6 +32,7 @@ public:
 
 	void check();
 private:
+	const float alpha;
 	const int cap;
 	const int dataCap;
 	int curIndex = 0;
@@ -41,13 +42,18 @@ private:
 	std::mt19937 re;
 
 	std::vector<float> datas;
+	float alphaSum = 0;
 
 	void adjust(int dataIndex, float diff);
+	void adjust(const int dataIndex, const float origValue, const float curValue);
 
 	inline int getDataIndex(int index) { return index + cap; }
 	inline int getIndex(int dataIndex) { return dataIndex - cap; }
 
 	inline int dataSize() { return len + cap;}
+
+public:
+	inline float getAlphaSum() { return alphaSum; }
 };
 
 std::ostream& operator<< (std::ostream& os, const SegTree& st);

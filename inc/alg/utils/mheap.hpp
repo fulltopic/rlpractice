@@ -17,10 +17,6 @@
 template <typename ValueType, typename FuncType>
 class MHeap {
 public:
-	struct HeapNode {
-		ValueType value;
-		int defIndex;
-	};
 
 	MHeap(int iCap, FuncType func);
 	~MHeap() = default;
@@ -31,17 +27,20 @@ public:
 
 	ValueType getM();
 	ValueType replaceTop(const ValueType& minValue);
+
 private:
+	struct HeapNode {
+		ValueType value;
+		int defIndex;
+	};
+
 	const int cap;
 	FuncType pred;
-//	std::vector<ValueType> datas;
-//	std::vector<int> indices;
 	std::vector<HeapNode> datas;
 	std::vector<int> dataIndices;
 
 //	int len = 0;
 	int curIndex = 0;
-
 	void adjust(const int dataIndex);
 
 public:
@@ -82,25 +81,20 @@ void MHeap<ValueType, FuncType>::add(const ValueType& value) {
 	int adjustIndex = curIndex;
 
 	if (datas.size() < cap) {
-//		datas.push_back(value);
-//		indices.push_back(datas.size() - 1);
-
 		datas.push_back({value, curIndex});
 		dataIndices.push_back(curIndex);
 
 //		std::cout << "heap push curIndex: " << datas.size() - 1 << std::endl;
 	} else {
-//		datas[curIndex] = value;
-
 		int dataIndex = dataIndices[curIndex];
 		datas[dataIndex] = {value, curIndex};
+//		datas[dataIndex].value = value;
 		adjustIndex = dataIndex;
 
 //		std::cout << "heap add curIndex: " << curIndex << std::endl;
 	}
 
 
-//	adjust(curIndex);
 	adjust(adjustIndex);
 
 	int nextIndex = (curIndex + 1) % cap;
@@ -148,8 +142,6 @@ void MHeap<ValueType, FuncType>::adjust(const int dataIndex) {
 	}
 //	assert(dataIndex < datas.size());
 
-	//TODO: update data by indices[index]
-//	int cIndex = index;
 	int cIndex = dataIndex;
 	while (cIndex > 0) {
 //		std::cout << "Try to upward" << std::endl;
