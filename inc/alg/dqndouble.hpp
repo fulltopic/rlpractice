@@ -22,7 +22,6 @@
 #include <cstdlib>
 
 #include "gymtest/env/envutils.h"
-#include "gymtest/utils/stats.h"
 #include "gymtest/utils/lossstats.h"
 #include "dqnoption.h"
 
@@ -49,14 +48,6 @@ private:
 	float maxAveReward;
 
 	//Gym server failed to reset by reset()
-//	std::vector<float> testRewards;
-//	std::vector<float> testLens;
-//	std::vector<float> testEpRewards;
-//	std::vector<float> testEpLens;
-//	std::vector<int> testLivePerEp;
-//
-//	int totalTestLive = 0;
-//	int totalTestEp = 0;
 
 
 	const torch::TensorOptions longOpt = torch::TensorOptions().dtype(torch::kLong);

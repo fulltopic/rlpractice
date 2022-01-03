@@ -57,16 +57,16 @@ void PrioReplayBuffer::add(torch::Tensor state, torch::Tensor nextState, int act
 	torch::Tensor inputNextState = nextState.to(torch::kByte);
 #endif
 
-	{
-		//For log
-		bool isSame = states[curIndex].equal(inputState);
-		LOG4CXX_DEBUG(logger, curIndex << ": The state same? " << isSame);
-		if (!isSame) {
-			LOG4CXX_DEBUG(logger, "curState: " << states[curIndex]);
-			LOG4CXX_DEBUG(logger, "inputState: " << inputState);
-			LOG4CXX_DEBUG(logger, "nextState: " << inputNextState);
-		}
-	}
+//	{
+//		//For log
+//		bool isSame = states[curIndex].equal(inputState);
+//		LOG4CXX_DEBUG(logger, curIndex << ": The state same? " << isSame);
+//		if (!isSame) {
+//			LOG4CXX_DEBUG(logger, "curState: " << states[curIndex]);
+//			LOG4CXX_DEBUG(logger, "inputState: " << inputState);
+//			LOG4CXX_DEBUG(logger, "nextState: " << inputNextState);
+//		}
+//	}
 
 	int nextIndex = (curIndex + 1) % cap;
 

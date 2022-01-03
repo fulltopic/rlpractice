@@ -11,6 +11,8 @@
 
 #include <vector>
 
+//#define NON_ATARI 1
+
 ReplayBuffer::ReplayBuffer(const int iCap, const at::IntArrayRef& inputShape): cap(iCap) {
 	std::vector<int64_t> stateInputShape;
 	stateInputShape.push_back(cap);
@@ -20,7 +22,15 @@ ReplayBuffer::ReplayBuffer(const int iCap, const at::IntArrayRef& inputShape): c
 	}
 	at::IntArrayRef outputShape{ReplayBuffer::cap, 1};
 
+	//	LOG4CXX_INFO(logger, "stateInputShape " << stateInputShape);
+#ifdef NON_ATARI
+	//non-atari
+	states = torch::zeros(stateInputShape);
+#else
+	//atari
 	states = torch::zeros(stateInputShape, byteOpt);
+#endif
+
 	actions = torch::zeros(outputShape, byteOpt);
 	rewards = torch::zeros(outputShape);
 	donesMask = torch::zeros(outputShape, byteOpt);
@@ -28,24 +38,30 @@ ReplayBuffer::ReplayBuffer(const int iCap, const at::IntArrayRef& inputShape): c
 	LOG4CXX_DEBUG(logger, "Replay buffer ready");
 }
 
-void ReplayBuffer::add(
-		torch::Tensor state, torch::Tensor nextState, int action, float reward, float done) {
-		int nextIndex = (curIndex + 1) % cap;
+void ReplayBuffer::add(torch::Tensor state, torch::Tensor nextState, int action, float reward, float done) {
+#ifdef NON_ATARI
+	//non atari
+	torch::Tensor inputState = state;
+	torch::Tensor inputNextState = nextState;
+#else
+	//atari
+	torch::Tensor inputState = state.to(torch::kByte);
+	torch::Tensor inputNextState = nextState.to(torch::kByte);
+#endif
 
-		torch::Tensor inputState = state.to(torch::kByte);
-		torch::Tensor inputNextState = nextState.to(torch::kByte);
+	int nextIndex = (curIndex + 1) % cap;
 
-		states[curIndex].copy_(inputState.squeeze());
-		states[nextIndex].copy_(inputNextState.squeeze()); //TODO: Optimize
-		actions[curIndex][0] = action;
-		rewards[curIndex][0] = reward;
-		donesMask[curIndex][0] = done;
-		LOG4CXX_DEBUG(logger, "states after copy: " << states[curIndex]);
+	states[curIndex].copy_(inputState.squeeze());
+	states[nextIndex].copy_(inputNextState.squeeze()); //TODO: Optimize
+	actions[curIndex][0] = action;
+	rewards[curIndex][0] = reward;
+	donesMask[curIndex][0] = done;
+	LOG4CXX_DEBUG(logger, "states after copy: " << states[curIndex]);
 
-		curIndex = nextIndex;
-		if (curSize < cap) {
-			curSize ++;
-		}
+	curIndex = nextIndex;
+	if (curSize < cap) {
+		curSize ++;
+	}
 }
 
 torch::Tensor ReplayBuffer::getSampleIndex(int batchSize) {

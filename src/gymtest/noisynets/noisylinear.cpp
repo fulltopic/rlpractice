@@ -42,7 +42,7 @@ void NoisyLinear::resetParams() {
 
 //	float wSigmaValue = stdInit / (float)sqrt(wSigma.size(1));
 //	float bSigmaValue = stdInit / (float)sqrt(bSigma.size(0));
-	float wSigmaValue = stdInit / (float)sqrt(inFeatures);
+	float wSigmaValue = stdInit / (float)sqrt(inFeatures); //TODO: inFeatures converted into float automatically?
 	float bSigmaValue = stdInit / (float)sqrt(outFeatures);
 
 	torch::nn::init::constant_(wSigma, 0.017);
