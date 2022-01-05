@@ -111,67 +111,6 @@ void testCart(const int epochNum) {
 }
 
 
-void testtestCart(const int epochNum) {
-	const std::string envName = "CartPole-v0";
-	const int clientNum = 1; //8
-	const int outputNum = 2;
-	const int inputNum = 4;
-	std::string serverAddr = "tcp://127.0.0.1:10203";
-	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
-	LunarEnv env(serverAddr, envName, clientNum);
-	env.init();
-	LOG4CXX_INFO(logger, "Env " << envName << " ready");
-
-	CartFcQNet model(inputNum, outputNum);
-	model.to(deviceType);
-//	CartFcNet targetModel(inputNum, outputNum);
-//	targetModel.to(deviceType);
-
-//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-3)); //rmsprop: 0.00025
-    torch::optim::RMSprop optimizer(model.parameters(), torch::optim::RMSpropOptions(0.00025).eps(0.01).alpha(0.95));
-//    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-2));
-//	torch::optim::RMSprop optimizer(model.parameters());
-    LOG4CXX_INFO(logger, "Model ready");
-
-    at::IntArrayRef inputShape{clientNum, 4};
-    DqnOption option(inputShape, deviceType);
-    option.envNum = clientNum;
-    //target model
-    option.targetUpdate = 100;
-    option.tau = 1;
-    //buffer
-    option.rbCap = 100;
-    //explore
-    option.exploreBegin = 1;
-    option.exploreEnd = 0.1;
-    option.explorePart = 0.8;
-    //input
-    option.inputScale = 1;
-    option.rewardScale = 1;
-    option.rewardMin = -1; //TODO: reward may not require clip
-    option.rewardMax = 1;
-    option.gamma = 0.99;
-    //grad
-    option.batchSize = 32;
-    option.startStep = 500;
-    option.maxGradNormClip = 1;
-    //log
-    option.statCap = 128;
-    option.statPathPrefix = "./dqn_testtestcart";
-    //model
-    option.saveModel = false;
-    option.loadModel = true;
-    option.loadOptimizer = false;
-    option.loadPathPrefix = "/home/zf/workspaces/workspace_cpp/rlpractice/build/test/gymtest/dqn_testcart";
-
-
-
-    RawPolicy policy(option.exploreBegin, outputNum);
-
-    DoubleDqn<CartFcQNet, LunarEnv, RawPolicy, torch::optim::RMSprop> dqn(model, model, env, env, policy, optimizer, option);
-    dqn.test(epochNum);
-}
-
 void testProbe(const int epochNum) {
 	const int batchSize = 1;
 	const int inputNum = 4;
@@ -308,6 +247,80 @@ void testPong(const int epochNum) {
     dqn.train(epochNum);
 }
 
+void testPong1(const int epochNum) {
+	const std::string envName = "PongNoFrameskip-v4";
+	const int outputNum = 6;
+	const int clientNum = 1;
+	const int testClientNum = 4;
+
+	std::string serverAddr = "tcp://127.0.0.1:10201";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	std::string testServerAddr = "tcp://127.0.0.1:10202";
+	LOG4CXX_DEBUG(logger, "To connect to " << testServerAddr);
+	AirEnv testEnv(testServerAddr, envName, testClientNum);
+	testEnv.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	AirCnnNet model(outputNum);
+	model.to(deviceType);
+	AirCnnNet targetModel(outputNum);
+	targetModel.to(deviceType);
+
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-4));
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    at::IntArrayRef testInputShape{testClientNum, 4, 84, 84};
+    DqnOption option(inputShape, testInputShape, deviceType);
+    //env
+    option.envNum = clientNum;
+    option.envStep = 1;
+    //target model
+    option.targetUpdateStep = 2000;
+    option.tau = 1;
+    //buffer
+    option.rbCap = 131072;
+    //explore
+    option.exploreBegin = 1;
+    option.exploreEnd = 0.01;
+    option.explorePart = 0.3;
+    //input
+    option.inputScale = 255;
+    option.rewardScale = 1;
+    option.rewardMin = -1; //TODO: reward may not require clip
+    option.rewardMax = 1;
+    option.gamma = 0.99;
+    //output
+    option.multiLifes = false;
+    //grad
+    option.batchSize = 32;
+    option.startStep = 10000;
+    option.maxGradNormClip = 1;
+    //log
+    option.logInterval = 100;
+    option.tensorboardLogPath = "./logs/doubledqn_testpong1/tfevents.pb";
+    //test
+    option.toTest = true;
+    option.testGapEp = 5000;
+    option.testBatch = testClientNum;
+    option.testEp = testClientNum;
+    //model
+    option.saveThreshold = -20;
+    option.saveStep = 1;
+    option.saveModel = false;
+    option.savePathPrefix = "./doubledqn_testpong0";
+    option.loadModel = false;
+    option.loadOptimizer = false;
+
+
+    RawPolicy policy(option.exploreBegin, outputNum);
+
+    DoubleDqn<AirCnnNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
+
+    dqn.train(epochNum);
+}
 
 void testBreakout(const int epochNum) {
 	const std::string envName = "BreakoutNoFrameskip-v4";
@@ -467,8 +480,8 @@ int main(int argc, char** argv) {
 	logConfigure(false);
 
 //	testtestCart(atoi(argv[1]));
-//	testPong(atoi(argv[1]));
-	testBreakout(atoi(argv[1]));
+	testPong1(atoi(argv[1]));
+//	testBreakout(atoi(argv[1]));
 //	testCart(atoi(argv[1]));
 //	testProbe(atoi(argv[1]));
 

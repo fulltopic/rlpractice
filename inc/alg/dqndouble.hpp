@@ -257,7 +257,7 @@ void DoubleDqn<NetType, EnvType, PolicyType, OptimizerType>::updateModel(bool fo
 	}
 
 	AlgUtils::SyncNet(bModel, tModel, dqnOption.tau);
-	LOG4CXX_INFO(logger, "----------------------------------------> target network synched");
+	LOG4CXX_DEBUG(logger, "----------------------------------------> target network synched");
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
