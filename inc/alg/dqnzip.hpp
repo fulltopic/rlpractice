@@ -22,8 +22,7 @@
 
 #include "gymtest/env/envutils.h"
 #include "gymtest/utils/stats.h"
-#include "dqnoption.h"
-
+#include "utils/dqnoption.h"
 #include "utils/utils.hpp"
 #include "utils/replaybuffer.h"
 

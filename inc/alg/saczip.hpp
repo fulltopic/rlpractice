@@ -25,7 +25,7 @@
 #include "gymtest/env/envutils.h"
 #include "gymtest/utils/stats.h"
 #include "gymtest/utils/lossstats.h"
-#include "dqnoption.h"
+#include "utils/dqnoption.h"
 
 template<typename QNetType, typename PNetType, typename EnvType, typename PolicyType, typename QOptimizerType, typename POptimizerType, typename AlphaOptimizerType>
 class SacZip {

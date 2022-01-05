@@ -22,7 +22,7 @@
 #include "gymtest/utils/lossstats.h"
 #include "gymtest/utils/a2cnstore.h"
 #include "gymtest/utils/inputnorm.h"
-#include "dqnoption.h"
+#include "utils/dqnoption.h"
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
 class A2CNStepNorm {

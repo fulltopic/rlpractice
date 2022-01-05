@@ -20,14 +20,12 @@
 #include <vector>
 #include <mutex>
 
+#include "../utils/dqnoption.h"
 #include "gymtest/env/envutils.h"
 #include "gymtest/utils/a2cstatestore.h"
 #include "gymtest/utils/stats.h"
 #include "gymtest/utils/lossstats.h"
 #include "gymtest/utils/a2cnstore.h"
-#include "alg/dqnoption.h"
-
-//#include "a3c/a3ctcpclienthanle.hpp"
 #include "a3c/a3cgradque.h"
 
 #include "gymtest/utils/inputnorm.h"

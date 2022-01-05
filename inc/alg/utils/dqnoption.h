@@ -5,8 +5,8 @@
  *      Author: zf
  */
 
-#ifndef INC_ALG_DQNOPTION_H_
-#define INC_ALG_DQNOPTION_H_
+#ifndef INC_ALG_UTILS_DQNOPTION_H_
+#define INC_ALG_UTILS_DQNOPTION_H_
 
 #include <torch/torch.h>
 #include <string>
@@ -146,4 +146,4 @@ public:
 };
 
 
-#endif /* INC_ALG_DQNOPTION_H_ */
+#endif /* INC_ALG_UTILS_DQNOPTION_H_ */

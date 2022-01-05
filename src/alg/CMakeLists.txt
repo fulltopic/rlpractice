@@ -1,5 +1,5 @@
 add_library(alg OBJECT 
-								dqnoption.cpp
+								utils/dqnoption.cpp
 								appo/appodataq.cpp
 								utils/replaybuffer.cpp
 								utils/stree.cpp

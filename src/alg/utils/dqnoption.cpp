@@ -7,7 +7,7 @@
 
 
 
-#include "alg/dqnoption.h"
+#include "alg/utils/dqnoption.h"
 
 DqnOption::DqnOption(at::IntArrayRef iShape, torch::Device dType, int cap, float gm, std::string path, int tUpdate):
 	inputShape(iShape),

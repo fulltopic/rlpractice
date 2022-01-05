@@ -29,10 +29,6 @@ target_link_libraries(testaircnn ${shared_libs} ${pytorch_cpp_rl_lib})
 
 
 ############################################################ A2C
-add_executable(testa2c testa2c.cpp ${COMMON_TRAIN_OBJS})
-target_compile_features(testa2c PUBLIC cxx_range_for)
-target_link_libraries(testa2c ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
-
 add_executable(testa2cnstep testa2cnstep.cpp ${COMMON_TRAIN_OBJS})
 target_compile_features(testa2cnstep PUBLIC cxx_range_for)
 target_link_libraries(testa2cnstep ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})

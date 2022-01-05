@@ -24,10 +24,9 @@
 #include "gymtest/env/envutils.h"
 #include "gymtest/utils/stats.h"
 //#include "gymtest/utils/lossstats.h"
-#include "dqnoption.h"
-
 #include "utils/utils.hpp"
 #include "utils/algtester.hpp"
+#include "utils/dqnoption.h"
 #include "utils/replaybuffer.h"
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>

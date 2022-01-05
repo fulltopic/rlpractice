@@ -16,7 +16,7 @@
 
 #include <vector>
 
-#include "alg/dqnoption.h"
+#include "dqnoption.h"
 #include "gymtest/utils/stats.h"
 
 template<typename NetType, typename EnvType, typename PolicyType>

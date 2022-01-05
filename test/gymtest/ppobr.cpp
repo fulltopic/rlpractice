@@ -23,9 +23,6 @@
 #include "gymtest/airnets/airachonet.h"
 #include "gymtest/train/rawpolicy.h"
 #include "gymtest/train/softmaxpolicy.h"
-#include "alg/dqnoption.h"
-
-
 #include <torch/torch.h>
 #include <log4cxx/logger.h>
 #include <log4cxx/basicconfigurator.h>
@@ -34,6 +31,7 @@
 #include <log4cxx/logmanager.h>
 
 #include <vector>
+#include "alg/utils/dqnoption.h"
 
 //max = 648?
 namespace {

@@ -21,10 +21,10 @@
 #include <ctime>
 #include <cstdlib>
 
+#include "../utils/dqnoption.h"
 #include "gymtest/env/envutils.h"
 #include "gymtest/utils/stats.h"
 #include "gymtest/utils/lossstats.h"
-#include "alg/dqnoption.h"
 #include "appodataq.h"
 
 template<typename NetType, typename EnvType, typename PolicyType>

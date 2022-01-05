@@ -15,8 +15,6 @@
 #include "gymtest/airnets/aircnnnet.h"
 #include "gymtest/train/rawpolicy.h"
 #include "gymtest/train/softmaxpolicy.h"
-#include "alg/dqnoption.h"
-
 #include "probeenvs/ProbeEnvWrapper.h"
 
 #include <torch/torch.h>
@@ -27,6 +25,8 @@
 #include <log4cxx/logmanager.h>
 
 #include <vector>
+
+#include "alg/utils/dqnoption.h"
 namespace {
 log4cxx::LoggerPtr logger(log4cxx::Logger::getLogger("catdqn"));
 const torch::Device deviceType = torch::kCUDA;
