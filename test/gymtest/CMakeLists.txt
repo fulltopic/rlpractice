@@ -29,17 +29,13 @@ target_link_libraries(testaircnn ${shared_libs} ${pytorch_cpp_rl_lib})
 
 
 ############################################################ A2C
-add_executable(testa2cnstep testa2cnstep.cpp ${COMMON_TRAIN_OBJS})
-target_compile_features(testa2cnstep PUBLIC cxx_range_for)
-target_link_libraries(testa2cnstep ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
-
 add_executable(testbreakout testbreakout.cpp ${COMMON_TRAIN_OBJS})
 target_compile_features(testbreakout PUBLIC cxx_range_for)
 target_link_libraries(testbreakout ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
 
-add_executable(testa2cnbatch testa2cnbatch.cpp ${COMMON_TRAIN_OBJS})
-target_compile_features(testa2cnbatch PUBLIC cxx_range_for)
-target_link_libraries(testa2cnbatch ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
+add_executable(testa2c testa2c.cpp ${COMMON_TRAIN_OBJS})
+target_compile_features(testa2c PUBLIC cxx_range_for)
+target_link_libraries(testa2c ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
 
 add_executable(a2cnbatchpong a2cnbatchpong.cpp ${COMMON_TRAIN_OBJS})
 target_compile_features(a2cnbatchpong PUBLIC cxx_range_for)

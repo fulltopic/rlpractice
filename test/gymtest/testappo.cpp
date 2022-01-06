@@ -199,7 +199,7 @@ void test0(const int clientNum, const int roundNum, const int maxStep, const int
     while (true) {
     	sleep(pollMinute);
 
-    	tester.test();
+    	tester.testAC();
     }
 
     //Never reach
@@ -354,7 +354,7 @@ void testpong0(const int clientNum, const int roundNum, const int maxStep, const
     while (true) {
     	sleep(pollMinute);
 
-    	tester.test();
+    	tester.testAC();
     }
 
     //Never reach
@@ -512,7 +512,7 @@ void testpong1(const int clientNum, const int roundNum, const int maxStep, const
     while (true) {
     	sleep(pollMinute);
 
-    	tester.test();
+    	tester.testAC();
     }
 
     //Never reach
@@ -669,7 +669,7 @@ void testpong2(const int clientNum, const int roundNum, const int maxStep, const
     while (true) {
     	sleep(pollMinute);
 
-    	tester.test();
+    	tester.testAC();
     }
 
     //Never reach
@@ -827,7 +827,7 @@ void testbr3(const int clientNum, const int roundNum, const int maxStep, const i
     while (true) {
     	sleep(pollMinute);
 
-    	tester.test();
+    	tester.testAC();
     }
 
     //Never reach
@@ -985,7 +985,7 @@ void testqb4(const int clientNum, const int roundNum, const int maxStep, const i
     while (true) {
     	sleep(pollMinute);
 
-    	tester.test();
+    	tester.testAC();
     }
 
     //Never reach

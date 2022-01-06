@@ -209,7 +209,7 @@ void DqnZip<NetType, EnvType, PolicyType, OptimizerType>::train(const int epochN
 			float lossValue = loss.item<float>();
 			float qValue = curQ.mean().item<float>();
 			tLogger.add_scalar("loss/loss", updateNum, lossValue);
-			tLogger.add_scalar("loss/qValue", updateNum, qValue);
+			tLogger.add_scalar("loss/q", updateNum, qValue);
 			tLogger.add_scalar("loss/epsilon", updateNum, policy.getEpsilon());
 		}
 

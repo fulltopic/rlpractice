@@ -54,7 +54,7 @@ public:
 	AlgTester(const AlgTester&) = delete;
 	AlgTester operator=(const AlgTester&) = delete;
 
-	void test();
+	void testAC();
 	void testPlain();
 	void testCategory();
 };
@@ -67,16 +67,6 @@ AlgTester<NetType, EnvType, PolicyType>::AlgTester(NetType& iNet, EnvType& iEnv,
 	dqnOption(option),
 	tLogger(option.tensorboardLogPath.c_str())
 {
-//	statRewards = std::vector<float>(dqnOption.testBatch, 0);
-//	statLens = std::vector<float>(dqnOption.testBatch, 0);
-//	sumRewards = std::vector<float>(dqnOption.testBatch, 0);
-//	sumLens = std::vector<float>(dqnOption.testBatch, 0);
-//	liveCounts = std::vector<int>(dqnOption.testBatch, 0);
-//	noReward = std::vector<int>(dqnOption.testBatch, 0);
-//	randomStep = std::vector<int>(dqnOption.testBatch, 0);
-//
-//	valueItems = torch::linspace(dqnOption.vMin, dqnOption.vMax, dqnOption.atomNum).to(dqnOption.deviceType);
-
 	init();
 }
 
@@ -88,16 +78,6 @@ AlgTester<NetType, EnvType, PolicyType>::AlgTester(NetType& iNet, EnvType& iEnv,
 	dqnOption(option),
 	tLogger(tensorLogger)
 {
-//	statRewards = std::vector<float>(dqnOption.testBatch, 0);
-//	statLens = std::vector<float>(dqnOption.testBatch, 0);
-//	sumRewards = std::vector<float>(dqnOption.testBatch, 0);
-//	sumLens = std::vector<float>(dqnOption.testBatch, 0);
-//	liveCounts = std::vector<int>(dqnOption.testBatch, 0);
-//	noReward = std::vector<int>(dqnOption.testBatch, 0);
-//	randomStep = std::vector<int>(dqnOption.testBatch, 0);
-//
-//	valueItems = torch::linspace(dqnOption.vMin, dqnOption.vMax, dqnOption.atomNum).to(dqnOption.deviceType);
-
 	init();
 }
 
@@ -116,7 +96,7 @@ void AlgTester<NetType, EnvType, PolicyType>::init() {
 }
 
 template<typename NetType, typename EnvType, typename PolicyType>
-void AlgTester<NetType, EnvType, PolicyType>::test() {
+void AlgTester<NetType, EnvType, PolicyType>::testAC() {
 	LOG4CXX_INFO(logger, "To test " << dqnOption.testEp << "episodes");
 	if (!dqnOption.toTest) {
 		return;
@@ -160,9 +140,6 @@ void AlgTester<NetType, EnvType, PolicyType>::test() {
 		for (int i = 0; i < dqnOption.testBatch; i ++) {
 			if (doneVec[i]) {
 				LOG4CXX_DEBUG(logger, "testEnv " << i << "done");
-//				auto resetResult = env.reset(i);
-				//udpate nextstatevec, target mask
-//				std::copy(resetResult.begin(), resetResult.end(), nextStateVec.begin() + (offset * i));
 				epCount ++;
 				testEpCount ++;
 
@@ -172,22 +149,21 @@ void AlgTester<NetType, EnvType, PolicyType>::test() {
 				LOG4CXX_INFO(logger, "test -----------> "<< i << " " << statLens[i] << ", " << statRewards[i]);
 				tLogger.add_scalar("test/len", testEpCount, statLens[i]);
 				tLogger.add_scalar("test/reward", testEpCount, statRewards[i]);
-//				testStater.update(statLens[i], statRewards[i]);
 				statLens[i] = 0;
 				statRewards[i] = 0;
-//				stater.printCurStat();
 
-				liveCounts[i] ++;
-				if (liveCounts[i] >= dqnOption.donePerEp) {
-					LOG4CXX_INFO(logger, "TEST Wrapper episode " << i << " ----------------------------> " << sumRewards[i]);
-//					sumStater.update(sumLens[i], sumRewards[i]);
-					tLogger.add_scalar("test/sumlen", testEpCount, sumLens[i]);
-					tLogger.add_scalar("test/sumreward", testEpCount, sumRewards[i]);
-					liveCounts[i] = 0;
-					sumRewards[i] = 0;
-					sumLens[i] = 0;
+				if (dqnOption.multiLifes) {
+					liveCounts[i] ++;
+					if (liveCounts[i] >= dqnOption.donePerEp) {
+						LOG4CXX_INFO(logger, "TEST Wrapper episode " << i << " ----------------------------> " << sumRewards[i]);
+						tLogger.add_scalar("test/sumlen", testEpCount, sumLens[i]);
+						tLogger.add_scalar("test/sumreward", testEpCount, sumRewards[i]);
+
+						liveCounts[i] = 0;
+						sumRewards[i] = 0;
+						sumLens[i] = 0;
+					}
 				}
-
 			}
 
 			if (dqnOption.randomHang) {

@@ -134,7 +134,7 @@ void testServer0(const int batchSize, const int epNum, std::string logPath) {
 
     	auto updateNum = server->getUpdateNum();
     	if (updateNum - lastUpdateNum > option.testGapEp) {
-    		tester.test();
+    		tester.testAC();
     		lastUpdateNum = updateNum;
     	}
     }
@@ -313,7 +313,7 @@ void testServer1(const int batchSize, const int epNum, std::string logPath) {
 
     	auto updateNum = server->getUpdateNum();
     	if (updateNum - lastUpdateNum > option.testGapEp) {
-    		tester.test();
+    		tester.testAC();
     		lastUpdateNum = updateNum;
     	}
     }
@@ -478,7 +478,7 @@ void testServer2(const int batchSize, const int epNum, std::string logPath) {
 
     	auto updateNum = server->getUpdateNum();
     	if (updateNum - lastUpdateNum > option.testGapEp) {
-    		tester.test();
+    		tester.testAC();
     		lastUpdateNum = updateNum;
     	}
     }
@@ -643,7 +643,7 @@ void testServer3(const int batchSize, const int epNum, std::string logPath) {
 
     	auto updateNum = server->getUpdateNum();
     	if (updateNum - lastUpdateNum > option.testGapEp) {
-    		tester.test();
+    		tester.testAC();
     		lastUpdateNum = updateNum;
     	}
     }
@@ -817,7 +817,7 @@ void testServer4(const int batchSize, const int epNum, std::string logPath, std:
 
     	auto updateNum = server->getUpdateNum();
     	if (updateNum - lastUpdateNum > option.testGapEp) {
-    		tester.test();
+    		tester.testAC();
     		lastUpdateNum = updateNum;
     	}
     }
@@ -981,7 +981,7 @@ void testServer5(const int batchSize, const int epNum, std::string logPath) {
 
     	auto updateNum = server->getUpdateNum();
     	if (updateNum - lastUpdateNum > option.testGapEp) {
-    		tester.test();
+    		tester.testAC();
     		lastUpdateNum = updateNum;
     	}
     }
@@ -1155,7 +1155,7 @@ void testServer6(const int batchSize, const int epNum, std::string logPath, std:
 
     	auto updateNum = server->getUpdateNum();
     	if (updateNum - lastUpdateNum > option.testGapEp) {
-    		tester.test();
+    		tester.testAC();
     		lastUpdateNum = updateNum;
     	}
     }
@@ -1319,7 +1319,7 @@ void testServer7(const int batchSize, const int epNum, std::string logPath) {
 
     	auto updateNum = server->getUpdateNum();
     	if (updateNum - lastUpdateNum > option.testGapEp) {
-    		tester.test();
+    		tester.testAC();
     		lastUpdateNum = updateNum;
     	}
     }
@@ -1606,7 +1606,7 @@ void test9(const int batchSize, const int epochNum) {
     while (true) {
     	sleep(pollMinute);
 
-    	tester.test();
+    	tester.testAC();
     }
 
     for (int i = 0; i < workerNum; i ++) {
@@ -1745,7 +1745,7 @@ void test10(const int batchSize, const int epochNum) {
     while (true) {
     	sleep(pollMinute);
 
-    	tester.test();
+    	tester.testAC();
     }
 
     for (int i = 0; i < workerNum; i ++) {
@@ -1947,7 +1947,7 @@ void testa2c(const int updateNum) {
 
     A2CNStep<CartACFcNet, LunarEnv, SoftmaxPolicy, torch::optim::Adam> a2c(
     		model, env, testEnv, policy, optimizer, maxStep, option);
-    a2c.train(updateNum, true);
+    a2c.train(updateNum);
 }
 
 void testa2cpong(int updateNum) {
@@ -2013,7 +2013,7 @@ void testa2cpong(int updateNum) {
     SoftmaxPolicy policy(outputNum);
     //TODO: testenv
     A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam> a2c(model, env, testEnv, policy, optimizer, maxStep, option);
-    a2c.train(updateNum, true);
+    a2c.train(updateNum);
 }
 
 void testa2cgaepong(int updateNum) {

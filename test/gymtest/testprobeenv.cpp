@@ -82,7 +82,7 @@ void test0(const int envId, const int outputNum, const int epochNum) {
     SoftmaxPolicy policy(outputNum);
     const int maxStep = 4;
     A2CNStep<CartACFcNet, ProbeEnvWrapper, SoftmaxPolicy, torch::optim::Adam> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 

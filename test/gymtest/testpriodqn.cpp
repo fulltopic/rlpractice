@@ -103,7 +103,7 @@ void testProbe(const int epochNum) {
     RawPolicy policy(option.exploreBegin, outputNum);
 
     PrioDqn<CartFcQNet, ProbeEnvWrapper, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
-    dqn.train(epochNum);
+    dqn.trainDouble(epochNum);
 }
 
 
@@ -182,7 +182,7 @@ void testCart(const int epochNum) {
 
     PrioDqn<CartFcQNet, LunarEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
 
-    dqn.train(epochNum);
+    dqn.trainDouble(epochNum);
 }
 
 
@@ -265,7 +265,7 @@ void testPong(const int epochNum) {
 
     PrioDqn<AirCnnNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
 
-    dqn.train(epochNum);
+    dqn.trainDouble(epochNum);
 }
 
 
@@ -348,7 +348,7 @@ void testPongDouble(const int epochNum) {
 
     PrioDqn<AirCnnNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
 
-    dqn.train(epochNum);
+    dqn.trainDouble(epochNum);
 }
 
 //TODO: envStep = 1; lr = 1e-4; step = 1000000
@@ -431,7 +431,7 @@ void testPongDouble1(const int epochNum) {
 
     PrioDqn<AirCnnNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
 
-    dqn.train(epochNum);
+    dqn.trainDouble(epochNum);
 }
 
 
@@ -514,9 +514,91 @@ void testPongDouble2(const int epochNum) {
 
     PrioDqn<AirCnnNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
 
-    dqn.train(epochNum);
+    dqn.trainDouble(epochNum);
 }
 
+
+void testPongDqn(const int epochNum) {
+	const std::string envName = "PongNoFrameskip-v4";
+	const int outputNum = 6;
+	const int clientNum = 1;
+	const int testClientNum = 4;
+
+	std::string serverAddr = "tcp://127.0.0.1:10201";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, clientNum);
+	env.init();
+	std::string testServerAddr = "tcp://127.0.0.1:10202";
+	LOG4CXX_DEBUG(logger, "To connect to " << testServerAddr);
+	AirEnv testEnv(testServerAddr, envName, testClientNum);
+	testEnv.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	AirCnnNet model(outputNum);
+	model.to(deviceType);
+	AirCnnNet targetModel(outputNum);
+	targetModel.to(deviceType);
+
+//    torch::optim::Adagrad optimizer(model.parameters(), torch::optim::AdagradOptions(1e-3)); //rmsprop: 0.00025
+//    torch::optim::RMSprop optimizer(model.parameters(), torch::optim::RMSpropOptions(0.00025).eps(0.01).alpha(0.95));
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-4));
+    LOG4CXX_INFO(logger, "Model ready");
+
+    at::IntArrayRef inputShape{clientNum, 4, 84, 84};
+    at::IntArrayRef testInputShape{testClientNum, 4, 84, 84};
+    DqnOption option(inputShape, testInputShape, deviceType);
+
+    //env
+    option.envNum = clientNum;
+    option.envStep = 1;
+    option.multiLifes = false;
+    //target model
+    option.targetUpdateStep = 2000;
+    option.tau = 1;
+    //prio
+    option.rbCap = 131072; //Cap to be 2^x, 262144
+    option.pbAlpha = 0.6;
+    option.pbBetaBegin = 0.4;
+    option.pbBetaEnd = 1;
+    option.pbEpsilon = 1e-5;
+    option.pbBetaPart = 0.3;
+    //explore
+    option.exploreBegin = 1;
+    option.exploreEnd = 0.01;
+    option.explorePart = 0.3;
+    //input
+    option.inputScale = 255;
+    option.rewardScale = 1;
+    option.rewardMin = -1; //TODO: reward may not require clip
+    option.rewardMax = 1;
+    option.gamma = 0.99;
+    //grad
+    option.batchSize = 32; //32
+    option.startStep = 10000; //1000
+    option.maxGradNormClip = 1;
+    //test
+    option.toTest = true;
+    option.testGapEp = 5000;
+    option.testEp = testClientNum;
+    option.testBatch = testClientNum;
+    //log
+    option.logInterval = 100;
+    option.tensorboardLogPath = "./logs/prio_testpongdqn/tfevents.pb";
+    //model
+    option.saveThreshold = -20;
+    option.saveStep = 1;
+    option.saveModel = false;
+    option.savePathPrefix = "???";
+    option.loadModel = false;
+    option.loadOptimizer = false;
+
+
+    RawPolicy policy(option.exploreBegin, outputNum);
+
+    PrioDqn<AirCnnNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
+
+    dqn.trainDqn(epochNum);
+}
 
 void testBeamRider(const int epochNum) {
 	const std::string envName = "BeamRiderNoFrameskip-v4";
@@ -597,7 +679,7 @@ void testBeamRider(const int epochNum) {
 
     PrioDqn<AirCnnNet, AirEnv, RawPolicy, torch::optim::Adam> dqn(model, targetModel, env, testEnv, policy, optimizer, option);
 
-    dqn.train(epochNum);
+    dqn.trainDouble(epochNum);
 }
 
 //TODO: increase beta
@@ -632,7 +714,8 @@ int main(int argc, char** argv) {
 
 //	testCart(atoi(argv[1]));
 //	testProbe(atoi(argv[1]));
-	testPongDouble2(atoi(argv[1]));
+//	testPongDouble2(atoi(argv[1]));
+	testPongDqn(atoi(argv[1]));
 //	testBeamRider(atoi(argv[1]));
 //	testtestPong(atoi(argv[1]), argv[2]);
 //	testCartLog(atoi(argv[1]));

@@ -77,7 +77,7 @@ void test0(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACCnnNet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //continue test0
@@ -126,7 +126,7 @@ void test1(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACCnnNet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //Increase valueCoef into 0.5 based on test0
@@ -175,7 +175,7 @@ void test2(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACCnnNet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //continue test2
@@ -224,7 +224,7 @@ void test3(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACCnnNet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //continue test3
@@ -274,7 +274,7 @@ void test4(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACCnnNet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //Descrease entropyCoef based on test3
@@ -323,7 +323,7 @@ void test5(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACCnnNet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //Increase env_num based on test3
@@ -374,7 +374,7 @@ void test6(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACCnnNet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 void testtest6(const int batchSize, const int epochNum) {
@@ -473,7 +473,7 @@ void test7(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACCnnNet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //increase batchsize based on test6
@@ -523,7 +523,7 @@ void test8(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACCnnNet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //continue test8
@@ -575,7 +575,7 @@ void test9(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACCnnNet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 void testtest9(const int batchSize, const int epochNum) {
@@ -680,7 +680,7 @@ void test10(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACCnnNet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //batchsize = 32
@@ -730,7 +730,7 @@ void test11(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACCnnNet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //Continue test9
@@ -780,7 +780,7 @@ void test12(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACCnnNet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //Decrease clip_norm
@@ -830,7 +830,7 @@ void test13(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACCnnNet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //batchsize = 32
@@ -881,7 +881,7 @@ void test14(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACCnnNet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //batchsize = 32
@@ -931,7 +931,7 @@ void test15(const int batchSize, const int epochNum) {
     const int maxStep = 8;
     //TODO: testenv
     A2CNStep<AirACCnnNet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //increase entropy
@@ -981,7 +981,7 @@ void test16(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACCnnNet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //copy HO
@@ -1033,7 +1033,7 @@ void test17(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 //TODO: decrease value coef
 
@@ -1084,7 +1084,7 @@ void test18(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACCnnNet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 void test19(const int batchSize, const int epochNum) {
@@ -1133,7 +1133,7 @@ void test19(const int batchSize, const int epochNum) {
     const int maxStep = 8;
     //TODO: testenv
     A2CNStep<AirACCnnNet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, false);
+    a2c.train(epochNum);
 }
 
 //Test value estimation
@@ -1184,7 +1184,7 @@ void test20(const int batchSize, const int epochNum) {
     const int maxStep = 10;
     //TODO: testenv
     A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 void testtest20(const int batchSize, const int epochNum) {
@@ -1285,7 +1285,7 @@ void test21(const int batchSize, const int epochNum) {
     const int maxStep = 10;
     //TODO: testenv
     A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //env_num = 50
@@ -1337,7 +1337,7 @@ void test22(const int batchSize, const int epochNum) {
     const int maxStep = 10;
     //TODO: testenv
     A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //continue with bigger entropy
@@ -1387,7 +1387,7 @@ void test23(const int batchSize, const int epochNum) {
     const int maxStep = 10;
     //TODO: testenv
     A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //continue with smaller entropy
@@ -1437,7 +1437,7 @@ void test24(const int batchSize, const int epochNum) {
     const int maxStep = 10;
     //TODO: testenv
     A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 void testtest24(const int batchSize, const int epochNum) {
@@ -1539,7 +1539,7 @@ void test25(const int batchSize, const int epochNum) {
     const int maxStep = 10;
     //TODO: testenv
     A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //continue with smaller entropy
@@ -1589,7 +1589,7 @@ void test26(const int batchSize, const int epochNum) {
     const int maxStep = 10;
     //TODO: testenv
     A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //decrease maxstep
@@ -1639,7 +1639,7 @@ void test27(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //continue with smaller entropy
@@ -1690,7 +1690,7 @@ void test28(const int batchSize, const int epochNum) {
     const int maxStep = 10;
     //TODO: testenv
     A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //Increase max step
@@ -1740,7 +1740,7 @@ void test29(const int batchSize, const int epochNum) {
     const int maxStep = 16;
     //TODO: testenv
     A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 void testtest29(const int batchSize, const int epochNum) {
@@ -1841,7 +1841,7 @@ void test30(const int batchSize, const int epochNum) {
     const int maxStep = 10;
     //TODO: testenv
     A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //Increase entropy again
@@ -1891,7 +1891,7 @@ void test31(const int batchSize, const int epochNum) {
     const int maxStep = 16;
     //TODO: testenv
     A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //maxstep = 16, batch = 80, gradnorm = 0.1, entropy=0.001
@@ -1941,7 +1941,7 @@ void test32(const int batchSize, const int epochNum) {
     const int maxStep = 16;
     //TODO: testenv
     A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 void testtest32(const int batchSize, const int epochNum) {
@@ -2042,7 +2042,7 @@ void test33(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //batchSize = 32
@@ -2092,7 +2092,7 @@ void test34(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 
@@ -2143,7 +2143,7 @@ void test35(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //valueCoef = 0.25, batchSize = 50
@@ -2193,7 +2193,7 @@ void test36(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 //batchSize = 50
@@ -2244,7 +2244,7 @@ void test37(const int batchSize, const int epochNum) {
     const int maxStep = 5;
     //TODO: testenv
     A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 }
@@ -2296,7 +2296,7 @@ void testSave(const int batchSize, const int epochNum) {
     const int maxStep = 10;
     //TODO: testenv
     A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::RMSprop> a2c(model, env, env, policy, optimizer, maxStep, option);
-    a2c.train(epochNum, true);
+    a2c.train(epochNum);
 }
 
 void logConfigure(bool err) {
