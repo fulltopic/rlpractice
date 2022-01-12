@@ -275,7 +275,7 @@ void CategoricalDqn<NetType, EnvType, PolicyType, OptimizerType>::train(const in
 //			auto qsValue = qs.item<float>();
 
 			tLogger.add_scalar("loss/entLoss", updateNum, updateLoss / (float)dqnOption.epochPerUpdate);
-			tLogger.add_scalar("loss/qs", updateNum, updateQs / (float)dqnOption.epochPerUpdate);
+			tLogger.add_scalar("loss/q", updateNum, updateQs / (float)dqnOption.epochPerUpdate);
 		}
 
 		//TEST

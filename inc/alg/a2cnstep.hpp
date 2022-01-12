@@ -156,7 +156,6 @@ void A2CNStep<NetType, EnvType, PolicyType, OptimizerType>::train(const int epNu
 		donesVec.clear();
 		actionsVec.clear();
 
-//		bModel.eval();
 		{
 			torch::NoGradGuard guard;
 
@@ -193,7 +192,7 @@ void A2CNStep<NetType, EnvType, PolicyType, OptimizerType>::train(const int epNu
 
 					tLogger.add_scalar("train/len", epCount, statLens[i]);
 					tLogger.add_scalar("train/reward", epCount, statRewards[i]);
-					LOG4CXX_INFO(logger, "ep " << epCount << ": " << statLens[i] << ", " << statRewards[i]);
+					LOG4CXX_INFO(logger, "ep " << updateNum << ": " << statLens[i] << ", " << statRewards[i]);
 					auto curReward = statRewards[i];
 
 					statLens[i] = 0;
@@ -233,7 +232,6 @@ void A2CNStep<NetType, EnvType, PolicyType, OptimizerType>::train(const int epNu
 //		LOG4CXX_INFO(logger, "lastValue: " << lastValueTensor);
 
 //		bModel.train();
-		optimizer.zero_grad();
 
 		auto stateData = EnvUtils::FlattenVector(statesVec); //Can not merge as it returns a tmp object (stateData.data())
 		torch::Tensor stateTensor = torch::from_blob(stateData.data(), batchInputShape).div(dqnOption.inputScale).to(deviceType);
@@ -241,7 +239,7 @@ void A2CNStep<NetType, EnvType, PolicyType, OptimizerType>::train(const int epNu
 
 		auto output = bModel.forward(stateTensor);
 		auto actionOutputTensor = output[0].squeeze(-1).view({maxStep, batchSize, -1}); //{maxstep * batch, actionNum, 1} -> {maxstep * batch, actionNum} -> {maxstep, batch, actionNum}
-		auto valueTensor = output[1].squeeze(-1).view({maxStep, batchSize});
+		torch::Tensor valueTensor = output[1].squeeze(-1).view({maxStep, batchSize});
 //		LOG4CXX_INFO(logger, "compare value " << tmpValue);
 //		LOG4CXX_INFO(logger, "batch value: " << valueTensor);
 
@@ -292,6 +290,7 @@ void A2CNStep<NetType, EnvType, PolicyType, OptimizerType>::train(const int epNu
 
 		torch::Tensor loss = dqnOption.valueCoef * valueLoss + actLoss - dqnOption.entropyCoef * entropyLoss;
 
+		optimizer.zero_grad();
 		loss.backward();
 		torch::nn::utils::clip_grad_norm_(bModel.parameters(), dqnOption.maxGradNormClip);
 		optimizer.step();
@@ -302,11 +301,13 @@ void A2CNStep<NetType, EnvType, PolicyType, OptimizerType>::train(const int epNu
 			auto aLossV = actLoss.item<float>();
 			auto vLossV = valueLoss.item<float>();
 			auto entropyV = entropyLoss.item<float>();
+			auto valueV = valueTensor.mean().item<float>();
 
 			tLogger.add_scalar("loss/loss", updateNum, lossV);
 			tLogger.add_scalar("loss/aLoss", updateNum, aLossV);
 			tLogger.add_scalar("loss/vLoss", updateNum, vLossV);
 			tLogger.add_scalar("loss/entropy", updateNum, entropyV);
+			tLogger.add_scalar("loss/v", updateNum, valueV);
 		}
 
 		if ((updateNum % dqnOption.testGapEp) == 0) {

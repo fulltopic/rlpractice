@@ -13,6 +13,8 @@
 #include <log4cxx/logger.h>
 #include <log4cxx/basicconfigurator.h>
 
+#include <tensorboard_logger.h>
+
 #include <vector>
 
 #include "gymtest/env/envutils.h"
@@ -22,6 +24,8 @@
 #include "gymtest/utils/a2cnstore.h"
 #include "gymtest/utils/inputnorm.h"
 #include "utils/dqnoption.h"
+#include "utils/algtester.hpp"
+#include "utils/utils.hpp"
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
 class A2CNStepGae {
@@ -36,30 +40,33 @@ private:
 	const at::IntArrayRef inputShape;
 
 	const DqnOption dqnOption;
-	Stats stater;
-	Stats testStater;
-	Stats sumStater;
-	LossStats lossStater;
+	TensorBoardLogger tLogger;
+
+//	Stats stater;
+//	Stats testStater;
+//	Stats sumStater;
+//	LossStats lossStater;
 
 	const int batchSize;
-	int offset = 0;
+//	int offset = 0;
 
 	uint32_t updateNum = 0;
-	const int updateTargetGap; //TODO
+//	const int updateTargetGap; //TODO
 
-	A2CNStorage rollout;
+//	A2CNStorage rollout;
 	const uint32_t maxStep;
-	uint32_t qIndex = 0;
+//	uint32_t qIndex = 0;
 
-	const float entropyCoef;
+//	const float entropyCoef;
 
 	log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("a2c1stepq");
 	torch::TensorOptions longOpt = torch::TensorOptions().dtype(torch::kLong);
-	torch::nn::HuberLoss huberLossComputer = torch::nn::HuberLoss();
-	torch::nn::MSELoss mseLossComputer = torch::nn::MSELoss();
+//	torch::nn::HuberLoss huberLossComputer = torch::nn::HuberLoss();
+//	torch::nn::MSELoss mseLossComputer = torch::nn::MSELoss();
 
 	InputNorm rewardNorm;
 
+	AlgTester<NetType, EnvType, PolicyType> tester;
 
 
 	void save();
@@ -68,8 +75,8 @@ private:
 //	void trainBatch(const int epNum); //batched
 
 public:
-	const float gamma;
-	const int testEp = 16;
+//	const float gamma;
+//	const int testEp = 16;
 
 	A2CNStepGae(NetType& behaviorModel, EnvType& iEnv, EnvType& tEnv, PolicyType& iPolicy, OptimizerType& iOptimizer, int stepSize, DqnOption option);
 	~A2CNStepGae() = default;
@@ -93,22 +100,24 @@ A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::A2CNStepGae(NetType& b
 	dqnOption(iOption),
 	deviceType(iOption.deviceType),
 	inputShape(iOption.inputShape),
-	gamma(iOption.gamma),
-	stater(iOption.statPathPrefix + "_stat.txt", iOption.statCap),
-	testStater(iOption.statPathPrefix + "_test.txt", iOption.statCap),
-	sumStater(iOption.statPathPrefix + "_sum.txt", iOption.statCap),
-	lossStater(iOption.statPathPrefix + "_loss.txt"),
+//	gamma(iOption.gamma),
+//	stater(iOption.statPathPrefix + "_stat.txt", iOption.statCap),
+//	testStater(iOption.statPathPrefix + "_test.txt", iOption.statCap),
+//	sumStater(iOption.statPathPrefix + "_sum.txt", iOption.statCap),
+//	lossStater(iOption.statPathPrefix + "_loss.txt"),
 	batchSize(iOption.batchSize),
-	updateTargetGap(iOption.targetUpdate),
-	rollout(iOption.deviceType, stepSize),
+//	updateTargetGap(iOption.targetUpdate),
+//	rollout(iOption.deviceType, stepSize),
 	maxStep(stepSize),
-	entropyCoef(iOption.entropyCoef),
-	rewardNorm(iOption.deviceType)
+//	entropyCoef(iOption.entropyCoef),
+	rewardNorm(iOption.deviceType),
+	tLogger(iOption.tensorboardLogPath.c_str()),
+	tester(behaviorModel, tEnv, iPolicy, iOption, tLogger)
 {
-	offset = 1;
-	for (int i = 1; i < inputShape.size(); i ++) {
-		offset *= inputShape[i];
-	}
+//	offset = 1;
+//	for (int i = 1; i < inputShape.size(); i ++) {
+//		offset *= inputShape[i];
+//	}
 //
 //	std::string statPath = iOption.statPathPrefix + "_stat.txt";
 //	std::string testStatPath = iOption.statPathPrefix + "_test.txt";
@@ -120,54 +129,7 @@ A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::A2CNStepGae(NetType& b
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
 void A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::test(const int batchSize, const int epochNum) {
-	LOG4CXX_INFO(logger, "To test " << epochNum << "episodes");
-	if (!dqnOption.toTest) {
-		return;
-	}
-
-	int epCount = 0;
-	std::vector<float> statRewards(batchSize, 0);
-	std::vector<float> statLens(batchSize, 0);
-
-	torch::NoGradGuard guard;
-	std::vector<float> states = testEnv.reset();
-	while (epCount < epochNum) {
-//		torch::Tensor stateTensor = torch::from_blob(states.data(), inputShape).to(deviceType);
-		torch::Tensor stateTensor = torch::from_blob(states.data(), inputShape).div(dqnOption.inputScale).to(deviceType);
-
-		std::vector<torch::Tensor> rc = bModel.forward(stateTensor);
-		auto actionOutput = rc[0]; //TODO: detach?
-		auto valueOutput = rc[1];
-		auto actionProbs = torch::softmax(actionOutput, -1);
-		//TODO: To replace by getActions
-		std::vector<int64_t> actions = policy.getTestActions(actionProbs);
-
-		auto stepResult = testEnv.step(actions, true);
-		auto nextStateVec = std::get<0>(stepResult);
-		auto rewardVec = std::get<1>(stepResult);
-		auto doneVec = std::get<2>(stepResult);
-
-		Stats::UpdateReward(statRewards, rewardVec);
-		Stats::UpdateLen(statLens);
-
-		for (int i = 0; i < batchSize; i ++) {
-			if (doneVec[i]) {
-				LOG4CXX_DEBUG(logger, "testEnv " << i << "done");
-//				auto resetResult = env.reset(i);
-				//udpate nextstatevec, target mask
-//				std::copy(resetResult.begin(), resetResult.end(), nextStateVec.begin() + (offset * i));
-				epCount ++;
-
-				testStater.update(statLens[i], statRewards[i]);
-				statLens[i] = 0;
-				statRewards[i] = 0;
-//				stater.printCurStat();
-				LOG4CXX_INFO(logger, "test -----------> " << testStater);
-
-			}
-		}
-		states = nextStateVec;
-	}
+	tester.testAC();
 }
 
 
@@ -179,13 +141,9 @@ void A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 
 	int step = 0;
 	int epCount = 0;
-	int updateNum = 0;
+//	int updateNum = 0;
+	int roundCount = 0;
 
-//	std::vector<int64_t> batchInputShape(1 + inputShape.size(), 0);
-//	batchInputShape[0] = maxStep;
-//	for (int i = 1; i < batchInputShape.size(); i ++) {
-//		batchInputShape[i] = inputShape[i - 1];
-//	}
 	std::vector<int64_t> batchInputShape;
 	if (dqnOption.isAtari) {
 		batchInputShape.push_back(maxStep * batchSize);
@@ -200,6 +158,17 @@ void A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 		}
 	}
 
+//	std::vector<float> statRewards(batchSize, 0);
+//	std::vector<float> statLens(batchSize, 0);
+//	std::vector<int> liveCounts(batchSize, 0);
+//	std::vector<float> sumRewards(batchSize, 0);
+//	std::vector<float> sumLens(batchSize, 0);
+
+	std::vector<std::vector<float>> statesVec;
+	std::vector<std::vector<float>> rewardsVec;
+	std::vector<std::vector<float>> donesVec;
+	std::vector<std::vector<long>> actionsVec;
+
 	std::vector<float> statRewards(batchSize, 0);
 	std::vector<float> statLens(batchSize, 0);
 	std::vector<int> liveCounts(batchSize, 0);
@@ -211,23 +180,29 @@ void A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 	while (updateNum < epNum) {
 
 		//Collect data for maxStep
-		std::vector<std::vector<float>> statesVec;
-		std::vector<std::vector<float>> rewardsVec;
-		std::vector<std::vector<float>> donesVec;
-		std::vector<std::vector<long>> actionsVec;
+//		std::vector<std::vector<float>> statesVec;
+//		std::vector<std::vector<float>> rewardsVec;
+//		std::vector<std::vector<float>> donesVec;
+//		std::vector<std::vector<long>> actionsVec;
 
-		bModel.eval();
+		statesVec.clear();
+		rewardsVec.clear();
+		donesVec.clear();
+		actionsVec.clear();
+
+//		bModel.eval();
+		{
+			torch::NoGradGuard guard;
+
 		for (step = 0; step < maxStep; step ++) {
+			updateNum ++;
+
 			torch::Tensor stateTensor = torch::from_blob(stateVec.data(), inputShape).div(dqnOption.inputScale).to(deviceType);
 //			LOG4CXX_INFO(logger, "stateTensor in step: " << stateTensor.max() << stateTensor.mean());
 			std::vector<torch::Tensor> rc = bModel.forward(stateTensor);
 			auto actionProbs =  torch::softmax(rc[0], -1);
 			std::vector<int64_t> actions = policy.getActions(actionProbs);
-//			nextValues.push_back(rc[1].squeeze(-1));
-//			if (!isTmpValueSet) {
-//				tmpValue = rc[1];
-//				isTmpValueSet = true;
-//			}
+
 
 			auto stepResult = env.step(actions, false);
 			auto nextStateVec = std::get<0>(stepResult);
@@ -248,16 +223,22 @@ void A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 					sumRewards[i] += statRewards[i];
 					sumLens[i] += statLens[i];
 
-					stater.update(statLens[i], statRewards[i]);
+					tLogger.add_scalar("train/len", epCount, statLens[i]);
+					tLogger.add_scalar("train/reward", epCount, statRewards[i]);
+					LOG4CXX_INFO(logger, "ep " << updateNum << ": " << statLens[i] << ", " << statRewards[i]);
+					auto curReward = statRewards[i];
+
 					statLens[i] = 0;
 					statRewards[i] = 0;
-					LOG4CXX_INFO(logger, stater);
 
 					if (dqnOption.multiLifes) {
 						liveCounts[i] ++;
 						if (liveCounts[i] >= dqnOption.donePerEp) {
+							roundCount ++;
 							LOG4CXX_INFO(logger, "Wrapper episode " << i << " ----------------------------> " << sumRewards[i]);
-							sumStater.update(sumLens[i], sumRewards[i]);
+							tLogger.add_scalar("train/sumLen", roundCount, sumLens[i]);
+							tLogger.add_scalar("train/sumReward", roundCount, sumRewards[i]);
+							auto curSumReward = sumRewards[i];
 
 							liveCounts[i] = 0;
 							sumRewards[i] = 0;
@@ -267,6 +248,7 @@ void A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 				}
 			}
 
+
 			statesVec.push_back(stateVec);
 			rewardsVec.push_back(rewardVec);
 			donesVec.push_back(doneMaskVec);
@@ -274,27 +256,24 @@ void A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 
 			stateVec = nextStateVec;
 		}
+		} //nogradguard
 
 		//Get last V
 		torch::Tensor lastStateTensor = torch::from_blob(stateVec.data(), inputShape).div(dqnOption.inputScale).to(deviceType);
 //		LOG4CXX_INFO(logger, "stateTensor in last: " << lastStateTensor.max() << lastStateTensor.mean());
 		auto rc = bModel.forward(lastStateTensor);
-		auto lastValueTensor = rc[1].squeeze(-1);
+		auto lastValueTensor = rc[1].squeeze(-1).detach();
 //		LOG4CXX_INFO(logger, "lastValue: " << lastValueTensor);
 
 		//Update
-		bModel.train();
-		optimizer.zero_grad();
+//		bModel.train();
 
 		auto stateData = EnvUtils::FlattenVector(statesVec);
 		torch::Tensor stateTensor = torch::from_blob(stateData.data(), batchInputShape).div(dqnOption.inputScale).to(deviceType);
-//		if (dqnOption.isAtari) {
-//			stateTensor = stateTensor.view({maxStep * batchSize, 4, 84, 84});
-//		}
 //		LOG4CXX_INFO(logger, "stateTensor in batch: " << stateTensor.max() << stateTensor.mean());
 		auto output = bModel.forward(stateTensor);
 		auto actionOutputTensor = output[0].squeeze(-1).view({maxStep, batchSize, -1}); //{maxstep * batch, actionNum, 1} -> {maxstep * batch, actionNum} -> {maxstep, batch, actionNum}
-		auto valueTensor = output[1].squeeze(-1).view({maxStep, batchSize});
+		torch::Tensor valueTensor = output[1].squeeze(-1).view({maxStep, batchSize});
 //		LOG4CXX_INFO(logger, "compare value " << tmpValue);
 //		LOG4CXX_INFO(logger, "batch value: " << valueTensor);
 
@@ -341,9 +320,8 @@ void A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 //			LOG4CXX_INFO(logger, "row" << i << " qTensor: " << qTensor);
 //			returnTensor[i].copy_(qTensor);
 		}
-		if (dqnOption.normReward) {
-			gaeTensor = (gaeTensor - gaeTensor.mean()) / (gaeTensor.std() + 1e-7);
-			returnTensor = (returnTensor - returnTensor.mean()) / (returnTensor.std() + 1e-7);
+		if (dqnOption.tdValue) {
+			returnTensor = gaeTensor + valueTensor; //from baseline3.
 		}
 		returnTensor = returnTensor.detach();
 		gaeTensor = gaeTensor.detach();
@@ -351,13 +329,6 @@ void A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 		//Computing loss
 		torch::Tensor entropyLoss = - (actionProbTensor * actionLogTensor).sum(-1).mean();
 
-//		auto advTensor = returnTensor - valueTensor;
-//		LOG4CXX_INFO(logger, "returnTensor: " << returnTensor);
-//		LOG4CXX_INFO(logger, "valueTensor: " << valueTensor);
-//		torch::Tensor valueLoss = advTensor.pow(2).mean();
-//		torch::nn::SmoothL1Loss lossComputer = torch::nn::SmoothL1Loss();
-		//TODO: What huberLossComputer(x, y) did? Should it be huberLossComputer->forward(x, y)?
-//		torch::Tensor valueLoss = huberLossComputer(valueTensor, returnTensor);
 		torch::Tensor valueLoss = torch::nn::functional::mse_loss(valueTensor, returnTensor);
 
 //		LOG4CXX_INFO(logger, "actionLogTensor: " << actionLogTensor.sizes());
@@ -371,24 +342,40 @@ void A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 
 		torch::Tensor loss = dqnOption.valueCoef * valueLoss + actLoss - dqnOption.entropyCoef * entropyLoss;
 
-		auto lossV = loss.item<float>();
-		auto aLossV = actLoss.item<float>();
-		auto vLossV = valueLoss.item<float>();
-		auto entropyV = entropyLoss.item<float>();
 
+
+		optimizer.zero_grad();
 		loss.backward();
-//		torch::nn::utils::clip_grad_value_(bModel.parameters(), 1);
 		torch::nn::utils::clip_grad_norm_(bModel.parameters(), dqnOption.maxGradNormClip);
 		optimizer.step();
 
-		LOG4CXX_INFO(logger, "loss" << updateNum << ": " << lossV
-			<< ", " << vLossV << ", " << aLossV << ", " << entropyV);
-		auto curState = stater.getCurState();
-		lossStater.update({lossV, vLossV, aLossV, entropyV,
-			vLossV * dqnOption.valueCoef, entropyV * dqnOption.entropyCoef * (-1),
-			curState[0], curState[1]});
+//		LOG4CXX_INFO(logger, "loss" << updateNum << ": " << lossV
+//			<< ", " << vLossV << ", " << aLossV << ", " << entropyV);
+//		auto curState = stater.getCurState();
+//		lossStater.update({lossV, vLossV, aLossV, entropyV,
+//			vLossV * dqnOption.valueCoef, entropyV * dqnOption.entropyCoef * (-1),
+//			curState[0], curState[1]});
 
-		updateNum ++;
+		if ((updateNum % dqnOption.logInterval) == 0) {
+			auto lossV = loss.item<float>();
+			auto aLossV = actLoss.item<float>();
+			auto vLossV = valueLoss.item<float>();
+			auto entropyV = entropyLoss.item<float>();
+			auto valueV = valueTensor.mean().item<float>();
+
+
+			tLogger.add_scalar("loss/loss", updateNum, lossV);
+			tLogger.add_scalar("loss/vLoss", updateNum, vLossV);
+			tLogger.add_scalar("loss/aLoss", updateNum, aLossV);
+			tLogger.add_scalar("loss/entropy", updateNum, entropyV);
+			tLogger.add_scalar("loss/v", updateNum, valueV);
+		}
+
+		if ((updateNum % dqnOption.testGapEp) == 0) {
+			if (dqnOption.toTest) {
+				test(dqnOption.testBatch, dqnOption.testEp);
+			}
+		}
 	}
 
 	save();
@@ -400,17 +387,7 @@ void A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::save() {
 		return;
 	}
 
-	std::string modelPath = dqnOption.savePathPrefix + "_model.pt";
-	torch::serialize::OutputArchive outputArchive;
-	bModel.save(outputArchive);
-	outputArchive.save_to(modelPath);
-	LOG4CXX_INFO(logger, "Save model into " << modelPath);
-
-	std::string optPath = dqnOption.savePathPrefix + "_optimizer.pt";
-	torch::serialize::OutputArchive optimizerArchive;
-	optimizer.save(optimizerArchive);
-	optimizerArchive.save_to(optPath);
-	LOG4CXX_INFO(logger, "Save optimizer into " << optPath);
+	AlgUtils::SaveModel(bModel, optimizer, dqnOption.savePathPrefix, logger);
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
@@ -419,22 +396,7 @@ void A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::load() {
 		return;
 	}
 
-	std::string modelPath = dqnOption.loadPathPrefix + "_model.pt";
-	torch::serialize::InputArchive inChive;
-	inChive.load_from(modelPath);
-	bModel.load(inChive);
-	LOG4CXX_INFO(logger, "Load model from " << modelPath);
-
-//	updateTarget();
-
-	if (dqnOption.loadOptimizer) {
-		std::string optPath = dqnOption.loadPathPrefix + "_optimizer.pt";
-		torch::serialize::InputArchive opInChive;
-		opInChive.load_from(optPath);
-		optimizer.load(opInChive);
-		LOG4CXX_INFO(logger, "Load optimizer from " << optPath);
-	}
-
+	AlgUtils::LoadModel(bModel, optimizer, dqnOption.loadOptimizer, dqnOption.loadPathPrefix, logger);
 }
 
 

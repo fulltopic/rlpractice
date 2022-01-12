@@ -47,7 +47,7 @@ target_link_libraries(a2cnbreakout ${shared_libs} ${pytorch_cpp_rl_lib} ${tensor
 
 add_executable(a2cngae a2cngae.cpp ${COMMON_TRAIN_OBJS})
 target_compile_features(a2cngae PUBLIC cxx_range_for)
-target_link_libraries(a2cngae ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
+target_link_libraries(a2cngae ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
 
 add_executable(testrtnorm testrtnorm.cpp ${GYM_SIMPLE_OBJS})
 target_compile_features(testrtnorm PUBLIC cxx_range_for)

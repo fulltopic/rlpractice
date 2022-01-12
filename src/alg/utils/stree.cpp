@@ -54,7 +54,7 @@ void SegTree::add(float prio) {
 	adjust(curDataIndex, origValue, prio);
 
 	//check not happen on first add
-	if (curIndex == 0) {
+	if ((curIndex % 8192) == 0) {
 		check();
 	}
 //	printDatas("after add", datas);
