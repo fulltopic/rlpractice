@@ -97,7 +97,7 @@ void AlgTester<NetType, EnvType, PolicyType>::init() {
 
 template<typename NetType, typename EnvType, typename PolicyType>
 void AlgTester<NetType, EnvType, PolicyType>::testAC() {
-	LOG4CXX_INFO(logger, "To test " << dqnOption.testEp << "episodes");
+	LOG4CXX_INFO(logger, "To test " << dqnOption.testEp << " episodes");
 	if (!dqnOption.toTest) {
 		return;
 	}
@@ -136,7 +136,53 @@ void AlgTester<NetType, EnvType, PolicyType>::testAC() {
 
 		Stats::UpdateReward(statRewards, rewardVec);
 		Stats::UpdateLen(statLens);
+		for (int i = 0; i < dqnOption.testBatch; i ++) {
+			if (doneVec[i]) {
+				LOG4CXX_DEBUG(logger, "testEnv " << i << "done");
+//				epCount ++;
+				testLifeCount ++;
 
+				LOG4CXX_INFO(logger, "test -----------> "<< i << " " << statLens[i] << ", " << statRewards[i]);
+				tLogger.add_scalar("test/len", testLifeCount, statLens[i]);
+				tLogger.add_scalar("test/reward", testLifeCount, statRewards[i]);
+
+
+				if (dqnOption.multiLifes) {
+					liveCounts[i] ++;
+					sumRewards[i] += statRewards[i];
+					sumLens[i] += statLens[i];
+
+					if (liveCounts[i] >= dqnOption.donePerEp) {
+						epCount ++;
+						testEpCount ++;
+
+						LOG4CXX_INFO(logger, "TEST Wrapper episode " << i << " ----------------------------> " << sumRewards[i]);
+
+						tLogger.add_scalar("test/sumlen", testEpCount, sumLens[i]);
+						tLogger.add_scalar("test/sumreward", testEpCount, sumRewards[i]);
+						liveCounts[i] = 0;
+						sumRewards[i] = 0;
+						sumLens[i] = 0;
+					}
+				} else {
+					epCount ++;
+					testEpCount ++;
+				}
+
+				statLens[i] = 0;
+				statRewards[i] = 0;
+			}
+
+			if (dqnOption.randomHang) {
+			//Good action should have reward
+				if (rewardVec[i] < dqnOption.hangRewardTh) { //for float compare
+					noReward[i] ++;
+				}
+			}
+		}
+
+
+/*
 		for (int i = 0; i < dqnOption.testBatch; i ++) {
 			if (doneVec[i]) {
 				LOG4CXX_DEBUG(logger, "testEnv " << i << "done");
@@ -173,6 +219,7 @@ void AlgTester<NetType, EnvType, PolicyType>::testAC() {
 				}
 			}
 		}
+*/
 		states = nextStateVec;
 	}
 }

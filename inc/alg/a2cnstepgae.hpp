@@ -42,42 +42,21 @@ private:
 	const DqnOption dqnOption;
 	TensorBoardLogger tLogger;
 
-//	Stats stater;
-//	Stats testStater;
-//	Stats sumStater;
-//	LossStats lossStater;
-
 	const int batchSize;
-//	int offset = 0;
-
-	uint32_t updateNum = 0;
-//	const int updateTargetGap; //TODO
-
-//	A2CNStorage rollout;
 	const uint32_t maxStep;
-//	uint32_t qIndex = 0;
+	uint32_t updateNum = 0;
 
-//	const float entropyCoef;
 
 	log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("a2c1stepq");
 	torch::TensorOptions longOpt = torch::TensorOptions().dtype(torch::kLong);
-//	torch::nn::HuberLoss huberLossComputer = torch::nn::HuberLoss();
-//	torch::nn::MSELoss mseLossComputer = torch::nn::MSELoss();
-
-	InputNorm rewardNorm;
 
 	AlgTester<NetType, EnvType, PolicyType> tester;
 
 
 	void save();
 
-//	void trainStep(const int epNum); //no batched
-//	void trainBatch(const int epNum); //batched
 
 public:
-//	const float gamma;
-//	const int testEp = 16;
-
 	A2CNStepGae(NetType& behaviorModel, EnvType& iEnv, EnvType& tEnv, PolicyType& iPolicy, OptimizerType& iOptimizer, int stepSize, DqnOption option);
 	~A2CNStepGae() = default;
 	A2CNStepGae(const A2CNStepGae& ) = delete;
@@ -92,7 +71,6 @@ template<typename NetType, typename EnvType, typename PolicyType, typename Optim
 A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::A2CNStepGae(NetType& behaviorModel, EnvType& iEnv, EnvType& tEnv, PolicyType& iPolicy, OptimizerType& iOptimizer,
 		int stepSize, const DqnOption iOption):
 	bModel(behaviorModel),
-//	tModel(trainModel),
 	env(iEnv),
 	testEnv(tEnv),
 	policy(iPolicy),
@@ -100,31 +78,12 @@ A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::A2CNStepGae(NetType& b
 	dqnOption(iOption),
 	deviceType(iOption.deviceType),
 	inputShape(iOption.inputShape),
-//	gamma(iOption.gamma),
-//	stater(iOption.statPathPrefix + "_stat.txt", iOption.statCap),
-//	testStater(iOption.statPathPrefix + "_test.txt", iOption.statCap),
-//	sumStater(iOption.statPathPrefix + "_sum.txt", iOption.statCap),
-//	lossStater(iOption.statPathPrefix + "_loss.txt"),
 	batchSize(iOption.batchSize),
-//	updateTargetGap(iOption.targetUpdate),
-//	rollout(iOption.deviceType, stepSize),
 	maxStep(stepSize),
-//	entropyCoef(iOption.entropyCoef),
-	rewardNorm(iOption.deviceType),
 	tLogger(iOption.tensorboardLogPath.c_str()),
 	tester(behaviorModel, tEnv, iPolicy, iOption, tLogger)
 {
-//	offset = 1;
-//	for (int i = 1; i < inputShape.size(); i ++) {
-//		offset *= inputShape[i];
-//	}
-//
-//	std::string statPath = iOption.statPathPrefix + "_stat.txt";
-//	std::string testStatPath = iOption.statPathPrefix + "_test.txt";
-//	std::string lossStatPath = iOption.statPathPrefix + "_loss.txt";
-//	stater = Stats(statPath);
-//	testStater = Stats(testStatPath);
-//	lossStater = LossStats(lossStatPath);
+
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
@@ -141,7 +100,6 @@ void A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 
 	int step = 0;
 	int epCount = 0;
-//	int updateNum = 0;
 	int roundCount = 0;
 
 	std::vector<int64_t> batchInputShape;
@@ -151,18 +109,12 @@ void A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 			batchInputShape.push_back(inputShape[i]);
 		}
 	} else {
-//		batchInputShape = std::vector<int64_t>(1 + inputShape.size(), 0);
 		batchInputShape.push_back(maxStep);
 		for (int i = 0; i < inputShape.size(); i ++) {
 			batchInputShape.push_back(inputShape[i]);
 		}
 	}
 
-//	std::vector<float> statRewards(batchSize, 0);
-//	std::vector<float> statLens(batchSize, 0);
-//	std::vector<int> liveCounts(batchSize, 0);
-//	std::vector<float> sumRewards(batchSize, 0);
-//	std::vector<float> sumLens(batchSize, 0);
 
 	std::vector<std::vector<float>> statesVec;
 	std::vector<std::vector<float>> rewardsVec;
@@ -179,18 +131,11 @@ void A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 	std::vector<float> stateVec = env.reset();
 	while (updateNum < epNum) {
 
-		//Collect data for maxStep
-//		std::vector<std::vector<float>> statesVec;
-//		std::vector<std::vector<float>> rewardsVec;
-//		std::vector<std::vector<float>> donesVec;
-//		std::vector<std::vector<long>> actionsVec;
-
 		statesVec.clear();
 		rewardsVec.clear();
 		donesVec.clear();
 		actionsVec.clear();
 
-//		bModel.eval();
 		{
 			torch::NoGradGuard guard;
 
@@ -265,9 +210,6 @@ void A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 		auto lastValueTensor = rc[1].squeeze(-1).detach();
 //		LOG4CXX_INFO(logger, "lastValue: " << lastValueTensor);
 
-		//Update
-//		bModel.train();
-
 		auto stateData = EnvUtils::FlattenVector(statesVec);
 		torch::Tensor stateTensor = torch::from_blob(stateData.data(), batchInputShape).div(dqnOption.inputScale).to(deviceType);
 //		LOG4CXX_INFO(logger, "stateTensor in batch: " << stateTensor.max() << stateTensor.mean());
@@ -286,11 +228,6 @@ void A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 		auto rewardData = EnvUtils::FlattenVector(rewardsVec);
 		torch::Tensor rewardTensor = torch::from_blob(rewardData.data(), {maxStep, batchSize}).to(deviceType);
 		rewardTensor = rewardTensor.div(dqnOption.rewardScale).clamp(dqnOption.rewardMin, dqnOption.rewardMax);
-//		if (dqnOption.normReward) {
-//			rewardNorm.update(rewardTensor, maxStep * batchSize);
-//			rewardTensor = (rewardTensor - rewardNorm.getMean()) / rewardNorm.getVar();
-//		}
-//		LOG4CXX_INFO(logger, "reward: " << rewardTensor);
 
 		torch::Tensor returnTensor = torch::zeros({maxStep, batchSize}).to(deviceType);
 		torch::Tensor gaeTensor =  torch::zeros({maxStep, batchSize}).to(deviceType);
@@ -349,12 +286,6 @@ void A2CNStepGae<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 		torch::nn::utils::clip_grad_norm_(bModel.parameters(), dqnOption.maxGradNormClip);
 		optimizer.step();
 
-//		LOG4CXX_INFO(logger, "loss" << updateNum << ": " << lossV
-//			<< ", " << vLossV << ", " << aLossV << ", " << entropyV);
-//		auto curState = stater.getCurState();
-//		lossStater.update({lossV, vLossV, aLossV, entropyV,
-//			vLossV * dqnOption.valueCoef, entropyV * dqnOption.entropyCoef * (-1),
-//			curState[0], curState[1]});
 
 		if ((updateNum % dqnOption.logInterval) == 0) {
 			auto lossV = loss.item<float>();

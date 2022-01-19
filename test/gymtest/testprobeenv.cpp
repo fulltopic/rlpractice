@@ -8,8 +8,6 @@
 
 #include "probeenvs/ProbeEnvWrapper.h"
 
-#include "alg/a2cnstepnorm.hpp"
-#include "alg/a2cnstepgae.hpp"
 #include "alg/a2cnstep.hpp"
 
 #include "alg/pporandom.hpp"

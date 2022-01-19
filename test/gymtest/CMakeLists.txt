@@ -27,51 +27,6 @@ add_executable(testaircnn testaircnn.cpp $<TARGET_OBJECTS:gymenv> $<TARGET_OBJEC
 target_compile_features(testaircnn PUBLIC cxx_range_for)
 target_link_libraries(testaircnn ${shared_libs} ${pytorch_cpp_rl_lib})
 
-
-############################################################ A2C
-add_executable(testbreakout testbreakout.cpp ${COMMON_TRAIN_OBJS})
-target_compile_features(testbreakout PUBLIC cxx_range_for)
-target_link_libraries(testbreakout ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
-
-add_executable(testa2c testa2c.cpp ${COMMON_TRAIN_OBJS})
-target_compile_features(testa2c PUBLIC cxx_range_for)
-target_link_libraries(testa2c ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
-
-add_executable(a2cnbatchpong a2cnbatchpong.cpp ${COMMON_TRAIN_OBJS})
-target_compile_features(a2cnbatchpong PUBLIC cxx_range_for)
-target_link_libraries(a2cnbatchpong ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
-
-add_executable(a2cnbreakout a2cnbreakout.cpp ${COMMON_TRAIN_OBJS})
-target_compile_features(a2cnbreakout PUBLIC cxx_range_for)
-target_link_libraries(a2cnbreakout ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
-
-add_executable(a2cngae a2cngae.cpp ${COMMON_TRAIN_OBJS})
-target_compile_features(a2cngae PUBLIC cxx_range_for)
-target_link_libraries(a2cngae ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
-
-add_executable(testrtnorm testrtnorm.cpp ${GYM_SIMPLE_OBJS})
-target_compile_features(testrtnorm PUBLIC cxx_range_for)
-target_link_libraries(testrtnorm ${shared_libs})
-
-
-############################################################ PPO
-add_executable(ppopong ppopong.cpp ${COMMON_TRAIN_OBJS})
-target_compile_features(ppopong PUBLIC cxx_range_for)
-target_link_libraries(ppopong ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
-
-add_executable(ppobr ppobr.cpp ${COMMON_TRAIN_OBJS})
-target_compile_features(ppobr PUBLIC cxx_range_for)
-target_link_libraries(ppobr ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
-
-add_executable(ppobr2 ppobr2.cpp ${COMMON_TRAIN_OBJS})
-target_compile_features(ppobr2 PUBLIC cxx_range_for)
-target_link_libraries(ppobr2 ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
-
-add_executable(testprobeenv testprobeenv.cpp ${COMMON_TRAIN_OBJS} $<TARGET_OBJECTS:probeenvs>)
-target_compile_features(testprobeenv PUBLIC cxx_range_for)
-target_link_libraries(testprobeenv ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
-
-
 ########################################################## DQN
 add_executable(testdqn testdqn.cpp ${COMMON_TRAIN_OBJS} $<TARGET_OBJECTS:probeenvs>)
 target_compile_features(testdqn PUBLIC cxx_range_for)
@@ -96,6 +51,29 @@ target_link_libraries(testnoisydqn ${shared_libs} ${pytorch_cpp_rl_lib} ${tensor
 add_executable(testcatdqn testcatdqn.cpp ${COMMON_TRAIN_OBJS} $<TARGET_OBJECTS:probeenvs> $<TARGET_OBJECTS:noisynets>)
 target_compile_features(testcatdqn PUBLIC cxx_range_for)
 target_link_libraries(testcatdqn ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
+
+
+############################################################ A2C
+add_executable(testa2c testa2c.cpp ${COMMON_TRAIN_OBJS})
+target_compile_features(testa2c PUBLIC cxx_range_for)
+target_link_libraries(testa2c ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
+
+############################################################ PPO
+add_executable(ppopong ppopong.cpp ${COMMON_TRAIN_OBJS})
+target_compile_features(ppopong PUBLIC cxx_range_for)
+target_link_libraries(ppopong ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
+
+add_executable(ppobr ppobr.cpp ${COMMON_TRAIN_OBJS})
+target_compile_features(ppobr PUBLIC cxx_range_for)
+target_link_libraries(ppobr ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
+
+add_executable(ppobr2 ppobr2.cpp ${COMMON_TRAIN_OBJS})
+target_compile_features(ppobr2 PUBLIC cxx_range_for)
+target_link_libraries(ppobr2 ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
+
+add_executable(testprobeenv testprobeenv.cpp ${COMMON_TRAIN_OBJS} $<TARGET_OBJECTS:probeenvs>)
+target_compile_features(testprobeenv PUBLIC cxx_range_for)
+target_link_libraries(testprobeenv ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
 
 
 ######################################################## SAC

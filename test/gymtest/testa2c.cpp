@@ -6,7 +6,6 @@
  */
 
 #include "alg/a2cnstep.hpp"
-#include "alg/a2cnstepnorm.hpp"
 #include "alg/a2cnstepgae.hpp"
 #include "alg/utils/dqnoption.h"
 
@@ -340,6 +339,189 @@ void testPongGae(const int epochNum) {
     A2CNStepGae<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam> a2c(model, env, testEnv, policy, optimizer, maxStep, option);
     a2c.train(epochNum);
 }
+
+void testBr(const int epochNum) {
+	const int batchSize = 50;
+	const std::string envName = "BreakoutNoFrameskip-v4";
+	const int outputNum = 4;
+	const int testClientNum = 4;
+	const int maxStep = 8;
+
+	std::string serverAddr = "tcp://127.0.0.1:10201";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, batchSize);
+	env.init();
+	std::string testServerAddr = "tcp://127.0.0.1:10202";
+	LOG4CXX_DEBUG(logger, "To connect to " << testServerAddr);
+	AirEnv testEnv(testServerAddr, envName, testClientNum);
+	testEnv.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	AirACHONet model(outputNum);
+	model.to(deviceType);
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-4));
+    LOG4CXX_INFO(logger, "Model ready");
+
+
+    at::IntArrayRef inputShape{batchSize, 4, 84, 84};
+    at::IntArrayRef testInputShape{testClientNum, 4, 84, 84};
+    DqnOption option(inputShape, testInputShape, deviceType);
+    //env
+    option.envNum = batchSize;
+    option.isAtari = true;
+    option.envStep = maxStep;
+    option.donePerEp = 5;
+    option.multiLifes = true;
+    //grad
+    option.entropyCoef = 0.01;
+    option.valueCoef = 0.5;
+    option.maxGradNormClip = 0.1; //TODO: 0.1
+    option.gamma = 0.99;
+    //log
+    option.logInterval = 100;
+    option.tensorboardLogPath = "./logs/a2c_testbr/tfevents.pb";
+    //input
+    option.inputScale = 255;
+    option.batchSize = batchSize;
+    option.rewardScale = 1;
+    option.rewardMin = -1;
+    option.rewardMax = 1;
+    //test
+    option.toTest = true;
+    option.testGapEp = 5000;
+    option.testBatch = testClientNum;
+    option.testEp = testClientNum;
+    //model
+    option.saveModel = false;
+
+
+    SoftmaxPolicy policy(outputNum);
+    A2CNStep<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam> a2c(model, env, testEnv, policy, optimizer, maxStep, option);
+    a2c.train(epochNum);
+}
+
+
+void testBrGae(const int epochNum) {
+	const int batchSize = 50;
+	const std::string envName = "BreakoutNoFrameskip-v4";
+	const int outputNum = 4;
+	const int testClientNum = 4;
+	const int maxStep = 8;
+
+	std::string serverAddr = "tcp://127.0.0.1:10203";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, batchSize);
+	env.init();
+	std::string testServerAddr = "tcp://127.0.0.1:10204";
+	LOG4CXX_DEBUG(logger, "To connect to " << testServerAddr);
+	AirEnv testEnv(testServerAddr, envName, testClientNum);
+	testEnv.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	AirACHONet model(outputNum);
+	model.to(deviceType);
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-4));
+    LOG4CXX_INFO(logger, "Model ready");
+
+
+    at::IntArrayRef inputShape{batchSize, 4, 84, 84};
+    at::IntArrayRef testInputShape{testClientNum, 4, 84, 84};
+    DqnOption option(inputShape, testInputShape, deviceType);
+    //env
+    option.envNum = batchSize;
+    option.isAtari = true;
+    option.envStep = maxStep;
+    option.donePerEp = 5;
+    option.multiLifes = true;
+    //grad
+    option.entropyCoef = 0.01;
+    option.valueCoef = 0.5;
+    option.maxGradNormClip = 0.1; //TODO: 0.1
+    option.gamma = 0.99;
+    //log
+    option.logInterval = 100;
+    option.tensorboardLogPath = "./logs/a2c_testbrgae/tfevents.pb";
+    //input
+    option.inputScale = 255;
+    option.batchSize = batchSize;
+    option.rewardScale = 1;
+    option.rewardMin = -1;
+    option.rewardMax = 1;
+    //test
+    option.toTest = true;
+    option.testGapEp = 5000;
+    option.testBatch = testClientNum;
+    option.testEp = testClientNum;
+    //model
+    option.saveModel = false;
+
+
+    SoftmaxPolicy policy(outputNum);
+    A2CNStepGae<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam> a2c(model, env, testEnv, policy, optimizer, maxStep, option);
+    a2c.train(epochNum);
+}
+
+void testBrGae1(const int epochNum) {
+	const int batchSize = 50;
+	const std::string envName = "BreakoutNoFrameskip-v4";
+	const int outputNum = 4;
+	const int testClientNum = 4;
+	const int maxStep = 8;
+
+	std::string serverAddr = "tcp://127.0.0.1:10205";
+	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
+	AirEnv env(serverAddr, envName, batchSize);
+	env.init();
+	std::string testServerAddr = "tcp://127.0.0.1:10206";
+	LOG4CXX_DEBUG(logger, "To connect to " << testServerAddr);
+	AirEnv testEnv(testServerAddr, envName, testClientNum);
+	testEnv.init();
+	LOG4CXX_INFO(logger, "Env " << envName << " ready");
+
+	AirACHONet model(outputNum);
+	model.to(deviceType);
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(1e-4));
+    LOG4CXX_INFO(logger, "Model ready");
+
+
+    at::IntArrayRef inputShape{batchSize, 4, 84, 84};
+    at::IntArrayRef testInputShape{testClientNum, 4, 84, 84};
+    DqnOption option(inputShape, testInputShape, deviceType);
+    //env
+    option.envNum = batchSize;
+    option.isAtari = true;
+    option.envStep = maxStep;
+    option.donePerEp = 5;
+    option.multiLifes = true;
+    //grad
+    option.entropyCoef = 0.01;
+    option.valueCoef = 0.5;
+    option.maxGradNormClip = 0.1; //TODO: 0.1
+    option.gamma = 0.99;
+    //gae
+    option.ppoLambda = 0.97;
+    //log
+    option.logInterval = 100;
+    option.tensorboardLogPath = "./logs/a2c_testbrgae1/tfevents.pb";
+    //input
+    option.inputScale = 255;
+    option.batchSize = batchSize;
+    option.rewardScale = 1;
+    option.rewardMin = -1;
+    option.rewardMax = 1;
+    //test
+    option.toTest = true;
+    option.testGapEp = 5000;
+    option.testBatch = testClientNum;
+    option.testEp = testClientNum;
+    //model
+    option.saveModel = false;
+
+
+    SoftmaxPolicy policy(outputNum);
+    A2CNStepGae<AirACHONet, AirEnv, SoftmaxPolicy, torch::optim::Adam> a2c(model, env, testEnv, policy, optimizer, maxStep, option);
+    a2c.train(epochNum);
+}
 }
 
 namespace {
@@ -365,7 +547,9 @@ int main(int argc, char** argv) {
 //	testCart(atoi(argv[1]));
 //	testPong1(atoi(argv[1]));
 //	testCartGae(atoi(argv[1]));
-	testPongGae(atoi(argv[1]));
+//	testPongGae(atoi(argv[1]));
+//	testBr(atoi(argv[1]));
+	testBrGae1(atoi(argv[1]));
 
 	return 0;
 }

@@ -9,7 +9,6 @@
 
 #include "alg/pposhared.hpp"
 #include "alg/pposharedtest.hpp"
-#include "alg/a2cnstepnorm.hpp"
 #include "alg/pporandom.hpp"
 #include "alg/pponegreward.hpp"
 
