@@ -20,14 +20,14 @@
 
 #include "gymtest/env/envutils.h"
 #include "gymtest/utils/stats.h"
-#include "gymtest/utils/lossstats.h"
 #include "utils/dqnoption.h"
 
+#include "envstep.hpp"
+
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-class PPORandom {
+class PPORandom: private A2CStoreEnvStep<NetType, EnvType, PolicyType> {
 private:
 	NetType& bModel;
-//	NetType& tModel;
 	EnvType& env;
 	EnvType& testEnv;
 	PolicyType& policy;
@@ -36,28 +36,18 @@ private:
 	const at::IntArrayRef inputShape;
 
 	const DqnOption dqnOption;
-	Stats stater;
-	Stats stepStater;
-	Stats testStater;
-	LossStats lossStater;
-
-	uint32_t updateNum = 0;
-	const int updateTargetGap; //TODO
-
 
 	std::vector<int64_t> batchInputShape;
 	std::vector<int64_t> trajInputShape;
-	int offset = 0;
 
-//	const uint32_t trajStep;
-//	const uint32_t epochNum;
-//	uint32_t trajIndex = 0;
 	const int actionNum;
 
-	std::vector<int64_t> indice;
-
 	torch::TensorOptions longOpt = torch::TensorOptions().dtype(torch::kLong);
-	log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("pposhared");
+	log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("pporamdom");
+
+	AlgTester<NetType, EnvType, PolicyType> tester;
+
+	using A2CStoreEnvStep<NetType, EnvType, PolicyType>::tLogger;
 
 public:
 	PPORandom(NetType& behaviorModel, EnvType& iEnv, EnvType& tEnv, PolicyType& iPolicy, OptimizerType& iOptimizer, DqnOption option, int actNum);
@@ -77,8 +67,8 @@ PPORandom<NetType, EnvType, PolicyType, OptimizerType>::PPORandom(NetType& behav
 		OptimizerType& iOptimizer,
 		const DqnOption iOption,
 		int actNum):
+	A2CStoreEnvStep<NetType, EnvType, PolicyType>(iOption),
 	bModel(behaviorModel),
-//	tModel(trainModel),
 	env(iEnv),
 	testEnv(tEnv),
 	policy(iPolicy),
@@ -86,38 +76,18 @@ PPORandom<NetType, EnvType, PolicyType, OptimizerType>::PPORandom(NetType& behav
 	dqnOption(iOption),
 	deviceType(iOption.deviceType),
 	inputShape(iOption.inputShape),
-	stater(iOption.statPathPrefix + "_stat.txt", iOption.statCap),
-	stepStater(iOption.statPathPrefix + "_step.txt", iOption.statCap),
-	testStater(iOption.statPathPrefix + "_test.txt", iOption.statCap),
-	lossStater(iOption.statPathPrefix + "_loss.txt"),
-	updateTargetGap(iOption.targetUpdate),
 	actionNum(actNum),
-	indice(iOption.trajStepNum * iOption.envNum, 0){
-//	if (dqnOption.isAtari) {
+	tester(behaviorModel, tEnv, iPolicy, iOption, tLogger)
+	{
 		batchInputShape.push_back(dqnOption.envNum * dqnOption.batchSize);
 		trajInputShape.push_back(dqnOption.trajStepNum * dqnOption.envNum);
 		for (int i = 1; i < inputShape.size(); i ++) {
 			batchInputShape.push_back(inputShape[i]);
 			trajInputShape.push_back(inputShape[i]);
 		}
-//	}
-//	else {
-//		batchInputShape.push_back(dqn);
-//		for (int i = 0; i < inputShape.size(); i ++) {
-//			batchInputShape.push_back(inputShape[i]);
-//		}
-//	}
 
-	offset = dqnOption.batchSize;
-	for (int i = 0; i < inputShape.size(); i ++) {
-		offset *= inputShape[i];
-	}
-
-	for (int i = 0; i < iOption.trajStepNum * iOption.envNum; i ++) {
-		indice[i] = i;
-	}
 //	LOG4CXX_INFO(logger, "indice after initiation \n " << indice);
-	std::srand(unsigned (std::time(0)));
+//	std::srand(unsigned (std::time(0)));
 }
 
 
@@ -126,96 +96,29 @@ void PPORandom<NetType, EnvType, PolicyType, OptimizerType>::train(const int upd
 	LOG4CXX_INFO(logger, "training ");
 	load();
 
+	int stepNum = 0;
 	int updateIndex = 0;
 
-	std::vector<float> statRewards(dqnOption.envNum, 0);
-	std::vector<float> statLens(dqnOption.envNum, 0);
-	std::vector<float> sumRewards(dqnOption.envNum, 0);
-	std::vector<float> sumLens(dqnOption.envNum, 0);
-	std::vector<float> clipRewards(dqnOption.envNum, 0);
-	std::vector<float> clipSumRewards(dqnOption.envNum, 0);
-
-	std::vector<float> stateVec = env.reset();
-	while (updateIndex < updateNum) {
-		LOG4CXX_INFO(logger, "---------------------------------------> update  " << updateIndex);
-
-		updateIndex ++;
-
-		std::vector<std::vector<float>> statesVec;
-		std::vector<std::vector<float>> rewardsVec;
-		std::vector<std::vector<float>> donesVec;
-		std::vector<std::vector<long>> actionsVec;
-		std::vector<torch::Tensor> valuesVec;
-		std::vector<torch::Tensor> pisVec;
-
-		bModel.eval();
-
-		//collect samples trajStepNum * envNum
-		for (int trajIndex = 0; trajIndex < dqnOption.trajStepNum; trajIndex ++) {
-			torch::Tensor stateTensor = torch::from_blob(stateVec.data(), inputShape).div(dqnOption.inputScale).to(deviceType);
-			std::vector<torch::Tensor> rc = bModel.forward(stateTensor);
-			valuesVec.push_back(rc[1]);
-			pisVec.push_back(rc[0]);
-			//probe test
-//			LOG4CXX_INFO(logger, "state: " << stateTensor);
-//			LOG4CXX_INFO(logger, "value: " << rc[1]);
-
-			auto actionProbs =  torch::softmax(rc[0], -1);
-			std::vector<int64_t> actions = policy.getActions(actionProbs);
-//			LOG4CXX_INFO(logger, "action: " << actions);
-
-			auto stepResult = env.step(actions, false);
-			auto nextStateVec = std::get<0>(stepResult);
-			auto rewardVec = std::get<1>(stepResult);
-			auto doneVec = std::get<2>(stepResult);
-
-			Stats::UpdateReward(statRewards, rewardVec);
-			Stats::UpdateLen(statLens);
-			if (dqnOption.clipRewardStat) {
-				Stats::UpdateReward(clipRewards, rewardVec, true, dqnOption.rewardMin, dqnOption.rewardMax);
-			}
-
-			std::vector<float> doneMaskVec(doneVec.size(), 1);
-			for (int i = 0; i < doneVec.size(); i ++) {
-				if (doneVec[i]) {
-					doneMaskVec[i] = 0;
-
-					stater.update(statLens[i], statRewards[i]);
-					if (dqnOption.clipRewardStat) {
-						clipSumRewards[i] += clipRewards[i];
-						stepStater.update(statLens[i], clipRewards[i]);
-						clipRewards[i] = 0;
-					}
-					statLens[i] = 0;
-					statRewards[i] = 0;
-					LOG4CXX_INFO(logger, "c" << i << stater << " --- " << stepStater);
-				}
-			}
-
-			statesVec.push_back(stateVec);
-			rewardsVec.push_back(rewardVec);
-			donesVec.push_back(doneMaskVec);
-			actionsVec.push_back(actions);
-
-			stateVec = nextStateVec;
-		}
+	this->stateVec = env.reset();
+	while (stepNum < updateNum) {
+		LOG4CXX_DEBUG(logger, "---------------------------------------> update  " << stepNum);
+		this->steps(bModel, env, policy, dqnOption.trajStepNum, stepNum);
 		LOG4CXX_DEBUG(logger, "Collect " << dqnOption.trajStepNum << " step samples ");
 
 		//Calculate GAE return
-		torch::Tensor lastStateTensor = torch::from_blob(stateVec.data(), inputShape).div(dqnOption.inputScale).to(deviceType);
+		torch::Tensor lastStateTensor = torch::from_blob(this->stateVec.data(), inputShape).div(dqnOption.inputScale).to(deviceType);
 		auto lastRc = bModel.forward(lastStateTensor);
 		torch::Tensor lastValueTensor = lastRc[1];
 		LOG4CXX_DEBUG(logger, "Get last value " << lastValueTensor.sizes());
 
-		//TODO: Should squeeze the last 1?
 		//TODO: Put all tensors in CPU to save storage for inputState tensors?
 		at::IntArrayRef batchValueShape{dqnOption.trajStepNum, dqnOption.envNum, 1};
 
-		auto doneData = EnvUtils::FlattenVector(donesVec);
-		auto rewardData = EnvUtils::FlattenVector(rewardsVec);
+		auto doneData = EnvUtils::FlattenVector(this->donesVec);
+		auto rewardData = EnvUtils::FlattenVector(this->rewardsVec);
 
 		//TODO: Check batchValueShape matches original layout
-		torch::Tensor valueTensor = torch::stack(valuesVec, 0).view(batchValueShape).to(torch::kCPU); //toCPU necessary?
+		torch::Tensor valueTensor = torch::stack(this->valuesVec, 0).view(batchValueShape).to(torch::kCPU); //toCPU necessary?
 		torch::Tensor rewardTensor = torch::from_blob(rewardData.data(), batchValueShape).div(dqnOption.rewardScale).clamp(dqnOption.rewardMin, dqnOption.rewardMax);
 		torch::Tensor doneTensor = torch::from_blob(doneData.data(), batchValueShape);
 		LOG4CXX_DEBUG(logger, "dones " << "\n" << doneTensor);
@@ -228,9 +131,6 @@ void PPORandom<NetType, EnvType, PolicyType, OptimizerType>::train(const int upd
 		LOG4CXX_DEBUG(logger, "nextValueTensor " << nextValueTensor.sizes());
 
 		LOG4CXX_DEBUG(logger, "--------------------------------------> Calculate GAE");
-		//tmp solution
-		torch::Tensor returnDoneTensor = torch::zeros(batchValueShape);
-		returnDoneTensor.copy_(doneTensor);
 		for (int i = dqnOption.trajStepNum - 1; i >= 0; i --) {
 			torch::Tensor delta = rewardTensor[i] + dqnOption.gamma * nextValueTensor * doneTensor[i] - valueTensor[i];
 			gaeReturn = delta + dqnOption.ppoLambda * dqnOption.gamma * gaeReturn * doneTensor[i];
@@ -248,74 +148,61 @@ void PPORandom<NetType, EnvType, PolicyType, OptimizerType>::train(const int upd
 		}
 
 		//Put all tensors into GPU
-//		valueTensor = valueTensor.detach().to(deviceType);
 		gaeReturns = gaeReturns.to(deviceType).detach();
-		LOG4CXX_DEBUG(logger, "Calculated GAE " << gaeReturns.sizes());
 		returns = returns.to(deviceType).detach();
+		LOG4CXX_DEBUG(logger, "Calculated GAE " << gaeReturns.sizes());
 
 		//Calculate old log Pi
-		torch::Tensor oldDistTensor = torch::stack(pisVec, 0).view({dqnOption.trajStepNum, dqnOption.envNum, actionNum});
+		torch::Tensor oldDistTensor = torch::stack(this->pisVec, 0).view({dqnOption.trajStepNum, dqnOption.envNum, actionNum});
 		oldDistTensor = torch::softmax(oldDistTensor, -1).to(deviceType);
 		LOG4CXX_DEBUG(logger, "oldDistTensor: " << oldDistTensor.sizes());
 
-		auto actionData = EnvUtils::FlattenVector(actionsVec);
+		auto actionData = EnvUtils::FlattenVector(this->actionsVec);
 		torch::Tensor oldActionTensor = torch::from_blob(actionData.data(), {dqnOption.trajStepNum, dqnOption.envNum, 1}, longOpt).to(deviceType);
 		LOG4CXX_DEBUG(logger, "oldActionTensor: " << oldActionTensor.sizes());
 		torch::Tensor oldPiTensor = oldDistTensor.gather(-1, oldActionTensor).detach();
 		LOG4CXX_DEBUG(logger, "oldPiTensor: " << oldPiTensor.sizes());
 
 		//Update
-		bModel.train();
-		//TODO: update batchSize config
 		const int roundNum = dqnOption.trajStepNum / dqnOption.batchSize;
 
-		auto stateData = EnvUtils::FlattenVector(statesVec);
+		auto stateData = EnvUtils::FlattenVector(this->statesVec);
 		auto stateTensor = torch::from_blob(stateData.data(), trajInputShape).div(dqnOption.inputScale).to(deviceType);
 		LOG4CXX_DEBUG(logger, "stateTensor: " << stateTensor.sizes());
 
-//		auto gaeTensors = torch::split(gaeReturns.view({roundNum * dqnOption.batchSize * dqnOption.envNum, 1}), dqnOption.batchSize * dqnOption.envNum);
-//		auto oldPiTensors = torch::split(oldPiTensor.view({roundNum * dqnOption.batchSize * dqnOption.envNum, 1}), dqnOption.batchSize * dqnOption.envNum);
-//		auto actionTensors = torch::split(oldActionTensor.view({roundNum * dqnOption.batchSize * dqnOption.envNum, 1}), dqnOption.batchSize * dqnOption.envNum);
-//		auto returnTensors = torch::split(returns.view({roundNum * dqnOption.batchSize * dqnOption.envNum, 1}), dqnOption.batchSize * dqnOption.envNum);
-//		auto valueTensors = torch::split(valueTensor.view({roundNum * dqnOption.batchSize * dqnOption.envNum, 1}), dqnOption.batchSize * dqnOption.envNum);
 		gaeReturns = gaeReturns.view({dqnOption.trajStepNum * dqnOption.envNum, 1});
 		oldPiTensor = oldPiTensor.view({dqnOption.trajStepNum * dqnOption.envNum, 1});
 		oldActionTensor = oldActionTensor.view({dqnOption.trajStepNum * dqnOption.envNum, 1});
 		returns = returns.view({dqnOption.trajStepNum * dqnOption.envNum, 1});
-//		valueTensor = valueTensor.view({dqnOption.trajStepNum * dqnOption.envNum, 1});//TODO: error
 
 
-//		LOG4CXX_INFO(logger, "shuffled indice " << indice);
-//		LOG4CXX_INFO(logger, "indiceTensor \n" << indiceTensor);
 		auto pieceLen = dqnOption.batchSize * dqnOption.envNum;
 
 //		auto indiceTensor = torch::randperm(dqnOption.trajStepNum * dqnOption.envNum, longOpt).view({-1, dqnOption.batchSize * dqnOption.envNum}).to(deviceType);
 		for (int epochIndex = 0; epochIndex < dqnOption.epochNum; epochIndex ++) {
-//			LOG4CXX_INFO(logger, "epoch " << epochIndex << " state1 = \n" << stateTensor[1]);
-//			LOG4CXX_INFO(logger, "stateVec0 = " << statesVec[0]);
 			//shuffle index
 //			std::random_shuffle(indice.begin(), indice.end());
 //			torch::Tensor indiceTensor = torch::from_blob(indice.data(), {indice.size()}, longOpt).to(deviceType);
 			auto indiceTensor = torch::randperm(dqnOption.trajStepNum * dqnOption.envNum, longOpt).view({-1, dqnOption.batchSize * dqnOption.envNum}).to(deviceType);
 
 			for (int roundIndex = 0; roundIndex < roundNum; roundIndex ++) {
+				updateIndex ++;
 				//fetch data
-//				torch::Tensor indexPiece = indiceTensor.narrow(0, pieceLen * roundIndex, pieceLen);
 				auto indexPiece = indiceTensor[roundIndex];
-//				LOG4CXX_INFO(logger, "index piece: " << indexPiece);
-//				LOG4CXX_INFO(logger, "state size: " << stateTensor.sizes());
+
 				torch::Tensor stateInput = stateTensor.index_select(0, indexPiece);
-//				LOG4CXX_INFO(logger, "state input sizes: " << stateInput.sizes());
 				torch::Tensor returnPiece = returns.index_select(0, indexPiece);
 				torch::Tensor gaePiece = gaeReturns.index_select(0, indexPiece);
 				torch::Tensor oldPiPiece = oldPiTensor.index_select(0, indexPiece);
 				torch::Tensor oldActionPiece = oldActionTensor.index_select(0, indexPiece);
 //				torch::Tensor valuePiece = valueTensor.index_select(0, indexPiece);
+				LOG4CXX_DEBUG(logger, "index piece: " << indexPiece);
+				LOG4CXX_DEBUG(logger, "state size: " << stateTensor.sizes());
+				LOG4CXX_DEBUG(logger, "state input sizes: " << stateInput.sizes());
 
 				auto rc = bModel.forward(stateInput);
 				torch::Tensor valueOutput = rc[1];
 				torch::Tensor actionOutput = rc[0];
-
 
 				torch::Tensor valueLossTensor = torch::nn::functional::mse_loss(valueOutput, returnPiece);
 
@@ -329,7 +216,7 @@ void PPORandom<NetType, EnvType, PolicyType, OptimizerType>::train(const int upd
 				torch::Tensor actionPi = actionPiTensor.gather(-1, oldActionPiece);
 				auto ratio = actionPi / oldPiPiece;
 //				LOG4CXX_INFO(logger, "ratio is " << ratio);
-				auto kl = ratio.mean().to(torch::kCPU).item<float>();
+				float kl = ratio.mean().to(torch::kCPU).item<float>();
 
 
 				auto sur0 = ratio * advTensor.detach();
@@ -349,23 +236,34 @@ void PPORandom<NetType, EnvType, PolicyType, OptimizerType>::train(const int upd
 //				auto lossTensor = sur0.mean() * (-1);
 //				auto lossTensor = actLossTensor - dqnOption.entropyCoef * entropyTensor;
 
-				//print and log
-				auto lossV = lossTensor.item<float>();
-				auto vLossV = valueLossTensor.item<float>();
-				auto aLossV = actLossTensor.item<float>();
-				auto entropyV = entropyTensor.item<float>();
-				LOG4CXX_INFO(logger, "loss" << updateIndex << "-" << epochIndex << "-" << roundIndex << ": " << lossV
-						<< ", " << vLossV << ", " << aLossV << ", " << entropyV << ", " << kl);
-
-				auto curState = stater.getCurState();
-				lossStater.update({updateIndex, epochIndex, roundIndex, lossV, vLossV, aLossV, entropyV, kl,
-					curState[0], curState[1]});
-
 				optimizer.zero_grad();
 				lossTensor.backward();
 				torch::nn::utils::clip_grad_norm_(bModel.parameters(), dqnOption.maxGradNormClip);
 				optimizer.step();
+
+				//print and log
+				if ((updateIndex % dqnOption.logInterval) == 0) {
+					//print and log
+					float lossV = lossTensor.item<float>();
+					float vLossV = valueLossTensor.item<float>();
+					float aLossV = actLossTensor.item<float>();
+					float entropyV = entropyTensor.item<float>();
+					float valueV = valueTensor.mean().item<float>();
+					LOG4CXX_DEBUG(logger, "loss" << updateIndex << "-" << epochIndex << "-" << roundIndex << ": " << lossV
+							<< ", " << vLossV << ", " << aLossV << ", " << entropyV << ", " << kl);
+
+					tLogger.add_scalar("loss/loss", updateIndex, lossV);
+					tLogger.add_scalar("loss/vLoss", updateIndex, vLossV);
+					tLogger.add_scalar("loss/aLoss", updateIndex, aLossV);
+					tLogger.add_scalar("loss/entropy", updateIndex, entropyV);
+					tLogger.add_scalar("loss/v", updateIndex, valueV);
+					tLogger.add_scalar("loss/kl", updateIndex, kl);
+				}
 			}
+		}
+
+		if ((stepNum % dqnOption.testGapEp) == 0) {
+			test(dqnOption.testBatch, dqnOption.testEp);
 		}
 	}
 
@@ -379,49 +277,7 @@ void PPORandom<NetType, EnvType, PolicyType, OptimizerType>::test(const int batc
 		return;
 	}
 
-	int epCount = 0;
-	std::vector<float> statRewards(batchSize, 0);
-	std::vector<float> statLens(batchSize, 0);
-
-	torch::NoGradGuard guard;
-	std::vector<float> states = testEnv.reset();
-	while (epCount < epochNum) {
-//		torch::Tensor stateTensor = torch::from_blob(states.data(), inputShape).to(deviceType);
-		torch::Tensor stateTensor = torch::from_blob(states.data(), inputShape).div(dqnOption.inputScale).to(deviceType);
-
-		std::vector<torch::Tensor> rc = bModel.forward(stateTensor);
-		auto actionOutput = rc[0]; //TODO: detach?
-		auto valueOutput = rc[1];
-		auto actionProbs = torch::softmax(actionOutput, -1);
-		//TODO: To replace by getActions
-		std::vector<int64_t> actions = policy.getTestActions(actionProbs);
-
-		auto stepResult = testEnv.step(actions, true);
-		auto nextStateVec = std::get<0>(stepResult);
-		auto rewardVec = std::get<1>(stepResult);
-		auto doneVec = std::get<2>(stepResult);
-
-		Stats::UpdateReward(statRewards, rewardVec);
-		Stats::UpdateLen(statLens);
-
-		for (int i = 0; i < batchSize; i ++) {
-			if (doneVec[i]) {
-				LOG4CXX_DEBUG(logger, "testEnv " << i << "done");
-//				auto resetResult = env.reset(i);
-				//udpate nextstatevec, target mask
-//				std::copy(resetResult.begin(), resetResult.end(), nextStateVec.begin() + (offset * i));
-				epCount ++;
-
-				testStater.update(statLens[i], statRewards[i]);
-				statLens[i] = 0;
-				statRewards[i] = 0;
-//				stater.printCurStat();
-				LOG4CXX_INFO(logger, "test -----------> " << testStater);
-
-			}
-		}
-		states = nextStateVec;
-	}
+	tester.testAC();
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
@@ -430,17 +286,7 @@ void PPORandom<NetType, EnvType, PolicyType, OptimizerType>::save() {
 		return;
 	}
 
-	std::string modelPath = dqnOption.savePathPrefix + "_model.pt";
-	torch::serialize::OutputArchive outputArchive;
-	bModel.save(outputArchive);
-	outputArchive.save_to(modelPath);
-	LOG4CXX_INFO(logger, "Save model into " << modelPath);
-
-	std::string optPath = dqnOption.savePathPrefix + "_optimizer.pt";
-	torch::serialize::OutputArchive optimizerArchive;
-	optimizer.save(optimizerArchive);
-	optimizerArchive.save_to(optPath);
-	LOG4CXX_INFO(logger, "Save optimizer into " << optPath);
+	AlgUtils::SaveModel(bModel, optimizer, dqnOption.savePathPrefix, logger);
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
@@ -449,22 +295,7 @@ void PPORandom<NetType, EnvType, PolicyType, OptimizerType>::load() {
 		return;
 	}
 
-	std::string modelPath = dqnOption.loadPathPrefix + "_model.pt";
-	torch::serialize::InputArchive inChive;
-	inChive.load_from(modelPath);
-	bModel.load(inChive);
-	LOG4CXX_INFO(logger, "Load model from " << modelPath);
-
-//	updateTarget();
-
-	if (dqnOption.loadOptimizer) {
-		std::string optPath = dqnOption.loadPathPrefix + "_optimizer.pt";
-		torch::serialize::InputArchive opInChive;
-		opInChive.load_from(optPath);
-		optimizer.load(opInChive);
-		LOG4CXX_INFO(logger, "Load optimizer from " << optPath);
-	}
-
+	AlgUtils::LoadModel(bModel, optimizer, dqnOption.loadOptimizer, dqnOption.loadPathPrefix, logger);
 }
 
 

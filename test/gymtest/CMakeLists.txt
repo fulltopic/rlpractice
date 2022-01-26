@@ -59,22 +59,9 @@ target_compile_features(testa2c PUBLIC cxx_range_for)
 target_link_libraries(testa2c ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
 
 ############################################################ PPO
-add_executable(ppopong ppopong.cpp ${COMMON_TRAIN_OBJS})
-target_compile_features(ppopong PUBLIC cxx_range_for)
-target_link_libraries(ppopong ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
-
-add_executable(ppobr ppobr.cpp ${COMMON_TRAIN_OBJS})
-target_compile_features(ppobr PUBLIC cxx_range_for)
-target_link_libraries(ppobr ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
-
-add_executable(ppobr2 ppobr2.cpp ${COMMON_TRAIN_OBJS})
-target_compile_features(ppobr2 PUBLIC cxx_range_for)
-target_link_libraries(ppobr2 ${shared_libs} ${pytorch_cpp_rl_lib} ${proto_libs})
-
-add_executable(testprobeenv testprobeenv.cpp ${COMMON_TRAIN_OBJS} $<TARGET_OBJECTS:probeenvs>)
-target_compile_features(testprobeenv PUBLIC cxx_range_for)
-target_link_libraries(testprobeenv ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
-
+add_executable(testppo testppo.cpp ${COMMON_TRAIN_OBJS})
+target_compile_features(testppo PUBLIC cxx_range_for)
+target_link_libraries(testppo ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
 
 ######################################################## SAC
 add_executable(testsac testsac.cpp ${COMMON_TRAIN_OBJS} $<TARGET_OBJECTS:probeenvs>)
