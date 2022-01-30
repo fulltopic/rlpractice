@@ -140,6 +140,10 @@ public:
 	float vMin = -10;
 	int epochPerUpdate = 1;
 
+	//rnn
+	std::vector<int> hidenLayerNums;
+	std::vector<int> hiddenNums;
+
 	DqnOption(at::IntArrayRef iShape, torch::Device dType = torch::kCPU, int cap = 128, float gm = 0.99, std::string path = "./stat.txt", int tUpdate = 128);
 	DqnOption(at::IntArrayRef iShape, at::IntArrayRef tShape, torch::Device dType = torch::kCPU);
 	~DqnOption() = default;

@@ -7,13 +7,13 @@
 
 
 
-#include "alg/a3c/a3c.hpp"
-#include "alg/a3c/a3ctest.hpp"
-#include "alg/a2cnstep.hpp"
+#include "alg/cnn/a3c/a3c.hpp"
+#include "alg/cnn/a3c/a3ctest.hpp"
+#include "alg/cnn/a2cnstep.hpp"
 #include "alg/utils/algtester.hpp"
-#include "alg/a2cnstepgae.hpp"
-#include "alg/a3c/a3cq.hpp"
-#include "alg/a3c/a3cgradshared.hpp"
+#include "alg/cnn/a2cnstepgae.hpp"
+#include "alg/cnn/a3c/a3cq.hpp"
+#include "alg/cnn/a3c/a3cgradshared.hpp"
 
 #include "a3c/a3ctcpserverhandle.hpp"
 #include "a3c/a3ctcpserverconn.h"
@@ -39,13 +39,13 @@
 
 #include "gymtest/env/airenv.h"
 #include "gymtest/env/lunarenv.h"
-#include "gymtest/airnets/aircnnnet.h"
-#include "gymtest/airnets/airacbmnet.h"
-#include "gymtest/airnets/airacnet.h"
-#include "gymtest/lunarnets/cartacnet.h"
+#include "gymtest/cnnnets/airnets/aircnnnet.h"
+#include "gymtest/cnnnets/airnets/airacbmnet.h"
+#include "gymtest/cnnnets/airnets/airacnet.h"
+#include "gymtest/cnnnets/lunarnets/cartacnet.h"
 #include "gymtest/train/rawpolicy.h"
 #include "gymtest/train/softmaxpolicy.h"
-#include "gymtest/airnets/airachonet.h"
+#include "gymtest/cnnnets/airnets/airachonet.h"
 
 namespace {
 log4cxx::LoggerPtr logger(log4cxx::Logger::getLogger("testa2cn"));

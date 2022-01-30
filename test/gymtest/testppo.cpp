@@ -7,18 +7,18 @@
 
 
 
-#include "alg/pposhared.hpp"
-#include "alg/pporandom.hpp"
-#include "alg/pporecalc.hpp"
+#include "alg/cnn/pposhared.hpp"
+#include "alg/cnn/pporandom.hpp"
+#include "alg/cnn/pporecalc.hpp"
 
 #include "gymtest/env/airenv.h"
 #include "gymtest/env/lunarenv.h"
-#include "gymtest/airnets/aircnnnet.h"
-#include "gymtest/airnets/airacbmnet.h"
-#include "gymtest/airnets/airacnet.h"
-#include "gymtest/airnets/airacbmsmallkernelnet.h"
-#include "gymtest/lunarnets/cartacnet.h"
-#include "gymtest/airnets/airachonet.h"
+#include "gymtest/cnnnets/airnets/aircnnnet.h"
+#include "gymtest/cnnnets/airnets/airacbmnet.h"
+#include "gymtest/cnnnets/airnets/airacnet.h"
+#include "gymtest/cnnnets/airnets/airacbmsmallkernelnet.h"
+#include "gymtest/cnnnets/lunarnets/cartacnet.h"
+#include "gymtest/cnnnets/airnets/airachonet.h"
 #include "gymtest/train/rawpolicy.h"
 #include "gymtest/train/softmaxpolicy.h"
 #include <torch/torch.h>
@@ -549,9 +549,9 @@ int main(int argc, char** argv) {
 //	testCartGae(atoi(argv[1]));
 //	testPongGae(atoi(argv[1]));
 //	testBr(atoi(argv[1]));
-//	testRandomCart(atoi(argv[1]));
+	testRandomCart(atoi(argv[1]));
 //	testSharedCart(atoi(argv[1]));
-	testRandomBr1(atoi(argv[1]));
+//	testRandomBr1(atoi(argv[1]));
 
 	return 0;
 }

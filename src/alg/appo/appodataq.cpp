@@ -5,7 +5,7 @@
  *      Author: zf
  */
 
-#include "alg/appo/appodataq.h"
+#include "alg/cnn/appo/appodataq.h"
 
 #include <torch/torch.h>
 

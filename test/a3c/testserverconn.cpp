@@ -9,7 +9,7 @@
 
 #include "a3c/a3ctcpserver.h"
 #include "a3c/a3ctcpconfig.h"
-#include "gymtest/lunarnets/cartacnet.h"
+#include "gymtest/cnnnets/lunarnets/cartacnet.h"
 
 #include <iostream>
 #include <string>

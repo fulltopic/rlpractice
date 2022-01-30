@@ -7,17 +7,17 @@
 
 
 
-#include "alg/dqnzip.hpp"
+#include "alg/cnn/dqnzip.hpp"
 
 #include "gymtest/env/airenv.h"
 #include "gymtest/env/lunarenv.h"
-#include "gymtest/airnets/aircnnnet.h"
-#include "gymtest/airnets/airacbmnet.h"
-#include "gymtest/airnets/airacnet.h"
-#include "gymtest/airnets/airacbmsmallkernelnet.h"
-#include "gymtest/lunarnets/cartacnet.h"
-#include "gymtest/lunarnets/cartnet.h"
-#include "gymtest/airnets/airachonet.h"
+#include "gymtest/cnnnets/airnets/aircnnnet.h"
+#include "gymtest/cnnnets/airnets/airacbmnet.h"
+#include "gymtest/cnnnets/airnets/airacnet.h"
+#include "gymtest/cnnnets/airnets/airacbmsmallkernelnet.h"
+#include "gymtest/cnnnets/lunarnets/cartacnet.h"
+#include "gymtest/cnnnets/lunarnets/cartnet.h"
+#include "gymtest/cnnnets/airnets/airachonet.h"
 #include "gymtest/train/rawpolicy.h"
 #include "gymtest/train/softmaxpolicy.h"
 #include "probeenvs/ProbeEnvWrapper.h"

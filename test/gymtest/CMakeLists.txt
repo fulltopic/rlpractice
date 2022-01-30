@@ -7,6 +7,7 @@
 set(GYM_SIMPLE_OBJS $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain>)
 set(GYM_OBJS $<TARGET_OBJECTS:gymenv> ${GYM_SIMPLE_OBJS})
 set(NET_OBJS $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets>)
+set(RNNNET_OBJS $<TARGET_OBJECTS:lunarrnnnets>)
 set(COMMON_TRAIN_OBJS  ${GYM_OBJS} ${NET_OBJS} $<TARGET_OBJECTS:alg>)
 
 
@@ -58,6 +59,14 @@ add_executable(testa2c testa2c.cpp ${COMMON_TRAIN_OBJS})
 target_compile_features(testa2c PUBLIC cxx_range_for)
 target_link_libraries(testa2c ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
 
+add_executable(testreset testreset.cpp ${COMMON_TRAIN_OBJS})
+target_compile_features(testreset PUBLIC cxx_range_for)
+target_link_libraries(testreset ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
+
+add_executable(testa2crnn testa2crnn.cpp ${COMMON_TRAIN_OBJS}  ${RNNNET_OBJS})
+target_compile_features(testa2crnn PUBLIC cxx_range_for)
+target_link_libraries(testa2crnn ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
+
 ############################################################ PPO
 add_executable(testppo testppo.cpp ${COMMON_TRAIN_OBJS})
 target_compile_features(testppo PUBLIC cxx_range_for)
@@ -87,3 +96,8 @@ target_link_libraries(testa3c ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard
 add_executable(testappo testappo.cpp ${COMMON_TRAIN_OBJS} $<TARGET_OBJECTS:probeenvs> $<TARGET_OBJECTS:a3c> )
 target_compile_features(testappo PUBLIC cxx_range_for)
 target_link_libraries(testappo ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
+
+############################################################ RNN
+add_executable(testpackpad testpackpad.cpp ${COMMON_TRAIN_OBJS})
+target_compile_features(testpackpad PUBLIC cxx_range_for)
+target_link_libraries(testpackpad ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})

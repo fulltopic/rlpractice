@@ -7,14 +7,14 @@
 
 
 
-#include "alg/appo/appodataq.h"
-#include "alg/appo/appoupdater.hpp"
-#include "alg/appo/appoworker.hpp"
+#include "alg/cnn/appo/appodataq.h"
+#include "alg/cnn/appo/appoupdater.hpp"
+#include "alg/cnn/appo/appoworker.hpp"
 //#include "alg/a2cnstep.hpp"
 #include "alg/utils/algtester.hpp"
-#include "alg/a2cnstepgae.hpp"
-#include "alg/a3c/a3cq.hpp"
-#include "alg/a3c/a3cgradshared.hpp"
+#include "alg/cnn/a2cnstepgae.hpp"
+#include "alg/cnn/a3c/a3cq.hpp"
+#include "alg/cnn/a3c/a3cgradshared.hpp"
 
 #include "a3c/a3ctcpserverhandle.hpp"
 #include "a3c/a3ctcpserverconn.h"
@@ -40,13 +40,13 @@
 
 #include "gymtest/env/airenv.h"
 #include "gymtest/env/lunarenv.h"
-#include "gymtest/airnets/aircnnnet.h"
-#include "gymtest/airnets/airacbmnet.h"
-#include "gymtest/airnets/airacnet.h"
-#include "gymtest/lunarnets/cartacnet.h"
+#include "gymtest/cnnnets/airnets/aircnnnet.h"
+#include "gymtest/cnnnets/airnets/airacbmnet.h"
+#include "gymtest/cnnnets/airnets/airacnet.h"
+#include "gymtest/cnnnets/lunarnets/cartacnet.h"
 #include "gymtest/train/rawpolicy.h"
 #include "gymtest/train/softmaxpolicy.h"
-#include "gymtest/airnets/airachonet.h"
+#include "gymtest/cnnnets/airnets/airachonet.h"
 
 
 namespace {
@@ -379,8 +379,8 @@ void testpong1(const int clientNum, const int roundNum, const int maxStep, const
 //    std::vector<float> entropyCoefs {0.01, 0.01, 0.005, 0.02, 0,02};
 //    assert(workerNum <= entropyCoefs.size());
 
-    const int basePort = 10205;
-    const int testPort = 10210;
+    const int basePort = 10215;
+    const int testPort = 10220;
     const std::string addrBase = "tcp://127.0.0.1:";
     const std::string logBase = "./logs/appo_testpong1/";
     const std::string logFileName = "tfevents.pb";
@@ -482,7 +482,7 @@ void testpong1(const int clientNum, const int roundNum, const int maxStep, const
 
 
 	////////////////////////////////////// Test/////////////////////////////////////////
-    const int pollMinute = 4 * 60;
+    const int pollMinute = 1 * 60;
     const int testBatchSize = 4;
     const int testClientNum = 4;
     //Test Env
@@ -502,9 +502,11 @@ void testpong1(const int clientNum, const int roundNum, const int maxStep, const
 	testOption.inputScale = 255;
 	testOption.batchSize = testBatchSize;
 	testOption.testEp = testBatchSize;
+	testOption.testBatch = testBatchSize;
 	testOption.rewardScale = 1;
 	testOption.rewardMin = -1;
 	testOption.rewardMax = 1;
+	testOption.multiLifes = false;
 	testOption.tensorboardLogPath = logBase + "test" + "/" + logFileName;
 
 	AlgTester<AirACHONet, AirEnv, SoftmaxPolicy> tester(model, testEnv, policy, testOption);
@@ -659,6 +661,7 @@ void testpong2(const int clientNum, const int roundNum, const int maxStep, const
 	testOption.inputScale = 255;
 	testOption.batchSize = testBatchSize;
 	testOption.testEp = testBatchSize;
+	testOption.testBatch = testBatchSize;
 	testOption.rewardScale = 1;
 	testOption.rewardMin = -1;
 	testOption.rewardMax = 1;
@@ -696,13 +699,14 @@ void testbr3(const int clientNum, const int roundNum, const int maxStep, const i
     const int basePort = 10205;
     const int testPort = 10210;
     const std::string addrBase = "tcp://127.0.0.1:";
-    const std::string logBase = "./logs/appo_testbr4/";
+    const std::string logBase = "./logs/appo_testbr/";
     const std::string logFileName = "tfevents.pb";
+//    const std::string logFilePostfix = ".pb";
 
     //Net
     AirACHONet model(outputNum);
 	model.to(deviceType);
-    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(0.0003));
+    torch::optim::Adam optimizer(model.parameters(), torch::optim::AdamOptions(0.0001));
     LOG4CXX_INFO(logger, "Model ready");
     SoftmaxPolicy policy(outputNum);
 //    std::mutex updateMutex;
@@ -720,7 +724,7 @@ void testbr3(const int clientNum, const int roundNum, const int maxStep, const i
 
     	option.isAtari = true;
     	option.gamma = 0.99;
-    	option.ppoLambda = 0.95;
+    	option.ppoLambda = 0.90;
     	option.inputScale = 255;
 //    	option.batchSize = batchSize;
     	option.envNum = clientNum;
@@ -1025,7 +1029,7 @@ int main(int argc, char** argv) {
 		int maxStep = atoi(argv[3]);
 		int epochNum = atoi(argv[4]);
 		int updateNum = atoi(argv[5]);
-		testqb4(clienNum, roundNum, maxStep, epochNum, updateNum);
+		testpong1(clienNum, roundNum, maxStep, epochNum, updateNum);
 	}
 	return 0;
 }

@@ -78,7 +78,7 @@ AirEnv::init() {
 //}
 
 std::vector<float> AirEnv::reset() {
-	LOG4CXX_DEBUG(logger, "To reset env");
+	LOG4CXX_INFO(logger, "To reset env");
 
     auto resetParam = std::make_shared<ResetParam>();
     resetParam->x = -1;

@@ -6,13 +6,13 @@
  */
 
 
-#include "alg/catdqn.hpp"
+#include "alg/cnn/catdqn.hpp"
 
 #include "gymtest/env/airenv.h"
 #include "gymtest/env/lunarenv.h"
-#include "gymtest/lunarnets/cartacnet.h"
-#include "gymtest/lunarnets/cartqnet.h"
-#include "gymtest/airnets/aircnnnet.h"
+#include "gymtest/cnnnets/lunarnets/cartacnet.h"
+#include "gymtest/cnnnets/lunarnets/cartqnet.h"
+#include "gymtest/cnnnets/airnets/aircnnnet.h"
 #include "gymtest/train/rawpolicy.h"
 #include "gymtest/train/softmaxpolicy.h"
 #include "probeenvs/ProbeEnvWrapper.h"

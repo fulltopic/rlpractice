@@ -8,18 +8,18 @@
 
 #include "probeenvs/ProbeEnvWrapper.h"
 
-#include "alg/a2cnstep.hpp"
+#include "alg/cnn/a2cnstep.hpp"
 
-#include "alg/pporandom.hpp"
+#include "alg/cnn/pporandom.hpp"
 
 #include "gymtest/env/airenv.h"
 #include "gymtest/env/lunarenv.h"
-#include "gymtest/airnets/aircnnnet.h"
-#include "gymtest/airnets/airacbmnet.h"
-#include "gymtest/airnets/airacnet.h"
-#include "gymtest/airnets/airacbmsmallkernelnet.h"
-#include "gymtest/lunarnets/cartacnet.h"
-#include "gymtest/airnets/airachonet.h"
+#include "gymtest/cnnnets/airnets/aircnnnet.h"
+#include "gymtest/cnnnets/airnets/airacbmnet.h"
+#include "gymtest/cnnnets/airnets/airacnet.h"
+#include "gymtest/cnnnets/airnets/airacbmsmallkernelnet.h"
+#include "gymtest/cnnnets/lunarnets/cartacnet.h"
+#include "gymtest/cnnnets/airnets/airachonet.h"
 #include "gymtest/train/rawpolicy.h"
 #include "gymtest/train/softmaxpolicy.h"
 #include <torch/torch.h>

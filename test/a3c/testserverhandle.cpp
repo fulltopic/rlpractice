@@ -27,8 +27,8 @@
 #include <log4cxx/simplelayout.h>
 #include <log4cxx/logmanager.h>
 
-#include "gymtest/lunarnets/cartacnet.h"
-#include "gymtest/airnets/airacnet.h"
+#include "gymtest/cnnnets/lunarnets/cartacnet.h"
+#include "gymtest/cnnnets/airnets/airacnet.h"
 
 namespace {
 void testCompile() {

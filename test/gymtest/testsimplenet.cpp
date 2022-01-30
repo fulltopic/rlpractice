@@ -10,7 +10,8 @@
 #include <torch/torch.h>
 #include <log4cxx/logger.h>
 #include <log4cxx/basicconfigurator.h>
-#include "gymtest/lunarnets/lunarfcnet.h"
+#include "gymtest/cnnnets/lunarnets/lunarfcnet.h"
+#include "gymtest/cnnnets/lunarnets/netconfig.h"
 
 namespace
 {

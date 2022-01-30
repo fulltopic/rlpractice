@@ -6,9 +6,9 @@
  */
 
 
-#include "gymtest/airnets/aircnnnet.h"
-#include "gymtest/airnets/airsacqnet.h"
-#include "gymtest/airnets/airsacpnet.h"
+#include "gymtest/cnnnets/airnets/aircnnnet.h"
+#include "gymtest/cnnnets/airnets/airsacqnet.h"
+#include "gymtest/cnnnets/airnets/airsacpnet.h"
 
 #include <torch/torch.h>
 

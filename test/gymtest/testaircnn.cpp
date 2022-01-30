@@ -11,7 +11,7 @@
 #include <log4cxx/logger.h>
 #include <log4cxx/basicconfigurator.h>
 
-#include "gymtest/airnets/aircnnnet.h"
+#include "gymtest/cnnnets/airnets/aircnnnet.h"
 #include "gymtest/env/airenv.h"
 
 namespace {
