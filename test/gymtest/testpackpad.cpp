@@ -21,14 +21,14 @@ void testPack() {
 	std::vector<torch::Tensor> tensorVec;
 	std::vector<long> seqLens;
 	for (int i = 0; i < batch; i ++) {
-		tensorVec.push_back(torch::ones({(batch - i), 2, 2}) * (batch - i));
+		tensorVec.push_back(torch::ones({(batch - i), 2}) * (batch - i));
 		seqLens.push_back(batch - i);
 
 		std::cout << "Orig tensor " << i << std::endl << tensorVec[tensorVec.size() - 1] << std::endl;
 	}
 	std::cout << "seqLens = " << seqLens << std::endl;
 
-	auto padSeqTensor = torch::nn::utils::rnn::pad_sequence(tensorVec);
+	auto padSeqTensor = torch::nn::utils::rnn::pad_sequence(tensorVec, true);
 	std::cout << "padSeqTensor: " << std::endl << padSeqTensor << std::endl;
 
 //	CartFcNet net(2, 4);
@@ -48,6 +48,16 @@ void testPack() {
 	auto padOutput = torch::nn::utils::rnn::pad_packed_sequence(packSeq, true);
 	std::cout << "padded " << std::endl << std::get<0>(padOutput) << std::endl;
 	std::cout << "paddedSeq " << std::endl << std::get<1>(padOutput) << std::endl;
+
+	torch::Tensor unpackData = std::get<0>(padOutput);
+	std::vector<torch::Tensor> unpackVec;
+	for (int i = 0; i < seqLens.size(); i ++) {
+		torch::Tensor t = unpackData[i].narrow(0, 0, seqLens[i]);
+		unpackVec.push_back(t);
+		std::cout << "unpack t " << std::endl << t << std::endl;
+	}
+	torch::Tensor unpackTensor = torch::cat(unpackVec, 0);
+	std::cout << "unpack data " << unpackTensor << std::endl;
 }
 
 void testSplit() {

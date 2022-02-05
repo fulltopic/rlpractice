@@ -58,7 +58,7 @@ public:
 	void testPlain();
 	void testCategory();
 
-	std::vector<torch::Tensor> testACRNN(std::vector<torch::Tensor>& hiddenState);
+//	std::vector<torch::Tensor> testACRNN(std::vector<torch::Tensor>& hiddenState);
 };
 
 template<typename NetType, typename EnvType, typename PolicyType>
@@ -397,96 +397,96 @@ void AlgTester<NetType, EnvType, PolicyType>::testCategory() {
 	}
 
 }
-template<typename NetType, typename EnvType, typename PolicyType>
-std::vector<torch::Tensor> AlgTester<NetType, EnvType, PolicyType>::testACRNN(std::vector<torch::Tensor>& hiddenStates) {
-	LOG4CXX_INFO(logger, "To test " << dqnOption.testEp << " episodes");
-	if (!dqnOption.toTest) {
-		return hiddenStates;
-	}
-
-	int epCount = 0;
-
-	torch::NoGradGuard guard;
-	std::vector<float> states = testEnv.reset();
-	while (epCount < dqnOption.testEp) {
-		torch::Tensor stateTensor = torch::from_blob(states.data(), dqnOption.testInputShape).div(dqnOption.inputScale).to(dqnOption.deviceType);
-
-		std::vector<torch::Tensor> rc = net.forward(stateTensor, hiddenStates);
-		auto actionOutput = rc[0];
-		auto valueOutput = rc[1];
-		auto actionProbs = torch::softmax(actionOutput, -1);
-		//TODO: To replace by getActions
-
-		std::vector<int64_t> actions = policy.getTestActions(actionProbs);
-		if (dqnOption.randomHang) {
-			for (int i = 0; i < dqnOption.testBatch; i ++) {
-				if (noReward[i] >= dqnOption.hangNumTh) {
-					actions[i] = torch::rand({1}).item<float>() * dqnOption.testOutput;
-					LOG4CXX_INFO(logger, "random action for " << i << ": " << actions[i]);
-					randomStep[i] ++;
-					if (randomStep[i] > dqnOption.randomStep) {
-						randomStep[i] = 0;
-						noReward[i] = 0;
-					}
-				}
-			}
-		}
-		auto stepResult = testEnv.step(actions, false);
-		auto nextStateVec = std::get<0>(stepResult);
-		auto rewardVec = std::get<1>(stepResult);
-		auto doneVec = std::get<2>(stepResult);
-
-		Stats::UpdateReward(statRewards, rewardVec);
-		Stats::UpdateLen(statLens);
-		for (int i = 0; i < dqnOption.testBatch; i ++) {
-			if (doneVec[i]) {
-				LOG4CXX_DEBUG(logger, "testEnv " << i << "done");
-//				epCount ++;
-				testLifeCount ++;
-
-				LOG4CXX_INFO(logger, "test -----------> "<< i << " " << statLens[i] << ", " << statRewards[i]);
-				tLogger.add_scalar("test/len", testLifeCount, statLens[i]);
-				tLogger.add_scalar("test/reward", testLifeCount, statRewards[i]);
-
-
-				if (dqnOption.multiLifes) {
-					liveCounts[i] ++;
-					sumRewards[i] += statRewards[i];
-					sumLens[i] += statLens[i];
-
-					if (liveCounts[i] >= dqnOption.donePerEp) {
-						epCount ++;
-						testEpCount ++;
-
-						LOG4CXX_INFO(logger, "TEST Wrapper episode " << i << " ----------------------------> " << sumRewards[i]);
-
-						tLogger.add_scalar("test/sumlen", testEpCount, sumLens[i]);
-						tLogger.add_scalar("test/sumreward", testEpCount, sumRewards[i]);
-						liveCounts[i] = 0;
-						sumRewards[i] = 0;
-						sumLens[i] = 0;
-					}
-				} else {
-					epCount ++;
-					testEpCount ++;
-				}
-
-				statLens[i] = 0;
-				statRewards[i] = 0;
-			}
-
-			if (dqnOption.randomHang) {
-			//Good action should have reward
-				if (rewardVec[i] < dqnOption.hangRewardTh) { //for float compare
-					noReward[i] ++;
-				}
-			}
-		}
-
-
-		states = nextStateVec;
-	}
-
-	return hiddenStates;
-}
+//template<typename NetType, typename EnvType, typename PolicyType>
+//std::vector<torch::Tensor> AlgTester<NetType, EnvType, PolicyType>::testACRNN(std::vector<torch::Tensor>& hiddenStates) {
+//	LOG4CXX_INFO(logger, "To test " << dqnOption.testEp << " episodes");
+//	if (!dqnOption.toTest) {
+//		return hiddenStates;
+//	}
+//
+//	int epCount = 0;
+//
+//	torch::NoGradGuard guard;
+//	std::vector<float> states = testEnv.reset();
+//	while (epCount < dqnOption.testEp) {
+//		torch::Tensor stateTensor = torch::from_blob(states.data(), dqnOption.testInputShape).div(dqnOption.inputScale).to(dqnOption.deviceType);
+//
+//		std::vector<torch::Tensor> rc = net.forward(stateTensor, hiddenStates);
+//		auto actionOutput = rc[0];
+//		auto valueOutput = rc[1];
+//		auto actionProbs = torch::softmax(actionOutput, -1);
+//		//TODO: To replace by getActions
+//
+//		std::vector<int64_t> actions = policy.getTestActions(actionProbs);
+//		if (dqnOption.randomHang) {
+//			for (int i = 0; i < dqnOption.testBatch; i ++) {
+//				if (noReward[i] >= dqnOption.hangNumTh) {
+//					actions[i] = torch::rand({1}).item<float>() * dqnOption.testOutput;
+//					LOG4CXX_INFO(logger, "random action for " << i << ": " << actions[i]);
+//					randomStep[i] ++;
+//					if (randomStep[i] > dqnOption.randomStep) {
+//						randomStep[i] = 0;
+//						noReward[i] = 0;
+//					}
+//				}
+//			}
+//		}
+//		auto stepResult = testEnv.step(actions, false);
+//		auto nextStateVec = std::get<0>(stepResult);
+//		auto rewardVec = std::get<1>(stepResult);
+//		auto doneVec = std::get<2>(stepResult);
+//
+//		Stats::UpdateReward(statRewards, rewardVec);
+//		Stats::UpdateLen(statLens);
+//		for (int i = 0; i < dqnOption.testBatch; i ++) {
+//			if (doneVec[i]) {
+//				LOG4CXX_DEBUG(logger, "testEnv " << i << "done");
+////				epCount ++;
+//				testLifeCount ++;
+//
+//				LOG4CXX_INFO(logger, "test -----------> "<< i << " " << statLens[i] << ", " << statRewards[i]);
+//				tLogger.add_scalar("test/len", testLifeCount, statLens[i]);
+//				tLogger.add_scalar("test/reward", testLifeCount, statRewards[i]);
+//
+//
+//				if (dqnOption.multiLifes) {
+//					liveCounts[i] ++;
+//					sumRewards[i] += statRewards[i];
+//					sumLens[i] += statLens[i];
+//
+//					if (liveCounts[i] >= dqnOption.donePerEp) {
+//						epCount ++;
+//						testEpCount ++;
+//
+//						LOG4CXX_INFO(logger, "TEST Wrapper episode " << i << " ----------------------------> " << sumRewards[i]);
+//
+//						tLogger.add_scalar("test/sumlen", testEpCount, sumLens[i]);
+//						tLogger.add_scalar("test/sumreward", testEpCount, sumRewards[i]);
+//						liveCounts[i] = 0;
+//						sumRewards[i] = 0;
+//						sumLens[i] = 0;
+//					}
+//				} else {
+//					epCount ++;
+//					testEpCount ++;
+//				}
+//
+//				statLens[i] = 0;
+//				statRewards[i] = 0;
+//			}
+//
+//			if (dqnOption.randomHang) {
+//			//Good action should have reward
+//				if (rewardVec[i] < dqnOption.hangRewardTh) { //for float compare
+//					noReward[i] ++;
+//				}
+//			}
+//		}
+//
+//
+//		states = nextStateVec;
+//	}
+//
+//	return hiddenStates;
+//}
 #endif /* INC_ALG_ALGTESTER_HPP_ */
