@@ -378,11 +378,11 @@ void A2CGRUTrunc<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 			auto entropyV = entropyLoss.item<float>();
 			auto valueV = valueTensor.mean().item<float>();
 
-			tLogger.add_scalar("loss/loss", updateNum, lossV);
-			tLogger.add_scalar("loss/aLoss", updateNum, aLossV);
-			tLogger.add_scalar("loss/vLoss", updateNum, vLossV);
-			tLogger.add_scalar("loss/entropy", updateNum, entropyV);
-			tLogger.add_scalar("loss/v", updateNum, valueV);
+			tLogger.add_scalar("loss/loss", step, lossV);
+			tLogger.add_scalar("loss/aLoss", step, aLossV);
+			tLogger.add_scalar("loss/vLoss", step, vLossV);
+			tLogger.add_scalar("loss/entropy", step, entropyV);
+			tLogger.add_scalar("loss/v", step, valueV);
 		}
 
 		if ((updateNum % dqnOption.testGapEp) == 0) {

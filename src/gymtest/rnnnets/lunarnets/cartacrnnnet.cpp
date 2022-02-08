@@ -120,3 +120,9 @@ std::vector<torch::Tensor> CartACRNNFcNet::forward(torch::Tensor input, std::vec
 	return {a, v};
 }
 
+std::vector<torch::Tensor> CartACRNNFcNet::createHStates(const int envNum, torch::Device deviceType) {
+	torch::Tensor hState = torch::zeros({1, envNum, hiddenNum}).to(deviceType); //layernum, envNum, hiddenNum
+
+	return {hState};
+}
+

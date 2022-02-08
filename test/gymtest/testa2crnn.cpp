@@ -58,8 +58,10 @@ void testCart(const int epochNum) {
     LOG4CXX_INFO(logger, "Model ready");
 
 
-    at::IntArrayRef inputShape{batchSize, 4};
-    at::IntArrayRef testInputShape {testClientNum, 4};
+//    at::IntArrayRef inputShape{batchSize, 4};
+//    at::IntArrayRef testInputShape {testClientNum, 4};
+    at::IntArrayRef inputShape{4};
+    at::IntArrayRef testInputShape {4};
     DqnOption option(inputShape, testInputShape, deviceType);
     //env
     option.envNum = batchSize;
@@ -94,6 +96,7 @@ void testCart(const int epochNum) {
     option.hiddenNums = {hiddenNum};
     option.hidenLayerNums = {1};
     option.maxStep = 300;
+    option.gruCellNum = 1;
 
 
     SoftmaxPolicy policy(outputNum);
@@ -127,8 +130,10 @@ void testCartLog(const int epochNum) {
     LOG4CXX_INFO(logger, "Model ready");
 
 
-    at::IntArrayRef inputShape{batchSize, 4};
-    at::IntArrayRef testInputShape {testClientNum, 4};
+//    at::IntArrayRef inputShape{batchSize, 4};
+//    at::IntArrayRef testInputShape {testClientNum, 4};
+    at::IntArrayRef inputShape{4};
+    at::IntArrayRef testInputShape {4};
     DqnOption option(inputShape, testInputShape, deviceType);
     //env
     option.envNum = batchSize;
@@ -162,6 +167,7 @@ void testCartLog(const int epochNum) {
     option.hiddenNums = {hiddenNum};
     option.hidenLayerNums = {1};
     option.maxStep = 300;
+    option.gruCellNum = 1;
 
 
     SoftmaxPolicy policy(outputNum);
@@ -195,8 +201,10 @@ void testCartNoPack(const int epochNum) {
     LOG4CXX_INFO(logger, "Model ready");
 
 
-    at::IntArrayRef inputShape{batchSize, 4};
-    at::IntArrayRef testInputShape {testClientNum, 4};
+//    at::IntArrayRef inputShape{batchSize, 4};
+//    at::IntArrayRef testInputShape {testClientNum, 4};
+    at::IntArrayRef inputShape{4};
+    at::IntArrayRef testInputShape {4};
     DqnOption option(inputShape, testInputShape, deviceType);
     //env
     option.envNum = batchSize;
@@ -230,6 +238,7 @@ void testCartNoPack(const int epochNum) {
     //rnn
     option.hiddenNums = {hiddenNum};
     option.hidenLayerNums = {1};
+    option.gruCellNum = 1;
 
 
     SoftmaxPolicy policy(outputNum);
@@ -263,8 +272,10 @@ void testCartNoPackPO(const int epochNum) {
     LOG4CXX_INFO(logger, "Model ready");
 
 
-    at::IntArrayRef inputShape{batchSize, 4};
-    at::IntArrayRef testInputShape {testClientNum, 4};
+//    at::IntArrayRef inputShape{batchSize, 4};
+//    at::IntArrayRef testInputShape {testClientNum, 4};
+    at::IntArrayRef inputShape{4};
+    at::IntArrayRef testInputShape {4};
     DqnOption option(inputShape, testInputShape, deviceType);
     //env
     option.envNum = batchSize;
@@ -298,6 +309,7 @@ void testCartNoPackPO(const int epochNum) {
     //rnn
     option.hiddenNums = {hiddenNum};
     option.hidenLayerNums = {1};
+    option.gruCellNum = 1;
 
 
     SoftmaxPolicy policy(outputNum);
@@ -333,8 +345,10 @@ void testCartNoPackNet(const int epochNum) {
     LOG4CXX_INFO(logger, "Model ready");
 
 
-    at::IntArrayRef inputShape{batchSize, 4};
-    at::IntArrayRef testInputShape {testClientNum, 4};
+//    at::IntArrayRef inputShape{batchSize, 4};
+//    at::IntArrayRef testInputShape {testClientNum, 4};
+    at::IntArrayRef inputShape{4};
+    at::IntArrayRef testInputShape {4};
     DqnOption option(inputShape, testInputShape, deviceType);
     //env
     option.envNum = batchSize;
@@ -369,6 +383,7 @@ void testCartNoPackNet(const int epochNum) {
     option.hiddenNums = {hiddenNum};
     option.hidenLayerNums = {1};
     option.maxStep = 300;
+    option.gruCellNum = 1;
 
 
     SoftmaxPolicy policy(outputNum);
@@ -399,8 +414,8 @@ int main(int argc, char** argv) {
 
 //	testCart(atoi(argv[1]));
 //	testCartLog(atoi(argv[1]));
-//	testCartNoPack(atoi(argv[1]));
-	testCartNoPackNet(atoi(argv[1]));
+	testCartNoPack(atoi(argv[1]));
+//	testCartNoPackNet(atoi(argv[1]));
 //	testCartNoPackPO(atoi(argv[1]));
 
 	return 0;

@@ -55,7 +55,7 @@ private:
 	TensorBoardLogger tLogger;
 
 	const int batchSize;
-	int64_t dataSize = 1;
+//	int64_t dataSize = 1;
 
 	uint32_t stepNum = 0;
 	uint32_t updateNum = 0;
@@ -75,7 +75,7 @@ private:
 	float maxSumReward;
 
 	AlgRNNTester<NetType, EnvType, PolicyType> tester;
-	std::vector<torch::Tensor> testHiddenStates;
+//	std::vector<torch::Tensor> testHiddenStates;
 	std::queue<Episode> eps;
 
 
@@ -119,17 +119,17 @@ A2CNRNNNoPack<NetType, EnvType, PolicyType, OptimizerType>::A2CNRNNNoPack(NetTyp
 	maxSumReward(iOption.sumSaveThreshold),
 	tester(behaviorModel, tEnv, iPolicy, iOption, tLogger)
 {
-	dataSize = 1;
-	for (int i = 1; i < dqnOption.inputShape.size(); i ++) {
-		dataSize *= dqnOption.inputShape[i];
-	}
-	LOG4CXX_INFO(logger, "dataSize = " << dataSize);
-
-	for (int i = 0; i < dqnOption.hiddenNums.size(); i ++) {
-		testHiddenStates.push_back(torch::zeros({
-			dqnOption.hidenLayerNums[i], dqnOption.testBatch, dqnOption.hiddenNums[i]
-		}).to(dqnOption.deviceType));
-	}
+//	dataSize = 1;
+//	for (int i = 1; i < dqnOption.inputShape.size(); i ++) {
+//		dataSize *= dqnOption.inputShape[i];
+//	}
+//	LOG4CXX_INFO(logger, "dataSize = " << dataSize);
+//
+//	for (int i = 0; i < dqnOption.hiddenNums.size(); i ++) {
+//		testHiddenStates.push_back(torch::zeros({
+//			dqnOption.hidenLayerNums[i], dqnOption.testBatch, dqnOption.hiddenNums[i]
+//		}).to(dqnOption.deviceType));
+//	}
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
@@ -155,21 +155,38 @@ void A2CNRNNNoPack<NetType, EnvType, PolicyType, OptimizerType>::train(const int
 	stepInputShape.push_back(1);
 	batchInputShape.push_back(maxStep);
 	batchInputShape.push_back(dqnOption.envNum);
-	int dataNum = 1;
-	for (int i = 1; i < inputShape.size(); i ++) {
-		dataNum *= inputShape[i];
+//	int dataNum = 1;
+	for (int i = 0; i < inputShape.size(); i ++) {
+//		dataNum *= inputShape[i];
+		stepInputShape.push_back(inputShape[i]);
+		batchInputShape.push_back(inputShape[i]);
 	}
-	stepInputShape.push_back(dataNum);
-	batchInputShape.push_back(dataNum);
+//	stepInputShape.push_back(dataNum);
+//	batchInputShape.push_back(dataNum);
 	LOG4CXX_INFO(logger, "Get step input shape: " << stepInputShape);
 
 
-	std::vector<torch::Tensor> stepStates;
-	for (int i = 0; i < dqnOption.hiddenNums.size(); i ++) {
-		stepStates.push_back(torch::zeros({
-			dqnOption.hidenLayerNums[i], dqnOption.envNum, dqnOption.hiddenNums[i]
-		}).to(dqnOption.deviceType));
-	}
+	std::vector<torch::Tensor> stepStates = bModel.createHStates(dqnOption.envNum, dqnOption.deviceType);
+
+//	stepInputShape.push_back(dqnOption.envNum);
+//	stepInputShape.push_back(1);
+//	batchInputShape.push_back(maxStep);
+//	batchInputShape.push_back(dqnOption.envNum);
+//	int dataNum = 1;
+//	for (int i = 1; i < inputShape.size(); i ++) {
+//		dataNum *= inputShape[i];
+//	}
+//	stepInputShape.push_back(dataNum);
+//	batchInputShape.push_back(dataNum);
+//	LOG4CXX_INFO(logger, "Get step input shape: " << stepInputShape);
+//
+//
+//	std::vector<torch::Tensor> stepStates;
+//	for (int i = 0; i < dqnOption.hiddenNums.size(); i ++) {
+//		stepStates.push_back(torch::zeros({
+//			dqnOption.hidenLayerNums[i], dqnOption.envNum, dqnOption.hiddenNums[i]
+//		}).to(dqnOption.deviceType));
+//	}
 
 	std::vector<float> statRewards(dqnOption.envNum, 0);
 	std::vector<float> statLens(dqnOption.envNum, 0);
@@ -189,7 +206,7 @@ void A2CNRNNNoPack<NetType, EnvType, PolicyType, OptimizerType>::train(const int
 			stepNum ++;
 
 			torch::Tensor stateTensor = torch::from_blob(stateVec.data(), stepInputShape).div(dqnOption.inputScale).to(deviceType);
-			stateTensor = stateTensor.narrow(2, 0, 3);
+//			stateTensor = stateTensor.narrow(2, 0, 3);
 //			LOG4CXX_INFO(logger, "stateTensor in step: " << stateTensor.max() << stateTensor.mean());
 			std::vector<torch::Tensor> rc = bModel.forward(stateTensor, stepStates);
 			auto actionProbs =  torch::softmax(rc[0], -1);
@@ -301,7 +318,9 @@ void A2CNRNNNoPack<NetType, EnvType, PolicyType, OptimizerType>::train(const int
 		for (int i = 0; i < dqnOption.batchSize; i ++) {
 			int seqLen = epsData[i].actions.size();
 
-			torch::Tensor stateTensor = torch::from_blob(epsData[i].states.data(), {(long)seqLen, 4}); //TODO: 4 tmp
+			std::vector<long> seqShape{seqLen};
+			seqShape.insert(seqShape.end(), dqnOption.inputShape.begin(), dqnOption.inputShape.end());
+			torch::Tensor stateTensor = torch::from_blob(epsData[i].states.data(), seqShape); //TODO: 4 tmp
 			stateTensor = stateTensor.narrow(0, 0, minLen);
 
 			inputStateVec.push_back(stateTensor);
@@ -313,7 +332,7 @@ void A2CNRNNNoPack<NetType, EnvType, PolicyType, OptimizerType>::train(const int
 //			}
 		}
 		torch::Tensor stateTensor = torch::stack(inputStateVec, 0).to(dqnOption.deviceType); //{batch, minLen, bulkSize}
-		stateTensor = stateTensor.narrow(2, 0, 3);
+//		stateTensor = stateTensor.narrow(2, 0, 3);
 
 		//shuffle
 //		auto shuffleIndex = torch::randperm(stateTensor.sizes()[0]).to(dqnOption.deviceType);
@@ -362,11 +381,11 @@ void A2CNRNNNoPack<NetType, EnvType, PolicyType, OptimizerType>::train(const int
 			auto entropyV = entropyLoss.item<float>();
 			auto valueV = valueTensor.mean().item<float>();
 
-			tLogger.add_scalar("loss/loss", updateNum, lossV);
-			tLogger.add_scalar("loss/aLoss", updateNum, aLossV);
-			tLogger.add_scalar("loss/vLoss", updateNum, vLossV);
-			tLogger.add_scalar("loss/entropy", updateNum, entropyV);
-			tLogger.add_scalar("loss/v", updateNum, valueV);
+			tLogger.add_scalar("loss/loss", stepNum, lossV);
+			tLogger.add_scalar("loss/aLoss", stepNum, aLossV);
+			tLogger.add_scalar("loss/vLoss", stepNum, vLossV);
+			tLogger.add_scalar("loss/entropy", stepNum, entropyV);
+			tLogger.add_scalar("loss/v", stepNum, valueV);
 		}
 
 		if ((updateNum % dqnOption.testGapEp) == 0) {

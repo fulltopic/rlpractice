@@ -129,7 +129,6 @@ std::vector<torch::Tensor> CartACGRUTruncFcNet::forward(torch::Tensor input, std
 	return {a, v};
 }
 
-//CPU tensor
 std::vector<torch::Tensor> CartACGRUTruncFcNet::createHStates(const int envNum, torch::Device deviceType) {
 	torch::Tensor hState = torch::zeros({1, envNum, hiddenNum}).to(deviceType); //layernum, envNum, hiddenNum
 

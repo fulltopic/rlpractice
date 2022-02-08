@@ -35,6 +35,8 @@ public:
 //	std::vector<torch::Tensor> forward(torch::Tensor input, torch::Tensor shuffleIndex, std::vector<long> seqInput);
 	std::vector<torch::Tensor> forward(torch::Tensor input, std::vector<torch::Tensor>& states);
 	std::vector<torch::Tensor> forwardTrain(torch::Tensor input);
+
+	std::vector<torch::Tensor> createHStates(const int envNum, torch::Device deviceType);
 };
 
 

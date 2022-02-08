@@ -99,19 +99,21 @@ void AlgRNNTester<NetType, EnvType, PolicyType>::init() {
 
 	valueItems = torch::linspace(dqnOption.vMin, dqnOption.vMax, dqnOption.atomNum).to(dqnOption.deviceType);
 
-	for (int i = 0; i < dqnOption.hiddenNums.size(); i ++) {
-		stepStates.push_back(torch::zeros({
-			dqnOption.hidenLayerNums[i], dqnOption.testBatch, dqnOption.hiddenNums[i]
-		}).to(dqnOption.deviceType));
-	}
+//	for (int i = 0; i < dqnOption.hiddenNums.size(); i ++) {
+//		stepStates.push_back(torch::zeros({
+//			dqnOption.hidenLayerNums[i], dqnOption.testBatch, dqnOption.hiddenNums[i]
+//		}).to(dqnOption.deviceType));
+//	}
+	stepStates = net.createHStates(dqnOption.testBatch, dqnOption.deviceType);
 
 	stepInputShape.push_back(dqnOption.testBatch);
 	stepInputShape.push_back(1);
-	int dataNum = 1;
-	for (int i = 1; i < dqnOption.testInputShape.size(); i ++) {
-		dataNum *= dqnOption.testInputShape[i];
+//	int dataNum = 1;
+	for (int i = 0; i < dqnOption.testInputShape.size(); i ++) {
+//		dataNum *= dqnOption.testInputShape[i];
+		stepInputShape.push_back(dqnOption.testInputShape[i]);
 	}
-	stepInputShape.push_back(dataNum);
+//	stepInputShape.push_back(dataNum);
 }
 
 template<typename NetType, typename EnvType, typename PolicyType>
