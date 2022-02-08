@@ -63,10 +63,6 @@ add_executable(testreset testreset.cpp ${COMMON_TRAIN_OBJS})
 target_compile_features(testreset PUBLIC cxx_range_for)
 target_link_libraries(testreset ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
 
-add_executable(testa2crnn testa2crnn.cpp ${COMMON_TRAIN_OBJS}  ${RNNNET_OBJS})
-target_compile_features(testa2crnn PUBLIC cxx_range_for)
-target_link_libraries(testa2crnn ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
-
 ############################################################ PPO
 add_executable(testppo testppo.cpp ${COMMON_TRAIN_OBJS})
 target_compile_features(testppo PUBLIC cxx_range_for)
@@ -101,3 +97,12 @@ target_link_libraries(testappo ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboar
 add_executable(testpackpad testpackpad.cpp ${COMMON_TRAIN_OBJS})
 target_compile_features(testpackpad PUBLIC cxx_range_for)
 target_link_libraries(testpackpad ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
+
+############################################################# RNN A2C
+add_executable(testa2crnn testa2crnn.cpp ${COMMON_TRAIN_OBJS}  ${RNNNET_OBJS})
+target_compile_features(testa2crnn PUBLIC cxx_range_for)
+target_link_libraries(testa2crnn ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
+
+add_executable(testa2cgrutrunc testa2cgrutrunc.cpp ${COMMON_TRAIN_OBJS}  ${RNNNET_OBJS})
+target_compile_features(testa2cgrutrunc PUBLIC cxx_range_for)
+target_link_libraries(testa2cgrutrunc ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
