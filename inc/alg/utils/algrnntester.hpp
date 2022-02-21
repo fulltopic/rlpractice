@@ -35,6 +35,7 @@ private:
 
 	int testEpCount = 0;
 	int testLifeCount = 0;
+	int step = 0;
 
 	//Gym server failed to reset by reset()
 	std::vector<float> statRewards; //(dqnOption.testBatch, 0);
@@ -128,6 +129,8 @@ void AlgRNNTester<NetType, EnvType, PolicyType>::testAC() {
 	torch::NoGradGuard guard;
 	std::vector<float> states = testEnv.reset();
 	while (epCount < dqnOption.testEp) {
+		step ++;
+
 		torch::Tensor stateTensor = torch::from_blob(states.data(), stepInputShape).div(dqnOption.inputScale).to(dqnOption.deviceType);
 //		stateTensor = stateTensor.narrow(2, 0, 3); //TODO: tmp solution
 
@@ -135,9 +138,17 @@ void AlgRNNTester<NetType, EnvType, PolicyType>::testAC() {
 		auto actionOutput = rc[0];
 		auto valueOutput = rc[1];
 		auto actionProbs = torch::softmax(actionOutput, -1);
+//		std::cout << "actionProbs " << actionProbs << std::endl;
 		//TODO: To replace by getActions
 
+		if ((step % 100) == 0) {
+			auto actionLogProbs = torch::log_softmax(actionOutput, -1);
+			torch::Tensor entropy = (-1) * (actionProbs * actionLogProbs).sum(-1);
+			tLogger.add_scalar("test/entropy", step, entropy.mean().item<float>());
+		}
+
 		std::vector<int64_t> actions = policy.getTestActions(actionProbs);
+//		std::cout << "actions " << actions << std::endl;
 
 		auto stepResult = testEnv.step(actions, false);
 		auto nextStateVec = std::get<0>(stepResult);
@@ -150,9 +161,9 @@ void AlgRNNTester<NetType, EnvType, PolicyType>::testAC() {
 			if (doneVec[i]) {
 				LOG4CXX_DEBUG(logger, "testEnv " << i << "done");
 
-				for (int j = 0; j < dqnOption.hidenLayerNums.size(); j ++) {
-					stepStates[j].fill_(0); //batch first
-				}
+//				for (int j = 0; j < dqnOption.hidenLayerNums.size(); j ++) {
+//					stepStates[j].fill_(0); //batch first
+//				}
 
 				testLifeCount ++;
 
@@ -177,10 +188,14 @@ void AlgRNNTester<NetType, EnvType, PolicyType>::testAC() {
 						liveCounts[i] = 0;
 						sumRewards[i] = 0;
 						sumLens[i] = 0;
+
+						net.resetHState(i, stepStates);
 					}
 				} else {
 					epCount ++;
 					testEpCount ++;
+
+					net.resetHState(i, stepStates);
 				}
 
 				statLens[i] = 0;

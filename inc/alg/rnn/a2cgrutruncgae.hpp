@@ -1,13 +1,12 @@
 /*
- * a2cgrutrunc.hpp
+ * a2cgrutrunc2.hpp
  *
- *  Created on: Feb 7, 2022
+ *  Created on: Feb 11, 2022
  *      Author: zf
  */
 
-#ifndef INC_ALG_RNN_A2CGRUTRUNC_HPP_
-#define INC_ALG_RNN_A2CGRUTRUNC_HPP_
-
+#ifndef INC_ALG_RNN_A2CGRUTRUNCGAE_HPP_
+#define INC_ALG_RNN_A2CGRUTRUNCGAE_HPP_
 
 
 #include <torch/torch.h>
@@ -19,6 +18,8 @@
 #include <vector>
 #include <queue>
 #include <algorithm>
+#include <random>
+#include <chrono>
 
 #include "gymtest/env/envutils.h"
 #include "gymtest/utils/stats.h"
@@ -29,17 +30,20 @@
 
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-class A2CGRUTrunc {
+class A2CGRUTruncGAE {
 public:
 	struct Episode {
 		std::vector<float> states;
 		std::vector<int64_t> actions;
 		std::vector<float> rewards;
-		std::vector<float> returns;
+		std::vector<float> values;
 
-		std::vector<torch::Tensor> startState; //TODO: copy
+		std::vector<torch::Tensor> startState;
 		float lastValue = 0;
 		int seqLen = 0;
+
+		std::vector<float> returns;
+		std::vector<float> gaes;
 	};
 
 private:
@@ -58,7 +62,7 @@ private:
 	uint32_t updateNum = 0;
 	uint32_t testEpCount = 0;
 
-	log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("a2cgrutrunc");
+	log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("a2cgrutruncgae");
 	torch::TensorOptions longOpt = torch::TensorOptions().dtype(torch::kLong);
 	torch::TensorOptions devLongOpt;
 	torch::TensorOptions devOpt;
@@ -69,7 +73,7 @@ private:
 	float maxSumReward;
 
 	AlgRNNTester<NetType, EnvType, PolicyType> tester;
-//	std::vector<torch::Tensor> testHiddenStates;
+	std::vector<torch::Tensor> testHiddenStates;
 	std::queue<Episode> eps;
 	std::vector<int64_t> stepFcInputShape;
 	std::vector<int64_t> stepConvInputShape;
@@ -83,9 +87,9 @@ private:
 	void trainBatch(const int epNum); //batched
 
 public:
-	A2CGRUTrunc(NetType& behaviorModel, EnvType& iEnv, EnvType& tEnv, PolicyType& iPolicy, OptimizerType& iOptimizer, DqnOption option);
-	~A2CGRUTrunc() = default;
-	A2CGRUTrunc(const A2CGRUTrunc& ) = delete;
+	A2CGRUTruncGAE(NetType& behaviorModel, EnvType& iEnv, EnvType& tEnv, PolicyType& iPolicy, OptimizerType& iOptimizer, DqnOption option);
+	~A2CGRUTruncGAE() = default;
+	A2CGRUTruncGAE(const A2CGRUTruncGAE& ) = delete;
 
 	void train(const int epNum); //batched
 	void test();
@@ -93,7 +97,7 @@ public:
 };
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-A2CGRUTrunc<NetType, EnvType, PolicyType, OptimizerType>::A2CGRUTrunc(NetType& behaviorModel, EnvType& iEnv, EnvType& tEnv, PolicyType& iPolicy, OptimizerType& iOptimizer,
+A2CGRUTruncGAE<NetType, EnvType, PolicyType, OptimizerType>::A2CGRUTruncGAE(NetType& behaviorModel, EnvType& iEnv, EnvType& tEnv, PolicyType& iPolicy, OptimizerType& iOptimizer,
 		const DqnOption iOption):
 	bModel(behaviorModel),
 	env(iEnv),
@@ -112,11 +116,11 @@ A2CGRUTrunc<NetType, EnvType, PolicyType, OptimizerType>::A2CGRUTrunc(NetType& b
 	devLongOpt = torch::TensorOptions().dtype(torch::kLong).device(dqnOption.deviceType);
 	devOpt = torch::TensorOptions().device(dqnOption.deviceType);
 
-//	for (int i = 0; i < dqnOption.hiddenNums.size(); i ++) {
-//		testHiddenStates.push_back(torch::zeros({
-//			dqnOption.hidenLayerNums[i], dqnOption.testBatch, dqnOption.hiddenNums[i]
-//		}).to(dqnOption.deviceType));
-//	}
+	for (int i = 0; i < dqnOption.hiddenNums.size(); i ++) {
+		testHiddenStates.push_back(torch::zeros({
+			dqnOption.hidenLayerNums[i], dqnOption.testBatch, dqnOption.hiddenNums[i]
+		}).to(dqnOption.deviceType));
+	}
 
 	stepFcInputShape.push_back(dqnOption.envNum);
 	stepFcInputShape.push_back(1); //TODO: tmp. To manage them by cellNum, layerNum etc
@@ -142,13 +146,13 @@ A2CGRUTrunc<NetType, EnvType, PolicyType, OptimizerType>::A2CGRUTrunc(NetType& b
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-void A2CGRUTrunc<NetType, EnvType, PolicyType, OptimizerType>::test() {
+void A2CGRUTruncGAE<NetType, EnvType, PolicyType, OptimizerType>::test() {
 	tester.testAC();
 }
 
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-void A2CGRUTrunc<NetType, EnvType, PolicyType, OptimizerType>::train(const int epNum) {
+void A2CGRUTruncGAE<NetType, EnvType, PolicyType, OptimizerType>::train(const int epNum) {
 	LOG4CXX_INFO(logger, "----------------------> training");
 	load();
 
@@ -190,8 +194,8 @@ void A2CGRUTrunc<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 //				LOG4CXX_INFO(logger, "stateTensor in step: " << stateTensor.max() << stateTensor.mean());
 				std::vector<torch::Tensor> rc = bModel.forward(stateTensor, stepStates);
 				torch::Tensor rcValue = rc[1];
-				auto actionProbs = torch::softmax(rc[0], -1);
-//				LOG4CXX_INFO(logger, "actionProbs " << actionProbs);
+				auto actionProbs =  torch::softmax(rc[0], -1);
+//				LOG4CXX_INFO(logger, "actionProbs " << actionProbs.sizes());
 				std::vector<int64_t> actions = policy.getActions(actionProbs);
 //				LOG4CXX_INFO(logger, "actions: " << actions);
 //				LOG4CXX_INFO(logger, "state: " << stateTensor);
@@ -215,6 +219,7 @@ void A2CGRUTrunc<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 				for (int k = 0; k < dqnOption.envNum; k ++) {
 					epBatch[k].actions.push_back(actions[k]);
 					epBatch[k].rewards.push_back(rewardVec[k]);
+					epBatch[k].values.push_back(rcValue[k].item<float>());
 					epBatch[k].states.insert(epBatch[k].states.end(), stateVec.begin() + bulkSize * k, stateVec.begin() + bulkSize * (k + 1));
 
 					epBatch[k].seqLen ++;
@@ -278,42 +283,61 @@ void A2CGRUTrunc<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 			epsData.push_back(eps.front());
 			eps.pop();
 		}
+
+//		auto seed = std::chrono::system_clock::now().time_since_epoch().count();
+//		std::shuffle(epsData.begin(), epsData.end(), std::default_random_engine(seed));
+
 		std::sort(epsData.begin(), epsData.end(),
 				[](const Episode& a, const Episode& b) -> bool {
 			return a.seqLen > b.seqLen;
 		});
 
+		std::vector<long> seqLens;
 		std::vector<torch::Tensor> returnVec;
 		std::vector<torch::Tensor> actionVec;
+		std::vector<torch::Tensor> gaeVec;
+		std::vector<torch::Tensor> inputStateVec;
 		std::vector<std::vector<torch::Tensor>> hiddenStateVec(dqnOption.gruCellNum);
 		for (int i = 0; i < epsData.size(); i ++) {
 			long seqLen = epsData[i].seqLen;
+			seqLens.push_back(seqLen);
 //			LOG4CXX_INFO(logger, "sorted seqLen = " << seqLen);
 
+			float qValue = epsData[i].lastValue;
+			float gaeValue = 0;
 			epsData[i].returns = std::vector<float>(seqLen, 0);
-			float returnValue = epsData[i].lastValue;
-//			epsData[i].returns[seqLen - 1] = epsData[i].rewards[seqLen - 1];
-			for (int j = epsData[i].returns.size() - 1; j >= 0; j --) {
-				returnValue = returnValue * dqnOption.gamma + epsData[i].rewards[j];
-				epsData[i].returns[j] = returnValue;
+			epsData[i].gaes = std::vector<float>(seqLen, 0);
+			for (int k = seqLen - 1; k >= 0; k --) {
+				float delta = epsData[i].rewards[k] + dqnOption.gamma * qValue - epsData[i].values[k];
+				gaeValue = dqnOption.gamma * dqnOption.ppoLambda * gaeValue + delta;
+
+				qValue = epsData[i].values[k];
+
+				epsData[i].returns[k] = gaeValue + qValue;
+				epsData[i].gaes[k] = gaeValue;
 			}
+			torch::Tensor gaeTensor = torch::from_blob(epsData[i].gaes.data(), {seqLen});
 			torch::Tensor returnTensor = torch::from_blob(epsData[i].returns.data(), {seqLen, 1});
+			gaeVec.push_back(gaeTensor);
 			returnVec.push_back(returnTensor);
-//			LOG4CXX_INFO(logger, "return Tensor " << returnTensor);
 
 			torch::Tensor actionTensor = torch::from_blob(epsData[i].actions.data(), {seqLen, 1}, longOpt);
 			actionVec.push_back(actionTensor);
-//			LOG4CXX_INFO(logger, "actions: " << epsData[i].actions);
-//			LOG4CXX_INFO(logger, "actionTensor: " << actionTensor);
+
+			std::vector<long> seqShape{seqLen};
+			seqShape.insert(seqShape.end(), dqnOption.inputShape.begin(), dqnOption.inputShape.end());
+			torch::Tensor stateTensor = torch::from_blob(epsData[i].states.data(), seqShape);
+			inputStateVec.push_back(stateTensor);
 
 			for (int gruIndex = 0; gruIndex < dqnOption.hidenLayerNums.size(); gruIndex ++) {
 				hiddenStateVec[gruIndex].push_back(epsData[i].startState[gruIndex]);
 			}
 //			LOG4CXX_INFO(logger, "actionTensor " << actionTensor);
 		}
-
 		torch::Tensor returnTensor = torch::cat(returnVec, 0).to(dqnOption.deviceType);
+		torch::Tensor gaeTensor = torch::cat(gaeVec, 0).to(dqnOption.deviceType);
 		torch::Tensor actionTensor = torch::cat(actionVec, 0).to(dqnOption.deviceType);
+		torch::Tensor stateTensor = torch::cat(inputStateVec, 0).div(dqnOption.inputScale).to(dqnOption.deviceType); //{sum(seqLen), bulkSize}
 		std::vector<torch::Tensor> hiddenState;
 		for (int gruIndex = 0; gruIndex < dqnOption.hidenLayerNums.size(); gruIndex ++) {
 			hiddenState.push_back(torch::stack(hiddenStateVec[gruIndex], 1));
@@ -321,24 +345,10 @@ void A2CGRUTrunc<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 //		LOG4CXX_INFO(logger, "sum returnTensor " << returnTensor);
 //		LOG4CXX_INFO(logger, "sum actionTensor " << actionTensor);
 
-		std::vector<long> seqLens;
-		std::vector<torch::Tensor> inputStateVec;
-		for (int i = 0; i < dqnOption.batchSize; i ++) {
-			int seqLen = epsData[i].seqLen;
-			seqLens.push_back(seqLen);
-//			LOG4CXX_INFO(logger, "state seqLen " << seqLen);
-
-			std::vector<long> seqShape{seqLen};
-			seqShape.insert(seqShape.end(), dqnOption.inputShape.begin(), dqnOption.inputShape.end());
-			torch::Tensor stateTensor = torch::from_blob(epsData[i].states.data(), seqShape);
-			inputStateVec.push_back(stateTensor);
-//			LOG4CXX_INFO(logger, "stateTensor " << stateTensor);
-		}
-		torch::Tensor stateTensor = torch::cat(inputStateVec, 0).div(dqnOption.inputScale).to(dqnOption.deviceType); //{sum(seqLen), bulkSize}
-//		stateTensor = stateTensor.narrow(1, 0, 3);
-//		LOG4CXX_INFO(logger, "sum stateTensor " << stateTensor);
-
+		//TODO: hiddenState
 		auto output = bModel.forward(stateTensor, seqLens, hiddenState);
+//		auto output = bModel.forward(stateTensor, shuffleIndex, seqLens);
+//		const int maxSeqLen = seqLens[0];
 
 
 ////////////////////////////////////////////////////// OUTPUT ////////////////////////////////////////////////////////
@@ -347,20 +357,20 @@ void A2CGRUTrunc<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 //		LOG4CXX_INFO(logger, "actionOutput " << actionOutputTensor);
 //		LOG4CXX_INFO(logger, "valueOutput " << valueTensor);
 
-		auto advTensor = (returnTensor - valueTensor);
+
+//		auto advTensor = (returnTensor - valueTensor);
 		torch::Tensor valueLoss = torch::nn::functional::mse_loss(valueTensor, returnTensor);
 //		LOG4CXX_INFO(logger, "advTensor " << advTensor);
 
-		auto actionProbTensor = torch::softmax(actionOutputTensor, -1); //{sum(seqLen), actionNum}
-		auto actionLogTensor = torch::log_softmax(actionOutputTensor, -1); //{sum(seqLen), actionNum}
+		auto actionProbTensor = torch::softmax(actionOutputTensor, -1); //{maxstep, batch, actionNum}
+		auto actionLogTensor = torch::log_softmax(actionOutputTensor, -1); //{maxStep, batch, actionNum}
 		torch::Tensor entropyLoss = - (actionProbTensor * actionLogTensor).sum(-1).mean();
 //		LOG4CXX_INFO(logger, "actionProb " << actionProbTensor);
 //		LOG4CXX_INFO(logger, "actionLogProb " << actionLogTensor);
 
 
 		auto actPiTensor = actionLogTensor.gather(-1, actionTensor).squeeze(-1);
-		torch::Tensor actLoss = - (actPiTensor * advTensor.detach()).mean();
-//		LOG4CXX_INFO(logger, "advTensor " << advTensor);
+		torch::Tensor actLoss = - (actPiTensor * gaeTensor).mean();
 //		LOG4CXX_INFO(logger, "actPiTensor " << actPiTensor);
 
 
@@ -397,7 +407,7 @@ void A2CGRUTrunc<NetType, EnvType, PolicyType, OptimizerType>::train(const int e
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-void A2CGRUTrunc<NetType, EnvType, PolicyType, OptimizerType>::save() {
+void A2CGRUTruncGAE<NetType, EnvType, PolicyType, OptimizerType>::save() {
 	if (!dqnOption.saveModel) {
 		return;
 	}
@@ -406,7 +416,7 @@ void A2CGRUTrunc<NetType, EnvType, PolicyType, OptimizerType>::save() {
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-void A2CGRUTrunc<NetType, EnvType, PolicyType, OptimizerType>::saveByReward(float reward) {
+void A2CGRUTruncGAE<NetType, EnvType, PolicyType, OptimizerType>::saveByReward(float reward) {
 	if (!dqnOption.saveModel) {
 		return;
 	}
@@ -416,7 +426,7 @@ void A2CGRUTrunc<NetType, EnvType, PolicyType, OptimizerType>::saveByReward(floa
 }
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
-void A2CGRUTrunc<NetType, EnvType, PolicyType, OptimizerType>::load() {
+void A2CGRUTruncGAE<NetType, EnvType, PolicyType, OptimizerType>::load() {
 	if (!dqnOption.loadModel) {
 		return;
 	}
@@ -425,6 +435,4 @@ void A2CGRUTrunc<NetType, EnvType, PolicyType, OptimizerType>::load() {
 }
 
 
-
-
-#endif /* INC_ALG_RNN_A2CGRUTRUNC_HPP_ */
+#endif /* INC_ALG_RNN_A2CGRUTRUNCGAE_HPP_ */

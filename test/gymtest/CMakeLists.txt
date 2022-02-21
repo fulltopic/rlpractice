@@ -7,7 +7,7 @@
 set(GYM_SIMPLE_OBJS $<TARGET_OBJECTS:gymutils> $<TARGET_OBJECTS:gymtrain>)
 set(GYM_OBJS $<TARGET_OBJECTS:gymenv> ${GYM_SIMPLE_OBJS})
 set(NET_OBJS $<TARGET_OBJECTS:airnets> $<TARGET_OBJECTS:lunarnets>)
-set(RNNNET_OBJS $<TARGET_OBJECTS:lunarrnnnets>)
+set(RNNNET_OBJS $<TARGET_OBJECTS:lunarrnnnets> $<TARGET_OBJECTS:airrnnnets>)
 set(COMMON_TRAIN_OBJS  ${GYM_OBJS} ${NET_OBJS} $<TARGET_OBJECTS:alg>)
 
 
