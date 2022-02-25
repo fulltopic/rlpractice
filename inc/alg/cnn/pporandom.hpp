@@ -214,9 +214,13 @@ void PPORandom<NetType, EnvType, PolicyType, OptimizerType>::train(const int upd
 				}
 				torch::Tensor actionPiTensor = torch::softmax(actionOutput, -1);
 				torch::Tensor actionPi = actionPiTensor.gather(-1, oldActionPiece);
-				auto ratio = actionPi / oldPiPiece;
+				torch::Tensor ratio = actionPi / oldPiPiece;
 //				LOG4CXX_INFO(logger, "ratio is " << ratio);
 				float kl = ratio.mean().to(torch::kCPU).item<float>();
+				LOG4CXX_INFO(logger, "actionPiTensor " << actionPiTensor.sizes());
+				LOG4CXX_INFO(logger, "actionPi " << actionPi.sizes());
+				LOG4CXX_INFO(logger, "oldPiPiece " << oldPiPiece.sizes());
+				LOG4CXX_INFO(logger, "ratio " << ratio.sizes());
 
 
 				auto sur0 = ratio * advTensor.detach();

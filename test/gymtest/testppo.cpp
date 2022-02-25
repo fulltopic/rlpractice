@@ -111,11 +111,11 @@ void testRandomCart(const int updateNum) {
 	const int testClientNum = 4;
 	const int outputNum = 2;
 	const int inputNum = 4;
-	std::string serverAddr = "tcp://127.0.0.1:10201";
+	std::string serverAddr = "tcp://127.0.0.1:10205";
 	LOG4CXX_DEBUG(logger, "To connect to " << serverAddr);
 	LunarEnv env(serverAddr, envName, clientNum);
 	env.init();
-	std::string testServerAddr = "tcp://127.0.0.1:10202";
+	std::string testServerAddr = "tcp://127.0.0.1:10206";
 	LOG4CXX_DEBUG(logger, "To connect to " << testServerAddr);
 	LunarEnv testEnv(testServerAddr, envName, testClientNum);
 	testEnv.init();

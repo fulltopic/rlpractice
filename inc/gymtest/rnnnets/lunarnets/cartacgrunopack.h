@@ -37,6 +37,8 @@ public:
 	std::vector<torch::Tensor> forwardTrain(torch::Tensor input);
 
 	std::vector<torch::Tensor> createHStates(const int envNum, torch::Device deviceType);
+	void resetHState(const int envIndex, std::vector<torch::Tensor>& states);
+
 };
 
 

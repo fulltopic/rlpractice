@@ -126,3 +126,7 @@ std::vector<torch::Tensor> CartACRNNFcNet::createHStates(const int envNum, torch
 	return {hState};
 }
 
+
+void CartACRNNFcNet::resetHState(const int index, std::vector<torch::Tensor>& states) {
+	states[0][0][index].fill_(0);
+}

@@ -96,26 +96,81 @@ std::vector<torch::Tensor> CartACGRUTruncFcSlimNet::forward(torch::Tensor input,
 //}
 
 std::vector<torch::Tensor> CartACGRUTruncFcSlimNet::forward(torch::Tensor input, int batchSize, int seqLen, std::vector<torch::Tensor>& states, torch::Device deviceType) {
-	std::cout << "Input " << input.sizes() << std::endl;
+//	std::cout << "Input " << input.sizes() << std::endl;
 	//input: {batch * seqLen , others}
-	torch::Tensor output = input.view({batchSize, seqLen, -1});
-	std::cout << "gru input " << output.sizes() << std::endl;
+	std::vector<long> indice(batchSize * seqLen, 0);
+	for (int i = 0; i < batchSize * seqLen; i ++) {
+		indice[i] = i;
+	}
+	std::random_shuffle(indice.begin(), indice.end());
+	std::vector<long> rIndice(indice.size(), 0);
+	for (int i = 0; i < indice.size(); i ++) {
+		rIndice[indice[i]] = i;
+	}
+	torch::Tensor indiceTensor = torch::from_blob(indice.data(), {batchSize * seqLen}, longOpt).to(deviceType);
+	torch::Tensor rIndiceTensor = torch::from_blob(rIndice.data(), {batchSize * seqLen}, longOpt).to(deviceType);
 
-	auto rnnOutput = gru0->forward(output, states[0]);
+	torch::Tensor output = input.view({batchSize, seqLen, -1});
+//	std::cout << "gru input " << output.sizes() << std::endl;
+
+	auto rnnOutput = gru0->forward(output, states[0]); //{batch, seq, others}
 
 	states[0] = std::get<1>(rnnOutput);
 
-	auto splitVec = std::get<0>(rnnOutput).split(batchSize, 0);
-	torch::Tensor fcInput = torch::cat(splitVec, 1).view({batchSize * seqLen, -1});
+//	std::cout << "rnn output " << std::get<0>(rnnOutput).sizes() << std::endl;
+//	auto splitVec = std::get<0>(rnnOutput).split(batchSize, 0);
+//	torch::Tensor fcInput = torch::cat(splitVec, 1).view({batchSize * seqLen, -1});
+	torch::Tensor fcInput = std::get<0>(rnnOutput).contiguous().view({batchSize * seqLen, -1});
+	fcInput = fcInput.index_select(0, indiceTensor);
 	//{step, batch, hidden} -> {step * batch, hidden}
-	std::cout << "fcInput batch ------------------------------->" << fcInput.sizes() << std::endl;
+//	std::cout << "fcInput batch ------------------------------->" << fcInput.sizes() << std::endl;
 
 	auto v = vOutput->forward(fcInput);
 	auto a = aOutput->forward(fcInput);
 
+	v = v.index_select(0, rIndiceTensor);
+	a = a.index_select(0, rIndiceTensor);
+
 	return {a, v};
 }
 
+std::vector<torch::Tensor> CartACGRUTruncFcSlimNet::forwardNext(torch::Tensor input, int batchSize, int seqLen, std::vector<torch::Tensor> states, torch::Device deviceType) {
+//	std::cout << "Input " << input.sizes() << std::endl;
+	//input: {batch * seqLen , others}
+	std::vector<long> indice(batchSize * seqLen, 0);
+	for (int i = 0; i < batchSize * seqLen; i ++) {
+		indice[i] = i;
+	}
+	std::random_shuffle(indice.begin(), indice.end());
+	std::vector<long> rIndice(indice.size(), 0);
+	for (int i = 0; i < indice.size(); i ++) {
+		rIndice[indice[i]] = i;
+	}
+	torch::Tensor indiceTensor = torch::from_blob(indice.data(), {batchSize * seqLen}, longOpt).to(deviceType);
+	torch::Tensor rIndiceTensor = torch::from_blob(rIndice.data(), {batchSize * seqLen}, longOpt).to(deviceType);
+
+	torch::Tensor output = input.view({batchSize, seqLen, -1});
+//	std::cout << "gru input " << output.sizes() << std::endl;
+
+	auto rnnOutput = gru0->forward(output, states[0]); //{batch, seq, others}
+
+
+//	std::cout << "rnn output " << std::get<0>(rnnOutput).sizes() << std::endl;
+//	auto splitVec = std::get<0>(rnnOutput).split(batchSize, 0);
+//	torch::Tensor fcInput = torch::cat(splitVec, 1).view({batchSize * seqLen, -1});
+	torch::Tensor fcInput = std::get<0>(rnnOutput).contiguous().view({batchSize * seqLen, -1});
+//	fcInput = fcInput.index_select(0, indiceTensor);
+	//{step, batch, hidden} -> {step * batch, hidden}
+//	std::cout << "fcInput batch ------------------------------->" << fcInput.sizes() << std::endl;
+
+	auto v = vOutput->forward(fcInput);
+	auto a = aOutput->forward(fcInput);
+
+//	v = v.index_select(0, rIndiceTensor);
+//	a = a.index_select(0, rIndiceTensor);
+
+	return {a, v};
+}
 
 
 std::vector<torch::Tensor> CartACGRUTruncFcSlimNet::forward(torch::Tensor input, std::vector<torch::Tensor>& states) {
@@ -133,6 +188,23 @@ std::vector<torch::Tensor> CartACGRUTruncFcSlimNet::forward(torch::Tensor input,
 
 	return {a, v};
 }
+
+std::pair<std::vector<torch::Tensor>, std::vector<torch::Tensor>> CartACGRUTruncFcSlimNet::forwardNext(torch::Tensor input, std::vector<torch::Tensor> states) {
+	//input: {batch, others}
+	auto rnnOutput = gru0->forward(input, states[0]);
+	auto nextState = std::get<1>(rnnOutput);
+
+	//{step, batch, hidden} -> {step * batch, hidden}
+//	std::cout << "fcInput step " << std::get<0>(rnnOutput).sizes() << std::endl;
+	torch::Tensor fcInput = std::get<0>(rnnOutput).squeeze(1); //{batch, others}
+
+
+	auto v = vOutput->forward(fcInput);
+	auto a = aOutput->forward(fcInput);
+
+	return {{a, v}, {nextState}};
+}
+
 
 std::vector<torch::Tensor> CartACGRUTruncFcSlimNet::createHStates(const int envNum, torch::Device deviceType) {
 	torch::Tensor hState = torch::zeros({1, envNum, hiddenNum}).to(deviceType); //layernum, envNum, hiddenNum

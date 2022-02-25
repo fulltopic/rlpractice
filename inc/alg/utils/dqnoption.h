@@ -141,7 +141,7 @@ public:
 	int epochPerUpdate = 1;
 
 	//rnn
-	int gruCellNum;
+	int gruCellNum = 0;
 	std::vector<int> hidenLayerNums;
 	std::vector<int> hiddenNums;
 	int maxStep = 1;
