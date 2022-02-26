@@ -25,11 +25,12 @@ private:
 	torch::nn::Linear vOut;
 
 	const int actionNum;
+	const int hiddenNum;
 
 	const torch::TensorOptions longOpt = torch::TensorOptions().dtype(torch::kLong);
 
 public:
-	AirACGRUPPOSlimNet(int aNum);
+	AirACGRUPPOSlimNet(int aNum, int iHiddenNum);
 	~AirACGRUPPOSlimNet() = default;
 	AirACGRUPPOSlimNet(const AirACGRUPPOSlimNet&) = delete;
 

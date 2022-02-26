@@ -456,6 +456,7 @@ void PPOGRUTruncSlimGae<NetType, EnvType, PolicyType, OptimizerType>::train(cons
 					tLogger.add_scalar("loss/v", step, valueV);
 					tLogger.add_scalar("loss/kl", step, kl);
 					tLogger.add_scalar("loss/adv", step, advTensor.mean().item<float>());
+					tLogger.add_scalar("loss/update", step, (float)updateNum);
 				}
 			}
 
