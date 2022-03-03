@@ -60,6 +60,7 @@ public:
 	AlgRNNTester operator=(const AlgRNNTester&) = delete;
 
 	void testAC();
+	void testACNext();
 //	void testPlain();
 //	void testCategory();
 
@@ -212,6 +213,110 @@ void AlgRNNTester<NetType, EnvType, PolicyType>::testAC() {
 
 
 		states = nextStateVec;
+	}
+
+	return;
+}
+
+template<typename NetType, typename EnvType, typename PolicyType>
+void AlgRNNTester<NetType, EnvType, PolicyType>::testACNext() {
+	LOG4CXX_INFO(logger, "To test " << dqnOption.testEp << " episodes");
+	if (!dqnOption.toTest) {
+		return;
+	}
+
+	int epCount = 0;
+
+	torch::NoGradGuard guard;
+	std::vector<float> states = testEnv.reset();
+	std::vector<torch::Tensor> nextStepStates;
+	while (epCount < dqnOption.testEp) {
+		step ++;
+
+		torch::Tensor stateTensor = torch::from_blob(states.data(), stepInputShape).div(dqnOption.inputScale).to(dqnOption.deviceType);
+//		stateTensor = stateTensor.narrow(2, 0, 3); //TODO: tmp solution
+
+		auto rc = net.forwardNext(stateTensor, stepStates);
+		auto actionOutput = std::get<0>(rc)[0];
+		auto valueOutput = std::get<0>(rc)[1];
+		nextStepStates = std::get<1>(rc);
+		auto actionProbs = torch::softmax(actionOutput, -1);
+//		std::cout << "actionProbs " << actionProbs << std::endl;
+		//TODO: To replace by getActions
+
+		if ((step % 100) == 0) {
+			auto actionLogProbs = torch::log_softmax(actionOutput, -1);
+			torch::Tensor entropy = (-1) * (actionProbs * actionLogProbs).sum(-1);
+			tLogger.add_scalar("test/entropy", step, entropy.mean().item<float>());
+		}
+
+		std::vector<int64_t> actions = policy.getTestActions(actionProbs);
+//		std::cout << "actions " << actions << std::endl;
+
+		auto stepResult = testEnv.step(actions, false);
+		auto nextStateVec = std::get<0>(stepResult);
+		auto rewardVec = std::get<1>(stepResult);
+		auto doneVec = std::get<2>(stepResult);
+
+		Stats::UpdateReward(statRewards, rewardVec);
+		Stats::UpdateLen(statLens);
+		for (int i = 0; i < dqnOption.testBatch; i ++) {
+			if (doneVec[i]) {
+				LOG4CXX_DEBUG(logger, "testEnv " << i << "done");
+
+//				for (int j = 0; j < dqnOption.hidenLayerNums.size(); j ++) {
+//					stepStates[j].fill_(0); //batch first
+//				}
+
+				testLifeCount ++;
+
+				LOG4CXX_INFO(logger, "test -----------> "<< i << " " << statLens[i] << ", " << statRewards[i]);
+				tLogger.add_scalar("test/len", testLifeCount, statLens[i]);
+				tLogger.add_scalar("test/reward", testLifeCount, statRewards[i]);
+
+
+				if (dqnOption.multiLifes) {
+					liveCounts[i] ++;
+					sumRewards[i] += statRewards[i];
+					sumLens[i] += statLens[i];
+
+					if (liveCounts[i] >= dqnOption.donePerEp) {
+						epCount ++;
+						testEpCount ++;
+
+						LOG4CXX_INFO(logger, "TEST Wrapper episode " << i << " ----------------------------> " << sumRewards[i]);
+
+						tLogger.add_scalar("test/sumlen", testEpCount, sumLens[i]);
+						tLogger.add_scalar("test/sumreward", testEpCount, sumRewards[i]);
+						liveCounts[i] = 0;
+						sumRewards[i] = 0;
+						sumLens[i] = 0;
+
+//						net.resetHState(i, stepStates);
+					}
+				} else {
+					epCount ++;
+					testEpCount ++;
+
+//					net.resetHState(i, stepStates);
+				}
+
+				net.resetHState(i, nextStepStates);
+				statLens[i] = 0;
+				statRewards[i] = 0;
+			}
+
+			if (dqnOption.randomHang) {
+			//Good action should have reward
+				if (rewardVec[i] < dqnOption.hangRewardTh) { //for float compare
+					noReward[i] ++;
+				}
+			}
+		}
+
+
+		states = nextStateVec;
+		stepStates = nextStepStates;
 	}
 
 	return;

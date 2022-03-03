@@ -149,7 +149,7 @@ PPOGRUTruncSlimGae<NetType, EnvType, PolicyType, OptimizerType>::PPOGRUTruncSlim
 
 template<typename NetType, typename EnvType, typename PolicyType, typename OptimizerType>
 void PPOGRUTruncSlimGae<NetType, EnvType, PolicyType, OptimizerType>::test() {
-	tester.testAC();
+	tester.testACNext();
 }
 
 
@@ -217,7 +217,7 @@ void PPOGRUTruncSlimGae<NetType, EnvType, PolicyType, OptimizerType>::train(cons
 //				const int bulkSize = stateVec.size() / dqnOption.envNum;
 				for (int k = 0; k < dqnOption.envNum; k ++) {
 					epBatch[k].actions.push_back(actions[k]);
-					epBatch[k].rewards.push_back(rewardVec[k]);
+					epBatch[k].rewards.push_back(std::min(std::max(dqnOption.rewardMin, rewardVec[k]), dqnOption.rewardMax) / dqnOption.rewardScale);
 					epBatch[k].values.push_back(rcValue[k].item<float>());
 					epBatch[k].pis.push_back(actionProbs[k][actions[k]].item<float>());
 					epBatch[k].states.insert(epBatch[k].states.end(), stateVec.begin() + bulkSize * k, stateVec.begin() + bulkSize * (k + 1));
@@ -256,13 +256,14 @@ void PPOGRUTruncSlimGae<NetType, EnvType, PolicyType, OptimizerType>::train(cons
 								sumRewards[i] = 0;
 								sumLens[i] = 0;
 
-								bModel.resetHState(i, nextStepStates);
+//								bModel.resetHState(i, nextStepStates);
 							}
 						} else {
-							bModel.resetHState(i, nextStepStates);
+//							bModel.resetHState(i, nextStepStates);
 						}
 
 						//RNN
+						bModel.resetHState(i, nextStepStates);
 						epBatch[i].lastValue = 0;
 						eps.push(epBatch[i]);
 
