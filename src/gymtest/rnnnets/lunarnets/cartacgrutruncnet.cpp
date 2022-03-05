@@ -73,7 +73,8 @@ std::vector<torch::Tensor> CartACGRUTruncFcNet::forward(torch::Tensor input, std
 }
 
 
-std::vector<torch::Tensor> CartACGRUTruncFcNet::forward(torch::Tensor input, std::vector<long> seqInput, std::vector<torch::Tensor>& states) {
+std::vector<torch::Tensor> CartACGRUTruncFcNet::forward(
+		torch::Tensor input, std::vector<long> seqInput, std::vector<torch::Tensor>& states) {
 //	std::cout << "Input " << input.sizes() << std::endl;
 	//input: {sum(seqLen), others}
 	std::vector<torch::Tensor> splitVec;
@@ -112,7 +113,6 @@ std::vector<torch::Tensor> CartACGRUTruncFcNet::forward(torch::Tensor input, std
 }
 
 
-
 std::vector<torch::Tensor> CartACGRUTruncFcNet::forward(torch::Tensor input, std::vector<torch::Tensor>& states) {
 	//input: {batch, others}
 	auto rnnOutput = gru0->forward(input, states[0]);
@@ -122,6 +122,60 @@ std::vector<torch::Tensor> CartACGRUTruncFcNet::forward(torch::Tensor input, std
 //	std::cout << "fcInput step " << std::get<0>(rnnOutput).sizes() << std::endl;
 	torch::Tensor fcInput = std::get<0>(rnnOutput).squeeze(1); //{batch, others}
 
+
+	auto v = vOutput->forward(fcInput);
+	auto a = aOutput->forward(fcInput);
+
+	return {a, v};
+}
+
+std::pair<std::vector<torch::Tensor>, std::vector<torch::Tensor>> CartACGRUTruncFcNet::forwardNext(
+		torch::Tensor input, std::vector<torch::Tensor> states) {
+	//input: {batch, others}
+	auto rnnOutput = gru0->forward(input, states[0]);
+	auto nextStepState = std::get<1>(rnnOutput);
+
+	//{step, batch, hidden} -> {step * batch, hidden}
+//	std::cout << "fcInput step " << std::get<0>(rnnOutput).sizes() << std::endl;
+	torch::Tensor fcInput = std::get<0>(rnnOutput).squeeze(1); //{batch, others}
+
+
+	auto v = vOutput->forward(fcInput);
+	auto a = aOutput->forward(fcInput);
+
+	return {{a, v}, {nextStepState}};
+}
+
+std::vector<torch::Tensor> CartACGRUTruncFcNet::forwardNext(
+		torch::Tensor input, int batchSize, std::vector<long> seqInput, std::vector<torch::Tensor> states, torch::Device deviceType) {
+	std::vector<torch::Tensor> splitVec;
+	int index = 0;
+	for (auto seqLen: seqInput) {
+//		std::cout << "index = " << index << " seq = " << seqLen << std::endl;
+		torch::Tensor t = input.narrow(0, index, seqLen);
+		splitVec.push_back(t);
+		index += seqLen;
+	}
+	auto padSeqTensor = torch::nn::utils::rnn::pad_sequence(splitVec, true);
+//	std::cout << "padSeqTensor " << padSeqTensor.sizes() << std::endl;
+	torch::Tensor seqTensor = torch::from_blob(seqInput.data(), {(long)seqInput.size()}, longOpt);
+	auto packInput = torch::nn::utils::rnn::pack_padded_sequence(padSeqTensor, seqTensor,  true);
+
+
+	auto rnnOutput = gru0->forward_with_packed_input(packInput, states[0]);
+//	states[0] = std::get<1>(rnnOutput);
+
+	auto unpack = torch::nn::utils::rnn::pad_packed_sequence(std::get<0>(rnnOutput), true);
+	auto unpackData = std::get<0>(unpack);
+	std::vector<torch::Tensor> unpackVec;
+	for (int i = 0; i < seqInput.size(); i ++) {
+		torch::Tensor t = unpackData[i].narrow(0, 0, seqInput[i]);
+//		std::cout << "unpack data " << t.sizes() << std::endl;
+		unpackVec.push_back(t);
+	}
+	//{step, batch, hidden} -> {step * batch, hidden}
+	auto fcInput = torch::cat(unpackVec, 0);
+//	std::cout << "fcInput batch ------------------------------->" << fcInput.sizes() << std::endl;
 
 	auto v = vOutput->forward(fcInput);
 	auto a = aOutput->forward(fcInput);

@@ -24,11 +24,12 @@ private:
 	torch::nn::Linear vOut;
 
 	const int actionNum;
+	const int hiddenNum;
 
 	const torch::TensorOptions longOpt = torch::TensorOptions().dtype(torch::kLong);
 
 public:
-	AirACHOGRUNet(int aNum);
+	AirACHOGRUNet(int aNum, int hidden = 512);
 	~AirACHOGRUNet() = default;
 	AirACHOGRUNet(const AirACHOGRUNet&) = delete;
 
@@ -37,6 +38,8 @@ public:
 //	std::vector<torch::Tensor> forward(torch::Tensor input, std::vector<long> seqInput);
 	std::vector<torch::Tensor> forward(torch::Tensor input, std::vector<long> seqInput, std::vector<torch::Tensor> states);
 	std::vector<torch::Tensor> forward(torch::Tensor input, std::vector<torch::Tensor>& states);
+	std::pair<std::vector<torch::Tensor>, std::vector<torch::Tensor>> forwardNext(torch::Tensor input, std::vector<torch::Tensor> states);
+	std::vector<torch::Tensor> forwardNext(torch::Tensor input, int batchSize, std::vector<long> seqInput, std::vector<torch::Tensor> states, torch::Device deviceType);
 
 	std::vector<torch::Tensor> createHStates(const int envNum, torch::Device deviceType);
 	void resetHState(const int envIndex, std::vector<torch::Tensor>& states);
