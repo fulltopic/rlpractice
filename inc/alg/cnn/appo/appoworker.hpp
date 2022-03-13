@@ -258,7 +258,7 @@ void APPOWorker<NetType, EnvType, PolicyType>::train(const int updateNum) {
 		LOG4CXX_DEBUG(logger, "oldPiTensor: " << oldPiTensor.sizes());
 
 		auto stateData = EnvUtils::FlattenVector(statesVec);
-		auto stateTensor = torch::from_blob(stateData.data(), trajInputShape).div(dqnOption.inputScale);
+		auto stateTensor = torch::from_blob(stateData.data(), trajInputShape).div(dqnOption.inputScale); //TODO: stateData.data() may be destructed
 		gaeReturns = gaeReturns.view({dqnOption.trajStepNum * dqnOption.envNum, 1}).detach();
 		oldPiTensor = oldPiTensor.view({dqnOption.trajStepNum * dqnOption.envNum, 1}).detach();
 		oldActionTensor = oldActionTensor.view({dqnOption.trajStepNum * dqnOption.envNum, 1});

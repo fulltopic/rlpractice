@@ -111,3 +111,9 @@ target_link_libraries(testa2cgrutrunc ${shared_libs} ${pytorch_cpp_rl_lib} ${ten
 add_executable(testppornn testppornn.cpp ${COMMON_TRAIN_OBJS}  ${RNNNET_OBJS})
 target_compile_features(testppornn PUBLIC cxx_range_for)
 target_link_libraries(testppornn ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
+
+############################################################ RNN APPO
+add_executable(testappornn testappornn.cpp ${COMMON_TRAIN_OBJS}  ${RNNNET_OBJS})
+target_compile_features(testappornn PUBLIC cxx_range_for)
+target_link_libraries(testappornn ${shared_libs} ${pytorch_cpp_rl_lib} ${tensorboard_libs} ${proto_libs})
+

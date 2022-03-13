@@ -145,7 +145,7 @@ void AlgRNNTester<NetType, EnvType, PolicyType>::testAC() {
 		if ((step % 100) == 0) {
 			auto actionLogProbs = torch::log_softmax(actionOutput, -1);
 			torch::Tensor entropy = (-1) * (actionProbs * actionLogProbs).sum(-1);
-			tLogger.add_scalar("test/entropy", step, entropy.mean().item<float>());
+			tLogger.add_scalar("test/t_entropy", step, entropy.mean().item<float>());
 		}
 
 		std::vector<int64_t> actions = policy.getTestActions(actionProbs);

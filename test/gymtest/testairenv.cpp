@@ -24,7 +24,9 @@ void testGetInfo(std::string serverAddr) {
 //	AirEnv env(serverAddr, "Pong-v0", clientNum);
 	//Qbert = 6
 	//Pacman = 9
-	AirEnv env(serverAddr, "BeamRiderNoFrameskip-v4", clientNum);
+	//Alien = 18, 3 lives
+	//Assault = 7, 4 lives
+	AirEnv env(serverAddr, "AssaultNoFrameskip-v4", clientNum);
 
 	auto info = env.init();
 	auto actionSpace = std::get<1>(info);
